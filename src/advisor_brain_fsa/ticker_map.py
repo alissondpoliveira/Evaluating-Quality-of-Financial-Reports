@@ -140,6 +140,104 @@ TICKER_TO_KEYWORD: dict[str, str] = {
     "EMBR3": "EMBRAER",
 }
 
+# ---------------------------------------------------------------------------
+# Ticker → Sector classification (simplified B3 GICS-like taxonomy)
+# Used for peer-group normalization in rank_market.py
+# ---------------------------------------------------------------------------
+
+SECTOR_LABELS = {
+    "Energia":               "Petróleo, Gás e Combustíveis",
+    "Bancos":                "Instituições Financeiras e Seguros",
+    "Mineração":             "Mineração e Siderurgia",
+    "Utilidades":            "Energia Elétrica, Saneamento e Gás",
+    "Telecom":               "Telecomunicações",
+    "Consumo":               "Consumo, Varejo e Alimentos",
+    "Imobiliário":           "Construção Civil e Real Estate",
+    "Logística":             "Logística, Transporte e Aviação",
+    "Saúde":                 "Saúde e Serviços Médicos",
+    "Tecnologia":            "Tecnologia da Informação",
+    "Papel & Celulose":      "Papel, Celulose e Embalagens",
+    "Agronegócio":           "Agronegócio e Insumos",
+    "Outros":                "Demais Setores",
+}
+
+TICKER_SECTOR: dict[str, str] = {
+    # Energia
+    "PETR3": "Energia",  "PETR4": "Energia",
+    "CSAN3": "Energia",  "UGPA3": "Energia",
+    "VBBR3": "Energia",  "RRRP3": "Energia",
+    "PRIO3": "Energia",
+
+    # Bancos
+    "ITUB3": "Bancos",   "ITUB4": "Bancos",
+    "BBDC3": "Bancos",   "BBDC4": "Bancos",
+    "BBAS3": "Bancos",   "SANB11": "Bancos",
+    "ITSA3": "Bancos",   "ITSA4": "Bancos",
+    "BRSR3": "Bancos",   "BRSR6": "Bancos",
+    "BPAC11": "Bancos",
+
+    # Mineração
+    "VALE3": "Mineração",  "CSNA3": "Mineração",
+    "GGBR3": "Mineração",  "GGBR4": "Mineração",
+    "GOAU3": "Mineração",  "GOAU4": "Mineração",
+    "USIM3": "Mineração",  "USIM5": "Mineração",
+
+    # Utilidades
+    "ELET3": "Utilidades",  "ELET6": "Utilidades",
+    "CPFE3": "Utilidades",  "CMIG3": "Utilidades",
+    "CMIG4": "Utilidades",  "EGIE3": "Utilidades",
+    "TAEE11": "Utilidades", "TRPL3": "Utilidades",
+    "TRPL4": "Utilidades",  "SBSP3": "Utilidades",
+    "CSMG3": "Utilidades",  "SAPR3": "Utilidades",
+    "SAPR11": "Utilidades", "ENEV3": "Utilidades",
+    "AURE3": "Utilidades",
+
+    # Telecom
+    "VIVT3": "Telecom",  "TIMS3": "Telecom",
+    "OIBR3": "Telecom",
+
+    # Consumo
+    "ABEV3": "Consumo",  "LREN3": "Consumo",
+    "MGLU3": "Consumo",  "VIIA3": "Consumo",
+    "PCAR3": "Consumo",  "ASAI3": "Consumo",
+    "CRFB3": "Consumo",  "SMTO3": "Consumo",
+    "JBSS3": "Consumo",  "MRFG3": "Consumo",
+    "BEEF3": "Consumo",  "BRFS3": "Consumo",
+    "MDIA3": "Consumo",  "HYPE3": "Consumo",
+
+    # Imobiliário
+    "MRVE3": "Imobiliário",  "CYRE3": "Imobiliário",
+    "EZTC3": "Imobiliário",  "EVEN3": "Imobiliário",
+    "DIRR3": "Imobiliário",
+
+    # Logística
+    "RAIL3": "Logística",  "CCRO3": "Logística",
+    "ECOR3": "Logística",  "GOLL4": "Logística",
+    "AZUL4": "Logística",  "EMBR3": "Logística",
+
+    # Saúde
+    "RDOR3": "Saúde",   "HAPV3": "Saúde",
+    "GNDI3": "Saúde",   "FLRY3": "Saúde",
+
+    # Tecnologia
+    "TOTVS3": "Tecnologia",  "LWSA3": "Tecnologia",
+    "INTB3": "Tecnologia",   "POSI3": "Tecnologia",
+
+    # Papel & Celulose
+    "SUZB3": "Papel & Celulose",
+    "KLBN3": "Papel & Celulose",  "KLBN11": "Papel & Celulose",
+
+    # Agronegócio
+    "SLCE3": "Agronegócio",  "AGRO3": "Agronegócio",
+    "ARZZ3": "Consumo",      "CVCB3": "Outros",
+}
+
+
+def get_sector(ticker: str) -> str:
+    """Return the sector label for a given ticker (default: 'Outros')."""
+    return TICKER_SECTOR.get(ticker.upper(), "Outros")
+
+
 _CNPJ_RE = re.compile(r"^\d{2}[\.\-]?\d{3}[\.\-]?\d{3}[/\-]?\d{4}[\-]?\d{2}$")
 
 
