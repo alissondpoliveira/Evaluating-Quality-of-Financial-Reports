@@ -8,6 +8,7 @@ from .data_fetcher import CVMDataFetcher, fetch_data
 from .accruals import CashFlowQuality, AlertLevel
 from .rank_market import rank_market, detect_red_flags, DEFAULT_WATCHLIST
 from .report_generator import generate_report, build_markdown
+from .mda_analyst import MDAnalyst, compute_grade
 
 __all__ = [
     "BeneishMScore",
@@ -20,5 +21,7 @@ __all__ = [
     "DEFAULT_WATCHLIST",
     "generate_report",
     "build_markdown",
+    "MDAnalyst",
+    "compute_grade",
 ]
-__version__ = "0.3.0"
+__version__ = "0.4.0"
