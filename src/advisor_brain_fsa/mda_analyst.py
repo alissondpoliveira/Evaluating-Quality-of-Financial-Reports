@@ -368,3 +368,113 @@ class MDAnalyst:
             f"Modelo IA: {model} · "
             'Framework: CFA Level 2 — "Evaluating Quality of Financial Reports"*\n'
         )
+
+
+# ---------------------------------------------------------------------------
+# Gemini Analyst (Google Generative AI backend)
+# ---------------------------------------------------------------------------
+
+def _get_genai():
+    try:
+        import google.generativeai as genai
+        return genai
+    except ImportError as exc:
+        raise ImportError(
+            "The 'google-generativeai' package is required for Gemini analysis.\n"
+            "Install it with:  pip install google-generativeai"
+        ) from exc
+
+
+class GeminiAnalyst:
+    """
+    Calls Google Gemini API to generate a structured Risk Thesis report.
+    Drop-in replacement for MDAnalyst — same public interface.
+
+    Parameters
+    ----------
+    api_key : str | None
+        Google API key. Falls back to GOOGLE_API_KEY environment variable.
+    model : str
+        Gemini model ID. Defaults to gemini-2.0-flash.
+    """
+
+    DEFAULT_MODEL = "gemini-2.0-flash"
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: str = DEFAULT_MODEL,
+    ) -> None:
+        self.api_key = api_key or os.environ.get("GOOGLE_API_KEY", "")
+        self.model   = model
+        self._builder = PromptBuilder()
+
+    def analyze(
+        self,
+        ticker: str,
+        sector: str,
+        year: int,
+        mscore_result: MScoreResult,
+        cfq_result: CashFlowQualityResult,
+        red_flags: List[str],
+    ) -> str:
+        """Generate the full Risk Thesis report (non-streaming)."""
+        return "".join(
+            self.analyze_streaming(
+                ticker=ticker, sector=sector, year=year,
+                mscore_result=mscore_result,
+                cfq_result=cfq_result,
+                red_flags=red_flags,
+            )
+        )
+
+    def analyze_streaming(
+        self,
+        ticker: str,
+        sector: str,
+        year: int,
+        mscore_result: MScoreResult,
+        cfq_result: CashFlowQualityResult,
+        red_flags: List[str],
+    ) -> Generator[str, None, None]:
+        """
+        Generate the Risk Thesis report, yielding text chunks as they arrive.
+
+        Usage
+        -----
+        >>> for chunk in analyst.analyze_streaming(...):
+        ...     print(chunk, end="", flush=True)
+        """
+        genai = _get_genai()
+
+        if not self.api_key:
+            raise ValueError(
+                "No Google API key found. Set GOOGLE_API_KEY or pass api_key=."
+            )
+
+        grade, grade_label = compute_grade(
+            mscore_result.m_score, cfq_result.accrual_ratio
+        )
+        user_prompt = self._builder.build(
+            ticker=ticker, sector=sector, year=year,
+            mscore_result=mscore_result, cfq_result=cfq_result,
+            red_flags=red_flags, grade=grade, grade_label=grade_label,
+        )
+
+        genai.configure(api_key=self.api_key)
+        model = genai.GenerativeModel(
+            model_name=self.model,
+            system_instruction=_SYSTEM_PROMPT,
+        )
+
+        yield MDAnalyst._report_header(
+            ticker, year, grade, grade_label, mscore_result, cfq_result
+        )
+
+        response = model.generate_content(user_prompt, stream=True)
+        for chunk in response:
+            text = getattr(chunk, "text", None)
+            if text:
+                yield text
+
+        yield MDAnalyst._report_footer(ticker, year, self.model)
