@@ -1,10 +1,16 @@
 """
-Advisor-Brain-FSA — Streamlit App
-===================================
+Advisor-Brain-FSA — Streamlit App v2
+=====================================
 Interface web para análise de qualidade de relatórios financeiros.
 
 Rodar:
     streamlit run app.py
+
+API Key (Gemini):
+    Crie .streamlit/secrets.toml com:
+        GOOGLE_API_KEY = "AIzaSy..."
+    Ou exporte a variável de ambiente:
+        export GOOGLE_API_KEY="AIzaSy..."
 """
 
 from __future__ import annotations
@@ -21,18 +27,16 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-# ── módulos do projeto ────────────────────────────────────────────────────────
 from advisor_brain_fsa import BeneishMScore, CashFlowQuality
 from advisor_brain_fsa.beneish_mscore import FinancialData
-from advisor_brain_fsa.mda_analyst import MDAnalyst, compute_grade
+from advisor_brain_fsa.mda_analyst import GeminiAnalyst, compute_grade
 from advisor_brain_fsa.rank_market import (
     DEFAULT_WATCHLIST,
+    CompanyResult,
     _apply_sector_stats,
     _to_dataframe,
-    CompanyResult,
     detect_red_flags,
 )
-from advisor_brain_fsa.report_generator import generate_report
 from advisor_brain_fsa.ticker_map import TICKER_TO_KEYWORD, get_sector
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -47,84 +51,55 @@ st.set_page_config(
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CSS customizado
+# CSS
 # ─────────────────────────────────────────────────────────────────────────────
 
 st.markdown("""
 <style>
-    /* Grade badge */
     .grade-badge {
-        display: inline-block;
-        font-size: 3rem;
-        font-weight: 900;
-        width: 90px; height: 90px;
-        line-height: 90px;
-        text-align: center;
-        border-radius: 50%;
-        color: white;
+        display:inline-block; font-size:3rem; font-weight:900;
+        width:90px; height:90px; line-height:90px;
+        text-align:center; border-radius:50%; color:white;
     }
-    .grade-A { background: #22c55e; }
-    .grade-B { background: #84cc16; }
-    .grade-C { background: #eab308; color: #1a1a1a; }
-    .grade-D { background: #f97316; }
-    .grade-F { background: #ef4444; }
+    .grade-A{background:#22c55e;} .grade-B{background:#84cc16;}
+    .grade-C{background:#eab308;color:#1a1a1a;} .grade-D{background:#f97316;}
+    .grade-F{background:#ef4444;}
 
-    /* Alert pills */
-    .pill {
-        display: inline-block;
-        padding: 4px 14px;
-        border-radius: 20px;
-        font-weight: 600;
-        font-size: 0.85rem;
-    }
-    .pill-critico   { background:#fee2e2; color:#b91c1c; }
-    .pill-alto      { background:#ffedd5; color:#c2410c; }
-    .pill-atencao   { background:#fef9c3; color:#854d0e; }
-    .pill-normal    { background:#dcfce7; color:#15803d; }
+    .pill{display:inline-block;padding:4px 14px;border-radius:20px;font-weight:600;font-size:.85rem;}
+    .pill-critico{background:#fee2e2;color:#b91c1c;}
+    .pill-alto{background:#ffedd5;color:#c2410c;}
+    .pill-atencao{background:#fef9c3;color:#854d0e;}
+    .pill-normal{background:#dcfce7;color:#15803d;}
 
-    /* Red flag items */
-    .flag-item {
-        background: #fff7ed;
-        border-left: 4px solid #f97316;
-        padding: 8px 14px;
-        margin: 6px 0;
-        border-radius: 0 8px 8px 0;
-        font-size: 0.9rem;
-    }
+    .flag-item{background:#fff7ed;border-left:4px solid #f97316;
+               padding:8px 14px;margin:6px 0;border-radius:0 8px 8px 0;font-size:.9rem;}
 
-    /* Index card */
-    .idx-card {
-        background: #f8fafc;
-        border: 1px solid #e2e8f0;
-        border-radius: 10px;
-        padding: 12px 16px;
-        text-align: center;
-    }
-    .idx-val { font-size: 1.5rem; font-weight: 700; }
-    .idx-ok  { color: #16a34a; }
-    .idx-warn{ color: #ea580c; }
+    .idx-explain{background:#f8fafc;border:1px solid #e2e8f0;
+                 border-radius:10px;padding:14px 16px;margin:6px 0;}
 </style>
 """, unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# API key — lida do backend (secrets ou env), nunca do usuário
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _get_api_key() -> str:
+    try:
+        key = st.secrets.get("GOOGLE_API_KEY", "")
+        if key:
+            return key
+    except Exception:
+        pass
+    return os.environ.get("GOOGLE_API_KEY", "")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Sidebar
 # ─────────────────────────────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.image("https://img.shields.io/badge/CFA-Level%202-003087?style=for-the-badge", width=160)
     st.title("Advisor-Brain-FSA")
-    st.caption("Análise de Qualidade de Relatórios Financeiros")
+    st.caption("Qualidade de Relatórios Financeiros")
     st.divider()
-
-    st.subheader("⚙️ Configuração")
-
-    api_key = st.text_input(
-        "ANTHROPIC_API_KEY",
-        value=os.environ.get("ANTHROPIC_API_KEY", ""),
-        type="password",
-        help="Necessária apenas para o módulo de Tese de Risco (IA).",
-        placeholder="sk-ant-...",
-    )
 
     current_year = date.today().year
     year_t = st.selectbox(
@@ -134,15 +109,27 @@ with st.sidebar:
     )
 
     st.divider()
+    _key = _get_api_key()
+    if _key:
+        st.success("Gemini API configurada", icon="✅")
+    else:
+        st.warning(
+            "GOOGLE_API_KEY não encontrada.\n\n"
+            "Configure em `.streamlit/secrets.toml` ou via variável de ambiente "
+            "para habilitar a Tese de Risco com IA.",
+            icon="🔑",
+        )
+
+    st.divider()
     st.markdown("""
 **Modelo:** Beneish M-Score (1999)
 **Accruals:** CFA Level 2 — Sloan (1996)
-**IA:** claude-opus-4-6 + adaptive thinking
+**IA:** Gemini 2.0 Flash
     """)
-    st.caption("v0.4.0 — dados: Portal CVM Dados Abertos")
+    st.caption("v0.5.0 — dados: Portal CVM Dados Abertos")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Helpers de UI
+# Constantes de UI
 # ─────────────────────────────────────────────────────────────────────────────
 
 _ALERT_PILL = {
@@ -152,79 +139,110 @@ _ALERT_PILL = {
     "Normal":     ("pill-normal",   "🟢 Normal"),
 }
 
-_GRADE_COLOR = {"A": "#22c55e", "B": "#84cc16", "C": "#eab308", "D": "#f97316", "F": "#ef4444"}
-_INDEX_THRESHOLDS = {
+_THRESHOLDS = {
     "DSRI": 1.031, "GMI": 1.014, "AQI": 1.039, "SGI": 1.134,
     "DEPI": 1.017, "SGAI": 1.054, "LVGI": 1.000, "TATA": -0.012,
 }
-_INDEX_DESCRIPTIONS = {
-    "DSRI": "Recebíveis vs Receita",
-    "GMI":  "Margem Bruta",
-    "AQI":  "Qualidade de Ativos",
-    "SGI":  "Crescimento de Vendas",
-    "DEPI": "Taxa de Depreciação",
-    "SGAI": "Despesas G&A",
-    "LVGI": "Alavancagem",
-    "TATA": "Accruals / Ativos",
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Explicações detalhadas dos 8 índices
+# ─────────────────────────────────────────────────────────────────────────────
+
+_INDEX_INFO = {
+    "DSRI": {
+        "full":     "Days Sales in Receivables Index",
+        "formula":  "(Recebíveis_t / Receita_t) ÷ (Recebíveis_t₋₁ / Receita_t₋₁)",
+        "what":     "Mede a variação relativa no prazo médio de recebimento entre dois exercícios. "
+                    "Valor > 1 indica que contas a receber cresceram mais rápido que a receita.",
+        "suggests": "DSRI > 1,031 pode indicar reconhecimento prematuro de receitas (vendas 'na "
+                    "virada do período'), concessão de prazos maiores para inflar vendas, ou "
+                    "dificuldades de cobrança. É o sinal mais clássico de manipulação de receitas.",
+    },
+    "GMI": {
+        "full":     "Gross Margin Index",
+        "formula":  "[(Receita_t₋₁ − CPV_t₋₁) / Receita_t₋₁] ÷ [(Receita_t − CPV_t) / Receita_t]",
+        "what":     "Compara a margem bruta do período anterior com a do corrente. "
+                    "Valor > 1 indica deterioração da rentabilidade bruta.",
+        "suggests": "Deterioração de margem (GMI > 1,014) cria incentivo para manipulação: a empresa "
+                    "está sob pressão competitiva e pode subreportar o CPV ou superestimar receitas "
+                    "para manter aparência de rentabilidade.",
+    },
+    "AQI": {
+        "full":     "Asset Quality Index",
+        "formula":  "[1 − (Ativo Circ._t + AF_t) / AT_t] ÷ [1 − (Ativo Circ._t₋₁ + AF_t₋₁) / AT_t₋₁]",
+        "what":     "Mede a variação na proporção de ativos 'não produtivos' (excluindo circulante e "
+                    "ativo fixo tangível). Acima de 1 indica crescimento de ativos intangíveis/diferidos.",
+        "suggests": "AQI > 1,039 sugere capitalização agressiva de gastos que deveriam ser despesas — "
+                    "P&D, software interno, custos de aquisição de clientes. Prática que infla ativos "
+                    "e eleva o lucro contábil artificialmente.",
+    },
+    "SGI": {
+        "full":     "Sales Growth Index",
+        "formula":  "Receita_t ÷ Receita_t₋₁",
+        "what":     "Razão simples de crescimento de receita. Por si só não indica fraude, mas "
+                    "empresas de alto crescimento têm maior incentivo e oportunidade para manipular.",
+        "suggests": "SGI > 1,134 (acima da média histórica Beneish 1999) em conjunto com outros "
+                    "índices elevados aumenta o risco. Crescimento agressivo pode mascarar antecipação "
+                    "de receitas ou reconhecimento de contratos incompletos.",
+    },
+    "DEPI": {
+        "full":     "Depreciation Index",
+        "formula":  "[Dep_t₋₁ / (Dep_t₋₁ + AF bruto_t₋₁)] ÷ [Dep_t / (Dep_t + AF bruto_t)]",
+        "what":     "Compara a taxa de depreciação em relação ao ativo fixo bruto entre períodos. "
+                    "Valor > 1 indica que a empresa passou a depreciar mais lentamente.",
+        "suggests": "DEPI > 1,017 sugere alongamento da vida útil estimada dos ativos — reduz a "
+                    "despesa de depreciação e infla o lucro sem impacto no caixa. Típico de empresas "
+                    "que 'revisaram premissas' de vida útil em momentos de pressão sobre resultados.",
+    },
+    "SGAI": {
+        "full":     "SG&A Expenses Index",
+        "formula":  "(Desp. SGA_t / Receita_t) ÷ (Desp. SGA_t₋₁ / Receita_t₋₁)",
+        "what":     "Mede a variação das despesas gerais e administrativas em proporção à receita. "
+                    "Acima de 1 indica crescimento desproporcional de overhead.",
+        "suggests": "Coeficiente negativo no modelo (−0,172): empresas manipuladoras tendem a ter "
+                    "SGA relativamente menor, pois inflam receita sem correspondente aumento de overhead. "
+                    "SGAI > 1,054 sinaliza ineficiência operacional.",
+    },
+    "LVGI": {
+        "full":     "Leverage Index",
+        "formula":  "[(Dívida LP_t + PC_t) / AT_t] ÷ [(Dívida LP_t₋₁ + PC_t₋₁) / AT_t₋₁]",
+        "what":     "Mede a variação do nível de endividamento total em relação ao ativo. "
+                    "Acima de 1 indica aumento da alavancagem financeira.",
+        "suggests": "Alta alavancagem cria pressão para cumprir covenants financeiros (cobertura de "
+                    "juros, D/EBITDA), motivando gerenciamento de resultados. Coeficiente negativo "
+                    "(−0,327) — empresas mais alavancadas reduzem levemente o M-Score calculado.",
+    },
+    "TATA": {
+        "full":     "Total Accruals to Total Assets",
+        "formula":  "(Lucro Líquido_t − Fluxo de Caixa Operacional_t) ÷ Ativo Total_t",
+        "what":     "Mede o componente não-caixa (accruals) do lucro em relação ao ativo total. "
+                    "Equivale ao Accrual Ratio do CFA Level 2 (Sloan, 1996).",
+        "suggests": "Maior coeficiente do modelo (4,679). TATA elevado indica lucro 'accrual-driven' "
+                    "— menos persistente e com alta probabilidade de reversão futura. Lucros de alta "
+                    "qualidade são 'cash-driven': caixa gerado ≈ lucro reportado.",
+    },
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Helpers de UI
+# ─────────────────────────────────────────────────────────────────────────────
 
 def _pill_html(alert: str) -> str:
     css, label = _ALERT_PILL.get(alert, ("", alert))
     return f'<span class="pill {css}">{label}</span>'
 
-
 def _grade_html(grade: str) -> str:
     return f'<div class="grade-badge grade-{grade}">{grade}</div>'
-
 
 def _fmt_mscore(val: float) -> str:
     color = "#ef4444" if val > -1.78 else "#16a34a"
     return f'<span style="color:{color};font-size:2rem;font-weight:900">{val:+.4f}</span>'
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # Gráficos Plotly
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _radar_chart(mscore) -> go.Figure:
-    """Radar dos 8 índices vs limiares não-manipuladores."""
-    indices = ["DSRI", "GMI", "AQI", "SGI", "DEPI", "SGAI", "LVGI", "TATA"]
-    values  = [mscore.dsri, mscore.gmi, mscore.aqi, mscore.sgi,
-                mscore.depi, mscore.sgai, mscore.lvgi, mscore.tata]
-    threshs = [_INDEX_THRESHOLDS[i] for i in indices]
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatterpolar(
-        r=threshs + [threshs[0]],
-        theta=indices + [indices[0]],
-        fill="toself",
-        fillcolor="rgba(59,130,246,0.08)",
-        line=dict(color="rgba(59,130,246,0.4)", dash="dash"),
-        name="Limiar não-manipulador",
-    ))
-    colors = ["#ef4444" if v > t else "#22c55e" for v, t in zip(values, threshs)]
-    fig.add_trace(go.Scatterpolar(
-        r=values + [values[0]],
-        theta=indices + [indices[0]],
-        fill="toself",
-        fillcolor="rgba(239,68,68,0.08)",
-        line=dict(color="#ef4444", width=2),
-        marker=dict(color=colors, size=8),
-        name="Empresa",
-    ))
-    fig.update_layout(
-        polar=dict(radialaxis=dict(visible=True, showticklabels=False)),
-        showlegend=True,
-        height=360,
-        margin=dict(l=30, r=30, t=40, b=30),
-        paper_bgcolor="rgba(0,0,0,0)",
-    )
-    return fig
-
-
 def _gauge_chart(m_score: float) -> go.Figure:
-    """Gauge do M-Score com zona de risco destacada."""
     fig = go.Figure(go.Indicator(
         mode="gauge+number+delta",
         value=m_score,
@@ -232,73 +250,55 @@ def _gauge_chart(m_score: float) -> go.Figure:
         number={"valueformat": "+.4f", "font": {"size": 28}},
         gauge={
             "axis": {"range": [-5, 2], "tickwidth": 1},
-            "bar":  {"color": "#ef4444" if m_score > -1.78 else "#22c55e", "thickness": 0.25},
+            "bar": {"color": "#ef4444" if m_score > -1.78 else "#22c55e", "thickness": 0.25},
             "steps": [
                 {"range": [-5, -1.78], "color": "#dcfce7"},
                 {"range": [-1.78, 2],  "color": "#fee2e2"},
             ],
-            "threshold": {
-                "line": {"color": "#b91c1c", "width": 3},
-                "thickness": 0.8,
-                "value": -1.78,
-            },
+            "threshold": {"line": {"color": "#b91c1c", "width": 3}, "thickness": 0.8, "value": -1.78},
         },
         title={"text": "M-Score  (limiar −1.78)", "font": {"size": 14}},
     ))
-    fig.update_layout(height=240, margin=dict(l=20, r=20, t=50, b=20),
+    fig.update_layout(height=240, margin=dict(l=20, r=20, t=50, b=20), paper_bgcolor="rgba(0,0,0,0)")
+    return fig
+
+def _radar_chart(mscore) -> go.Figure:
+    idx = ["DSRI","GMI","AQI","SGI","DEPI","SGAI","LVGI","TATA"]
+    vals = [mscore.dsri, mscore.gmi, mscore.aqi, mscore.sgi,
+            mscore.depi, mscore.sgai, mscore.lvgi, mscore.tata]
+    thresh = [_THRESHOLDS[i] for i in idx]
+    colors = ["#ef4444" if v > t else "#22c55e" for v, t in zip(vals, thresh)]
+    fig = go.Figure()
+    fig.add_trace(go.Scatterpolar(
+        r=thresh+[thresh[0]], theta=idx+[idx[0]], fill="toself",
+        fillcolor="rgba(59,130,246,0.08)", line=dict(color="rgba(59,130,246,0.4)", dash="dash"),
+        name="Limiar não-manipulador",
+    ))
+    fig.add_trace(go.Scatterpolar(
+        r=vals+[vals[0]], theta=idx+[idx[0]], fill="toself",
+        fillcolor="rgba(239,68,68,0.08)", line=dict(color="#ef4444", width=2),
+        marker=dict(color=colors, size=8), name="Empresa",
+    ))
+    fig.update_layout(polar=dict(radialaxis=dict(visible=True, showticklabels=False)),
+                      showlegend=True, height=360, margin=dict(l=30,r=30,t=40,b=30),
                       paper_bgcolor="rgba(0,0,0,0)")
     return fig
 
-
-def _bar_indices(mscore) -> go.Figure:
-    """Barras horizontais dos índices vs limiar."""
-    indices = ["DSRI", "GMI", "AQI", "SGI", "DEPI", "SGAI", "LVGI", "TATA"]
-    values  = [mscore.dsri, mscore.gmi, mscore.aqi, mscore.sgi,
-                mscore.depi, mscore.sgai, mscore.lvgi, mscore.tata]
-    threshs = [_INDEX_THRESHOLDS[i] for i in indices]
-    colors  = ["#ef4444" if v > t else "#22c55e" for v, t in zip(values, threshs)]
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=values, y=indices, orientation="h",
-        marker_color=colors, text=[f"{v:.3f}" for v in values],
-        textposition="outside", name="Valor",
-    ))
-    for i, (idx, t) in enumerate(zip(indices, threshs)):
-        fig.add_shape(type="line",
-            x0=t, x1=t, y0=i - 0.4, y1=i + 0.4,
-            line=dict(color="#1e40af", width=2, dash="dot"))
-    fig.update_layout(
-        showlegend=False, height=320,
-        margin=dict(l=10, r=60, t=20, b=20),
-        paper_bgcolor="rgba(0,0,0,0)",
-        xaxis_title="Valor do Índice",
-    )
-    return fig
-
-
 def _sector_bar(df: pd.DataFrame) -> go.Figure:
-    """M-Score médio por setor."""
     ok = df[df["M-Score"].notna()]
     if ok.empty:
         return go.Figure()
-    sector_avg = ok.groupby("Setor")["M-Score"].mean().sort_values()
-    colors = ["#ef4444" if v > -1.78 else "#22c55e" for v in sector_avg.values]
+    avg = ok.groupby("Setor")["M-Score"].mean().sort_values()
+    colors = ["#ef4444" if v > -1.78 else "#22c55e" for v in avg.values]
     fig = go.Figure(go.Bar(
-        x=sector_avg.values, y=sector_avg.index, orientation="h",
-        marker_color=colors, text=[f"{v:+.3f}" for v in sector_avg.values],
-        textposition="outside",
+        x=avg.values, y=avg.index, orientation="h",
+        marker_color=colors, text=[f"{v:+.3f}" for v in avg.values], textposition="outside",
     ))
     fig.add_vline(x=-1.78, line_dash="dot", line_color="#b91c1c",
                   annotation_text="−1.78", annotation_position="top")
-    fig.update_layout(
-        height=max(250, len(sector_avg) * 40),
-        margin=dict(l=10, r=60, t=20, b=30),
-        paper_bgcolor="rgba(0,0,0,0)",
-        xaxis_title="M-Score Médio",
-    )
+    fig.update_layout(height=max(250, len(avg)*40), margin=dict(l=10,r=60,t=20,b=30),
+                      paper_bgcolor="rgba(0,0,0,0)", xaxis_title="M-Score Médio")
     return fig
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Dados sintéticos (demo sem rede)
@@ -319,60 +319,91 @@ _DEMO_DATA = {
     ),
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Decomposição detalhada dos índices (com explicações)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_index_detail(mscore) -> None:
+    """8 expanders — um por índice Beneish — com fórmula, explicação e valor."""
+    st.markdown("### 📐 Decomposição dos Índices Beneish")
+    st.caption("Clique em cada índice para ver o que ele significa, como é calculado e o que sugere.")
+
+    index_values = [
+        ("DSRI", mscore.dsri),
+        ("GMI",  mscore.gmi),
+        ("AQI",  mscore.aqi),
+        ("SGI",  mscore.sgi),
+        ("DEPI", mscore.depi),
+        ("SGAI", mscore.sgai),
+        ("LVGI", mscore.lvgi),
+        ("TATA", mscore.tata),
+    ]
+
+    for name, value in index_values:
+        info      = _INDEX_INFO[name]
+        threshold = _THRESHOLDS[name]
+        above     = value > threshold
+        icon      = "⚠️" if above else "✅"
+        status    = "Acima do limiar — sinal de alerta" if above else "Dentro do esperado"
+
+        with st.expander(
+            f"{icon} **{name}** ({info['full']}) — valor: `{value:.4f}`  |  limiar: `{threshold}`",
+            expanded=above,
+        ):
+            c1, c2 = st.columns([1, 2])
+            with c1:
+                color = "#ef4444" if above else "#16a34a"
+                st.markdown(
+                    f"<div style='font-size:2.2rem;font-weight:900;color:{color}'>{value:+.4f}</div>"
+                    f"<div style='font-size:.8rem;color:#64748b'>Limiar Beneish 1999: {threshold}</div>"
+                    f"<div style='margin-top:6px'><b>Status:</b> {icon} {status}</div>",
+                    unsafe_allow_html=True,
+                )
+            with c2:
+                st.markdown(f"**📌 O que é?**\n\n{info['what']}")
+            st.markdown(f"**🔢 Cálculo:** `{info['formula']}`")
+            st.markdown(f"**💡 O que sugere?** {info['suggests']}")
+
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Bloco de resultado: compartilhado entre abas
+# Bloco de resultado: shared entre abas
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _render_result(ticker: str, sector: str, mscore, cfq, flags, api_key: str):
+def _render_result(ticker: str, sector: str, mscore, cfq, flags) -> None:
     grade, grade_label = compute_grade(mscore.m_score, cfq.accrual_ratio)
     alert = cfq.alert_level.value
 
-    # ── Cabeçalho ─────────────────────────────────────────────────────────────
+    # Cabeçalho
     col_grade, col_score, col_alert = st.columns([1, 2, 2])
-
     with col_grade:
         st.markdown(_grade_html(grade), unsafe_allow_html=True)
         st.caption(grade_label)
-
     with col_score:
         st.markdown("**M-Score**")
         st.markdown(_fmt_mscore(mscore.m_score), unsafe_allow_html=True)
         st.caption(f"Limiar: −1.78 → **{mscore.classification}**")
-
     with col_alert:
         st.markdown("**Nível de Alerta**")
         st.markdown(_pill_html(alert), unsafe_allow_html=True)
-        st.caption(
-            f"Accrual Ratio: {cfq.accrual_ratio:+.4f} | "
-            f"Qualidade: {cfq.earnings_quality}"
-        )
+        st.caption(f"Accrual Ratio: {cfq.accrual_ratio:+.4f} | Qualidade: {cfq.earnings_quality}")
 
     st.divider()
 
-    # ── Gráficos ───────────────────────────────────────────────────────────────
-    col_gauge, col_radar = st.columns([1, 1])
+    # Gráficos
+    col_gauge, col_radar = st.columns(2)
     with col_gauge:
         st.plotly_chart(_gauge_chart(mscore.m_score), use_container_width=True)
     with col_radar:
         st.plotly_chart(_radar_chart(mscore), use_container_width=True)
 
-    # ── Índices detalhados ─────────────────────────────────────────────────────
-    with st.expander("📊 Índices Beneish detalhados", expanded=False):
-        st.plotly_chart(_bar_indices(mscore), use_container_width=True)
+    st.divider()
 
-        idx_names = ["DSRI", "GMI", "AQI", "SGI", "DEPI", "SGAI", "LVGI", "TATA"]
-        idx_vals  = [mscore.dsri, mscore.gmi, mscore.aqi, mscore.sgi,
-                     mscore.depi, mscore.sgai, mscore.lvgi, mscore.tata]
-        rows = []
-        for n, v in zip(idx_names, idx_vals):
-            t = _INDEX_THRESHOLDS[n]
-            status = "⚠️ Acima" if v > t else "✅ OK"
-            rows.append({"Índice": n, "Descrição": _INDEX_DESCRIPTIONS[n],
-                         "Valor": f"{v:.4f}", "Limiar (B99)": f"{t:.3f}", "Status": status})
-        st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+    # Índices detalhados com explicações
+    _render_index_detail(mscore)
 
-    # ── Red Flags ──────────────────────────────────────────────────────────────
+    st.divider()
+
+    # Red Flags
     st.markdown("#### 🚩 Red Flags Detectados")
     if flags:
         for f in flags:
@@ -380,19 +411,20 @@ def _render_result(ticker: str, sector: str, mscore, cfq, flags, api_key: str):
     else:
         st.success("Nenhum red flag acima do limiar detectado.")
 
-    # ── Tese de Risco (IA) ─────────────────────────────────────────────────────
+    # Tese de Risco (IA)
     st.divider()
-    st.markdown("#### 🤖 Tese de Risco — Narrativa Claude")
+    st.markdown("#### 🤖 Tese de Risco — Narrativa Gemini")
 
+    api_key = _get_api_key()
     if not api_key:
-        st.info("Configure sua **ANTHROPIC_API_KEY** na barra lateral para gerar a narrativa de IA.", icon="🔑")
+        st.info("Configure **GOOGLE_API_KEY** em `.streamlit/secrets.toml` para gerar a narrativa.", icon="🔑")
         return
 
-    if st.button("Gerar Tese de Risco com Claude", type="primary", key=f"ai_{ticker}"):
-        analyst = MDAnalyst(api_key=api_key)
-        with st.spinner("Claude está analisando (adaptive thinking)…"):
+    if st.button("Gerar Tese de Risco com Gemini", type="primary", key=f"ai_{ticker}"):
+        analyst = GeminiAnalyst(api_key=api_key)
+        with st.spinner("Gemini está analisando…"):
             placeholder = st.empty()
-            full_text = []
+            full_text: list[str] = []
             try:
                 for chunk in analyst.analyze_streaming(
                     ticker=ticker, sector=sector, year=year_t,
@@ -401,10 +433,9 @@ def _render_result(ticker: str, sector: str, mscore, cfq, flags, api_key: str):
                     full_text.append(chunk)
                     placeholder.markdown("".join(full_text))
             except Exception as exc:
-                st.error(f"Erro na API: {exc}")
+                st.error(f"Erro na API Gemini: {exc}")
                 return
 
-        # Download button
         st.download_button(
             "⬇️ Baixar relatório .md",
             data="".join(full_text),
@@ -412,96 +443,18 @@ def _render_result(ticker: str, sector: str, mscore, cfq, flags, api_key: str):
             mime="text/markdown",
         )
 
-
 # ─────────────────────────────────────────────────────────────────────────────
-# Tab 1 — Análise Individual (CVM real)
-# ─────────────────────────────────────────────────────────────────────────────
-
-def tab_analyze():
-    st.header("🔍 Análise Individual")
-    st.caption("Busca dados reais no Portal CVM Dados Abertos e calcula o M-Score.")
-
-    all_tickers = sorted(TICKER_TO_KEYWORD.keys())
-    col_input, col_btn = st.columns([3, 1])
-
-    with col_input:
-        ticker_input = st.selectbox(
-            "Ticker B3 / CNPJ / Nome da empresa",
-            options=[""] + all_tickers,
-            index=0,
-            format_func=lambda t: t if not t else f"{t} — {TICKER_TO_KEYWORD.get(t, t)}",
-        )
-        custom_input = st.text_input(
-            "…ou digite um CNPJ / nome livre",
-            placeholder="33.000.167/0001-01  ou  Petrobras",
-        )
-
-    query = custom_input.strip() if custom_input.strip() else ticker_input
-
-    with col_btn:
-        st.markdown("<br>", unsafe_allow_html=True)
-        run = st.button("Calcular", type="primary", disabled=not query)
-
-    if not run or not query:
-        st.info("Selecione ou digite um ticker acima e clique em **Calcular**.")
-        return
-
-    sector = get_sector(query)
-    st.markdown(f"**{query}** · Setor: {sector} · Ano: {year_t} vs {year_t - 1}")
-
-    from advisor_brain_fsa.data_fetcher import CVMDataFetcher
-
-    with st.spinner(f"Baixando dados da CVM para {query}…"):
-        try:
-            fetcher = CVMDataFetcher()
-            fd_t, fd_t1 = fetcher.get_financial_data(query, year_t=year_t, year_t1=year_t - 1)
-        except Exception as exc:
-            st.error(f"**Erro ao buscar dados:** {exc}")
-            st.markdown(
-                "> 💡 O Portal CVM pode estar offline ou o DFP para este ano ainda não foi publicado. "
-                "Use a aba **Demo** para testar com dados sintéticos."
-            )
-            return
-
-    mscore = BeneishMScore(current=fd_t, prior=fd_t1).calculate()
-    cfq    = CashFlowQuality(current=fd_t, prior=fd_t1).calculate(mscore)
-    flags  = detect_red_flags(mscore)
-
-    _render_result(query, sector, mscore, cfq, flags, api_key)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Tab 2 — Ranking em Lote (CVM real)
+# Tab 0 — Home: Top 10 Melhores e Piores M-Score
 # ─────────────────────────────────────────────────────────────────────────────
 
-def tab_rank():
-    st.header("📊 Ranking de Mercado")
-    st.caption("Processa múltiplos tickers e ordena por nível de risco.")
-
-    selected = st.multiselect(
-        "Selecione os tickers",
-        options=sorted(TICKER_TO_KEYWORD.keys()),
-        default=["PETR4", "VALE3", "ITUB4", "ABEV3", "ELET3"],
-        format_func=lambda t: f"{t} — {TICKER_TO_KEYWORD.get(t, t)}",
-    )
-    use_watchlist = st.checkbox("Usar watchlist padrão completo (24 tickers)", value=False)
-    tickers = DEFAULT_WATCHLIST if use_watchlist else selected
-
-    if not tickers:
-        st.warning("Selecione ao menos um ticker.")
-        return
-
-    if not st.button("Calcular Ranking", type="primary"):
-        return
-
-    progress = st.progress(0, text="Iniciando…")
-    results  = []
-
+def _load_ranking(tickers, year_t):
+    """Carrega resultados para o watchlist, guardando em session_state."""
     from advisor_brain_fsa.data_fetcher import CVMDataFetcher
     fetcher = CVMDataFetcher()
-
+    results = []
+    prog = st.progress(0, text="Carregando dados da CVM…")
     for i, ticker in enumerate(tickers):
-        progress.progress((i + 1) / len(tickers), text=f"Processando {ticker}…")
+        prog.progress((i + 1) / len(tickers), text=f"Processando {ticker}…")
         try:
             fd_t, fd_t1 = fetcher.get_financial_data(ticker, year_t=year_t, year_t1=year_t - 1)
             ms   = BeneishMScore(current=fd_t, prior=fd_t1).calculate()
@@ -516,20 +469,168 @@ def tab_rank():
                 ticker=ticker, sector=get_sector(ticker), year_t=year_t,
                 mscore=None, cfq=None, red_flags=[], error=str(exc),
             ))
-        time.sleep(0.3)
-
-    progress.empty()
+        time.sleep(0.2)
+    prog.empty()
     _apply_sector_stats(results)
+    return results
+
+
+def tab_home():
+    st.header("🏠 Visão Geral do Mercado")
+    st.caption("Top 10 melhores e piores M-Score do watchlist padrão (24 empresas B3).")
+
+    key_res  = f"home_results_{year_t}"
+    key_tick = "home_selected_ticker"
+
+    col_btn, col_reset = st.columns([2, 1])
+    with col_btn:
+        load = st.button("🔄 Carregar / Atualizar Ranking", type="primary",
+                         disabled=(key_res in st.session_state))
+    with col_reset:
+        if st.button("Limpar cache", disabled=(key_res not in st.session_state)):
+            del st.session_state[key_res]
+            st.rerun()
+
+    if load:
+        st.session_state[key_res] = _load_ranking(DEFAULT_WATCHLIST, year_t)
+        st.rerun()
+
+    if key_res not in st.session_state:
+        st.info("Clique em **Carregar / Atualizar Ranking** para buscar os dados da CVM.")
+        return
+
+    results = st.session_state[key_res]
+    df = _to_dataframe(results, top_flags=1)
+
+    ok = df[df["M-Score"].notna()].copy()
+    if ok.empty:
+        st.warning("Nenhuma empresa com dados disponíveis.")
+        return
+
+    top10_best  = ok.nsmallest(10, "M-Score")
+    top10_worst = ok.nlargest(10,  "M-Score")
+
+    col_best, col_worst = st.columns(2)
+
+    def _mini_table(sub: pd.DataFrame):
+        rows = []
+        for _, r in sub.iterrows():
+            icon = "🟢" if r["M-Score"] <= -2.20 else ("🟡" if r["M-Score"] <= -1.78 else "🔴")
+            rows.append({
+                "": icon,
+                "Ticker": r["Ticker"],
+                "Setor": r["Setor"],
+                "M-Score": f"{r['M-Score']:+.4f}",
+                "Alerta": r["Nível de Alerta"],
+            })
+        st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+
+    with col_best:
+        st.markdown("#### 🟢 Top 10 Melhores M-Score")
+        st.caption("Menor M-Score = menos sinais de manipulação")
+        _mini_table(top10_best)
+
+    with col_worst:
+        st.markdown("#### 🔴 Top 10 Piores M-Score")
+        st.caption("Maior M-Score = mais próximo da zona de risco")
+        _mini_table(top10_worst)
+
+    # Gráfico setorial
+    if len(ok) > 1:
+        st.divider()
+        st.markdown("#### M-Score Médio por Setor")
+        st.plotly_chart(_sector_bar(ok), use_container_width=True)
+
+    # Drill-down por empresa
+    st.divider()
+    st.markdown("#### 🔎 Explorar empresa em detalhe")
+    ok_tickers = list(ok["Ticker"])
+    chosen = st.selectbox("Selecione o ticker:", ["—"] + ok_tickers, key=key_tick)
+
+    if chosen and chosen != "—":
+        match = [r for r in results if r.ticker == chosen and r.mscore is not None]
+        if match:
+            r = match[0]
+            st.markdown(f"**{chosen}** · {r.sector} · Ano {year_t}")
+            _render_result(chosen, r.sector, r.mscore, r.cfq, r.red_flags)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tab 1 — Análise Individual (CVM real)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def tab_analyze():
+    st.header("🔍 Análise Individual")
+    st.caption("Busca dados reais no Portal CVM e calcula M-Score + qualidade de accruals.")
+
+    all_tickers = sorted(TICKER_TO_KEYWORD.keys())
+    col_in, col_btn = st.columns([3, 1])
+    with col_in:
+        ticker_sel = st.selectbox(
+            "Ticker B3",
+            options=[""] + all_tickers,
+            format_func=lambda t: t if not t else f"{t} — {TICKER_TO_KEYWORD.get(t, t)}",
+        )
+        custom = st.text_input("…ou CNPJ / nome livre", placeholder="33.000.167/0001-01 ou Petrobras")
+    query = custom.strip() if custom.strip() else ticker_sel
+
+    with col_btn:
+        st.markdown("<br>", unsafe_allow_html=True)
+        run = st.button("Calcular", type="primary", disabled=not query)
+
+    if not run or not query:
+        st.info("Selecione ou digite um ticker acima e clique em **Calcular**.")
+        return
+
+    sector = get_sector(query)
+    st.markdown(f"**{query}** · Setor: {sector} · Ano: {year_t} vs {year_t - 1}")
+
+    from advisor_brain_fsa.data_fetcher import CVMDataFetcher
+    with st.spinner(f"Baixando dados da CVM para {query}…"):
+        try:
+            fetcher = CVMDataFetcher()
+            fd_t, fd_t1 = fetcher.get_financial_data(query, year_t=year_t, year_t1=year_t - 1)
+        except Exception as exc:
+            st.error(f"**Erro ao buscar dados:** {exc}")
+            st.markdown("> 💡 Use a aba **Demo** para testar com dados sintéticos.")
+            return
+
+    mscore = BeneishMScore(current=fd_t, prior=fd_t1).calculate()
+    cfq    = CashFlowQuality(current=fd_t, prior=fd_t1).calculate(mscore)
+    flags  = detect_red_flags(mscore)
+    _render_result(query, sector, mscore, cfq, flags)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Tab 2 — Ranking em Lote
+# ─────────────────────────────────────────────────────────────────────────────
+
+def tab_rank():
+    st.header("📊 Ranking de Mercado")
+    st.caption("Processa múltiplos tickers e ordena por nível de risco.")
+
+    selected = st.multiselect(
+        "Tickers",
+        options=sorted(TICKER_TO_KEYWORD.keys()),
+        default=["PETR4", "VALE3", "ITUB4", "ABEV3", "ELET3"],
+        format_func=lambda t: f"{t} — {TICKER_TO_KEYWORD.get(t, t)}",
+    )
+    use_all = st.checkbox("Usar watchlist padrão completo (24 tickers)", value=False)
+    tickers = DEFAULT_WATCHLIST if use_all else selected
+
+    if not tickers:
+        st.warning("Selecione ao menos um ticker.")
+        return
+    if not st.button("Calcular Ranking", type="primary"):
+        return
+
+    results = _load_ranking(tickers, year_t)
     df = _to_dataframe(results, top_flags=3)
 
-    _render_ranking(df)
-
-
-def _render_ranking(df: pd.DataFrame):
     ok  = df[df["Nível de Alerta"] != "N/D"]
     err = df[df["Nível de Alerta"] == "N/D"]
 
-    # ── Métricas resumo ────────────────────────────────────────────────────────
+    # Métricas
     counts = ok["Nível de Alerta"].value_counts()
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("🔴 Crítico",    counts.get("Crítico",    0))
@@ -539,55 +640,52 @@ def _render_ranking(df: pd.DataFrame):
 
     st.divider()
 
-    # ── Tabela principal ───────────────────────────────────────────────────────
-    display_cols = ["Ticker", "Setor", "M-Score", "Nível de Alerta",
-                    "Accrual Ratio", "Qualidade Earnings", "Δ vs Setor",
-                    "Red Flag 1"]
-    available = [c for c in display_cols if c in df.columns]
+    # Tabela
+    cols = [c for c in ["Ticker","Setor","M-Score","Nível de Alerta","Accrual Ratio",
+                         "Qualidade Earnings","Δ vs Setor","Red Flag 1"] if c in ok.columns]
 
-    def _color_alert(val):
-        colors = {
-            "Crítico":    "background-color:#fee2e2;color:#b91c1c",
-            "Alto Risco": "background-color:#ffedd5;color:#c2410c",
-            "Atenção":    "background-color:#fef9c3;color:#854d0e",
-            "Normal":     "background-color:#dcfce7;color:#15803d",
-        }
-        return colors.get(val, "")
+    def _ca(val):
+        return {"Crítico":"background-color:#fee2e2;color:#b91c1c",
+                "Alto Risco":"background-color:#ffedd5;color:#c2410c",
+                "Atenção":"background-color:#fef9c3;color:#854d0e",
+                "Normal":"background-color:#dcfce7;color:#15803d"}.get(val, "")
 
-    def _color_mscore(val):
-        if pd.isna(val):
-            return ""
+    def _cm(val):
+        if pd.isna(val): return ""
         return "color:#ef4444;font-weight:700" if val > -1.78 else "color:#16a34a;font-weight:700"
 
-    styled = (
-        ok[available]
-        .style
-        .applymap(_color_alert, subset=["Nível de Alerta"])
-        .applymap(_color_mscore, subset=["M-Score"])
-        .format({"M-Score": "{:+.4f}", "Accrual Ratio": "{:+.4f}", "Δ vs Setor": "{:+.4f}"}, na_rep="—")
-    )
+    styled = (ok[cols].style
+              .applymap(_ca, subset=["Nível de Alerta"])
+              .applymap(_cm, subset=["M-Score"])
+              .format({"M-Score":"{:+.4f}","Accrual Ratio":"{:+.4f}","Δ vs Setor":"{:+.4f}"}, na_rep="—"))
     st.dataframe(styled, use_container_width=True, height=400)
 
-    # ── Gráfico setorial ───────────────────────────────────────────────────────
     if len(ok) > 1:
         st.markdown("#### M-Score Médio por Setor")
         st.plotly_chart(_sector_bar(ok), use_container_width=True)
 
-    # ── Erros ─────────────────────────────────────────────────────────────────
     if not err.empty:
         with st.expander(f"⚠️ {len(err)} ticker(s) sem dados"):
-            st.dataframe(err[["Ticker", "Setor", "Erro"]], hide_index=True)
+            st.dataframe(err[["Ticker","Setor","Erro"]], hide_index=True)
 
-    # ── Download ───────────────────────────────────────────────────────────────
+    # Download CSV
     import io as _io
     buf = _io.BytesIO()
     df.to_csv(buf, index=False, encoding="utf-8-sig")
-    st.download_button(
-        "⬇️ Exportar CSV",
-        data=buf.getvalue(),
-        file_name=f"ranking_{year_t}.csv",
-        mime="text/csv",
-    )
+    st.download_button("⬇️ Exportar CSV", data=buf.getvalue(),
+                       file_name=f"ranking_{year_t}.csv", mime="text/csv")
+
+    # Drill-down
+    st.divider()
+    st.markdown("#### 🔎 Explorar empresa em detalhe")
+    ok_tickers = list(ok["Ticker"])
+    chosen = st.selectbox("Selecione o ticker:", ["—"] + ok_tickers, key="rank_detail")
+    if chosen and chosen != "—":
+        match = [r for r in results if r.ticker == chosen and r.mscore is not None]
+        if match:
+            r = match[0]
+            st.markdown(f"**{chosen}** · {r.sector}")
+            _render_result(chosen, r.sector, r.mscore, r.cfq, r.red_flags)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -596,40 +694,30 @@ def _render_ranking(df: pd.DataFrame):
 
 def tab_demo():
     st.header("🧪 Demo — Dados Sintéticos")
-    st.caption("Funciona sem conexão com a CVM. Útil para testar o pipeline e o módulo de IA.")
+    st.caption("Funciona sem conexão com a CVM. Ideal para testar o pipeline e a IA.")
 
-    empresa = st.radio(
-        "Empresa",
-        options=list(_DEMO_DATA.keys()),
-        horizontal=True,
-    )
-
+    empresa = st.radio("Empresa", list(_DEMO_DATA.keys()), horizontal=True)
     fd_t, fd_t1 = _DEMO_DATA[empresa]
     mscore = BeneishMScore(current=fd_t, prior=fd_t1).calculate()
     cfq    = CashFlowQuality(current=fd_t, prior=fd_t1).calculate(mscore)
     flags  = detect_red_flags(mscore)
-
     ticker_demo = "SAFE3" if "Safe" in empresa else "RISKY4"
     sector_demo = "Energia" if "Safe" in empresa else "Consumo"
-
-    _render_result(ticker_demo, sector_demo, mscore, cfq, flags, api_key)
+    _render_result(ticker_demo, sector_demo, mscore, cfq, flags)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Roteamento por abas
 # ─────────────────────────────────────────────────────────────────────────────
 
-tab1, tab2, tab3 = st.tabs([
+tab0, tab1, tab2, tab3 = st.tabs([
+    "🏠 Início",
     "🔍 Análise Individual",
     "📊 Ranking de Mercado",
     "🧪 Demo",
 ])
 
-with tab1:
-    tab_analyze()
-
-with tab2:
-    tab_rank()
-
-with tab3:
-    tab_demo()
+with tab0: tab_home()
+with tab1: tab_analyze()
+with tab2: tab_rank()
+with tab3: tab_demo()
