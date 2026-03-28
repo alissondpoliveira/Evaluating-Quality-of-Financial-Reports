@@ -49,7 +49,7 @@ CVM_CAD_URL = (
     "https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/cad_cia_aberta.csv"
 )
 _CACHE_FILENAME = "cad_cia_aberta.csv"
-_DEFAULT_CACHE = Path(__file__).resolve().parents[3] / "data" / "cache"
+_DEFAULT_CACHE = Path(__file__).resolve().parents[2] / "data" / "cache"
 _CSV_ENCODING = "latin-1"
 _CSV_SEP = ";"
 
