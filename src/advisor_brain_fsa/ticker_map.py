@@ -266,6 +266,32 @@ def get_sector(ticker: str) -> str:
     return TICKER_SECTOR.get(ticker.upper(), "Outros")
 
 
+def get_sector_dynamic(ticker: str, use_registry: bool = True) -> str:
+    """
+    Like ``get_sector`` but falls back to the CVM cadastral registry for
+    tickers not present in the static map.
+
+    Parameters
+    ----------
+    ticker : str
+        B3 ticker (e.g. ``"PETR4"``).
+    use_registry : bool
+        When *True* and the ticker is unknown, query CVMRegistry (may trigger
+        a network download on first call).  Set to *False* to skip the lookup
+        and return ``"Outros"`` immediately.
+    """
+    sector = TICKER_SECTOR.get(ticker.upper())
+    if sector:
+        return sector
+    if not use_registry:
+        return "Outros"
+    # Lazy import to avoid circular dependency at module load time
+    from .cvm_registry import CVMRegistry  # noqa: PLC0415
+    registry = CVMRegistry.get_instance()
+    resolved_sector, _ = registry.resolve_ticker_sector(ticker)
+    return resolved_sector
+
+
 def is_financial_sector(sector: str) -> bool:
     """True for sectors that use specialised financial risk scorers (not Beneish)."""
     return sector in FINANCIAL_GROUP

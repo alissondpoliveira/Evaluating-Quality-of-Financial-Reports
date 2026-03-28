@@ -30,7 +30,7 @@ from .accruals import AlertLevel, CashFlowQuality, CashFlowQualityResult
 from .beneish_mscore import BeneishMScore, FinancialData, MScoreResult
 from .data_fetcher import CVMDataFetcher
 from .sector_scorer import SectorRiskResult, get_scorer
-from .ticker_map import FINANCIAL_GROUP, get_sector
+from .ticker_map import FINANCIAL_GROUP, TICKER_SECTOR, get_sector, get_sector_dynamic
 
 logger = logging.getLogger(__name__)
 
@@ -137,18 +137,59 @@ def rank_market(
     force_download: bool = False,
     top_flags: int = 3,
     retry_delay: float = 1.0,
+    use_registry: bool = True,
 ) -> pd.DataFrame:
+    """
+    Run the full risk-scoring pipeline across a list of B3 tickers.
+
+    Parameters
+    ----------
+    use_registry : bool
+        When *True* (default), tickers absent from the static ticker_map are
+        resolved via the CVM cadastral registry (Tarefa 4).  A network
+        download of ``cad_cia_aberta.csv`` is triggered only if needed and not
+        already cached.  Set to *False* to skip registry lookup (faster, but
+        unknown tickers always get sector "Outros" / BeneishSectorScorer).
+    """
     current_year = date.today().year
     year_t  = year_t  or (current_year - 1)
     year_t1 = year_t1 or (year_t - 1)
     tickers = tickers or DEFAULT_WATCHLIST
+
+    # Tarefa 4 — lazy-load registry only when there is at least one unknown ticker
+    _unknown = [t for t in tickers if t.upper() not in TICKER_SECTOR]
+    _registry = None
+    if use_registry and _unknown:
+        try:
+            from .cvm_registry import CVMRegistry  # noqa: PLC0415
+            _registry = CVMRegistry.get_instance(cache_dir=cache_dir)
+            logger.info(
+                "CVMRegistry loaded (%d active companies). "
+                "Resolving %d unknown ticker(s): %s",
+                len(_registry.df),
+                len(_unknown),
+                ", ".join(_unknown),
+            )
+        except Exception as exc:
+            logger.warning(
+                "CVMRegistry unavailable (%s). Unknown tickers default to Outros.", exc
+            )
 
     fetcher = CVMDataFetcher(cache_dir=cache_dir, force_download=force_download)
     results: List[CompanyResult] = []
 
     for i, ticker in enumerate(tickers):
         logger.info("[%d/%d] %s ...", i + 1, len(tickers), ticker)
-        sector = get_sector(ticker)
+
+        # --- Tarefa 4: resolve sector, falling back to registry ---
+        if ticker.upper() in TICKER_SECTOR:
+            sector = get_sector(ticker)
+        elif _registry is not None:
+            sector, _ = _registry.resolve_ticker_sector(ticker)
+            logger.info("  Registry resolved %s → sector '%s'", ticker, sector)
+        else:
+            sector = "Outros"
+
         try:
             fd_t, fd_t1 = fetcher.get_financial_data(ticker, year_t=year_t, year_t1=year_t1)
             scorer = get_scorer(sector)

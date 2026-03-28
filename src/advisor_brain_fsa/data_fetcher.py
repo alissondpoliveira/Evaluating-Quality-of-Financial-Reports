@@ -52,6 +52,9 @@ from .beneish_mscore import FinancialData
 from .cvm_accounts import ACCOUNT_SPECS, AccountSpec, SPEC_BY_FIELD
 from .ticker_map import resolve_company
 
+# Re-export so callers can do: from advisor_brain_fsa.data_fetcher import fetch_cvm_company_registry
+from .cvm_registry import fetch_cvm_company_registry as fetch_cvm_company_registry  # noqa: F401
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
