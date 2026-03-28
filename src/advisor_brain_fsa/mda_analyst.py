@@ -33,8 +33,10 @@ Dependencies
 
 from __future__ import annotations
 
+import hashlib
 import os
 import textwrap
+from pathlib import Path
 from typing import Generator, Iterator, List, Optional
 
 from .accruals import CashFlowQualityResult
@@ -415,18 +417,84 @@ class GeminiAnalyst:
         Google API key. Falls back to GOOGLE_API_KEY environment variable.
     model : str
         Gemini model ID. Defaults to gemini-2.0-flash.
+    cache_dir : Path | str | None
+        Directory for persisted AI report cache.
+        Defaults to ``data/ai_reports/`` relative to the project root.
     """
 
     DEFAULT_MODEL = "gemini-2.0-flash"
+    _DEFAULT_CACHE = Path(__file__).resolve().parents[3] / "data" / "ai_reports"
 
     def __init__(
         self,
         api_key: Optional[str] = None,
         model: str = DEFAULT_MODEL,
+        cache_dir: Optional[Path | str] = None,
     ) -> None:
-        self.api_key = api_key or os.environ.get("GOOGLE_API_KEY", "")
-        self.model   = model
-        self._builder = PromptBuilder()
+        self.api_key   = api_key or os.environ.get("GOOGLE_API_KEY", "")
+        self.model     = model
+        self.cache_dir = Path(cache_dir) if cache_dir else self._DEFAULT_CACHE
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self._builder  = PromptBuilder()
+
+    # ------------------------------------------------------------------
+    # Tarefa 1 — cache helpers
+    # ------------------------------------------------------------------
+
+    def _sig_hash(
+        self,
+        ticker: str,
+        year: int,
+        mscore_result: MScoreResult,
+        cfq_result: CashFlowQualityResult,
+    ) -> str:
+        """
+        Short hash that changes when financial data is restated (CVM VERSAO).
+        Uses key model outputs so a new DFP version triggers a cache miss.
+        """
+        sig = (
+            f"{ticker}|{year}|{mscore_result.m_score:.6f}"
+            f"|{cfq_result.accrual_ratio:.6f}|{cfq_result.earnings_quality}"
+        )
+        return hashlib.md5(sig.encode()).hexdigest()[:10]
+
+    def _cache_path(
+        self,
+        ticker: str,
+        year: int,
+        mscore_result: MScoreResult,
+        cfq_result: CashFlowQualityResult,
+    ) -> Path:
+        h = self._sig_hash(ticker, year, mscore_result, cfq_result)
+        return self.cache_dir / f"{ticker}_{year}_{h}.md"
+
+    def _load_cache(
+        self,
+        ticker: str,
+        year: int,
+        mscore_result: MScoreResult,
+        cfq_result: CashFlowQualityResult,
+    ) -> Optional[str]:
+        """Return cached report text, or None on miss."""
+        p = self._cache_path(ticker, year, mscore_result, cfq_result)
+        if p.exists():
+            return p.read_text(encoding="utf-8")
+        return None
+
+    def _save_cache(
+        self,
+        ticker: str,
+        year: int,
+        mscore_result: MScoreResult,
+        cfq_result: CashFlowQualityResult,
+        content: str,
+    ) -> None:
+        p = self._cache_path(ticker, year, mscore_result, cfq_result)
+        p.write_text(content, encoding="utf-8")
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     def analyze(
         self,
@@ -437,9 +505,15 @@ class GeminiAnalyst:
         cfq_result: CashFlowQualityResult,
         red_flags: List[str],
     ) -> str:
-        """Generate the full Risk Thesis report (non-streaming)."""
+        """
+        Generate the full Risk Thesis report (non-streaming).
+        Returns cached result if data signature matches; calls API otherwise.
+        """
+        cached = self._load_cache(ticker, year, mscore_result, cfq_result)
+        if cached is not None:
+            return cached
         return "".join(
-            self.analyze_streaming(
+            self._stream_api(
                 ticker=ticker, sector=sector, year=year,
                 mscore_result=mscore_result,
                 cfq_result=cfq_result,
@@ -457,13 +531,36 @@ class GeminiAnalyst:
         red_flags: List[str],
     ) -> Generator[str, None, None]:
         """
-        Generate the Risk Thesis report, yielding text chunks as they arrive.
-
-        Usage
-        -----
-        >>> for chunk in analyst.analyze_streaming(...):
-        ...     print(chunk, end="", flush=True)
+        Yield text chunks.  On cache hit: yields the full cached text as one
+        chunk (instant).  On cache miss: streams from Gemini and persists.
         """
+        cached = self._load_cache(ticker, year, mscore_result, cfq_result)
+        if cached is not None:
+            yield cached
+            return
+
+        parts: List[str] = []
+        for chunk in self._stream_api(
+            ticker=ticker, sector=sector, year=year,
+            mscore_result=mscore_result,
+            cfq_result=cfq_result,
+            red_flags=red_flags,
+        ):
+            parts.append(chunk)
+            yield chunk
+
+        self._save_cache(ticker, year, mscore_result, cfq_result, "".join(parts))
+
+    def _stream_api(
+        self,
+        ticker: str,
+        sector: str,
+        year: int,
+        mscore_result: MScoreResult,
+        cfq_result: CashFlowQualityResult,
+        red_flags: List[str],
+    ) -> Generator[str, None, None]:
+        """Internal: always calls the Gemini API (no cache check)."""
         genai = _get_genai()
 
         if not self.api_key:
@@ -481,7 +578,7 @@ class GeminiAnalyst:
         )
 
         genai.configure(api_key=self.api_key)
-        model = genai.GenerativeModel(
+        genai_model = genai.GenerativeModel(
             model_name=self.model,
             system_instruction=_SYSTEM_PROMPT,
         )
@@ -490,7 +587,7 @@ class GeminiAnalyst:
             ticker, year, grade, grade_label, mscore_result, cfq_result
         )
 
-        response = model.generate_content(user_prompt, stream=True)
+        response = genai_model.generate_content(user_prompt, stream=True)
         for chunk in response:
             text = getattr(chunk, "text", None)
             if text:

@@ -90,7 +90,7 @@ st.markdown("""
 
     /* ── Tarefa 4 — Equity Research dark metric cards ─────────────────── */
     .metric-card {
-        background: #0f172a;
+        background: #161B22;
         border: 1px solid #1e3a5f;
         border-radius: 8px;
         padding: 14px 18px;
@@ -681,6 +681,39 @@ def _render_sector_metrics(scorer_type: str, metrics: dict) -> None:
 # Tab 0 — Home: Dashboard Setorial (3 colunas por scorer)
 # ─────────────────────────────────────────────────────────────────────────────
 
+@st.cache_data(ttl=7200)
+def _auto_market_df(year_t: int) -> pd.DataFrame:
+    """
+    Tarefa 2 — Carrega automaticamente o ranking assim que o app abre.
+    Cacheado por 2h por st.cache_data; nenhum botão necessário.
+    Não chama nenhuma função do Streamlit (sem st.progress / st.spinner aqui).
+    """
+    from advisor_brain_fsa.data_fetcher import CVMDataFetcher
+    from advisor_brain_fsa.sector_scorer import get_scorer
+    import time as _t
+
+    fetcher = CVMDataFetcher()
+    results = []
+    for ticker in DEFAULT_WATCHLIST:
+        sector = get_sector(ticker)
+        try:
+            fd_t, fd_t1 = fetcher.get_financial_data(
+                ticker, year_t=year_t, year_t1=year_t - 1
+            )
+            sr = get_scorer(sector).score(fd_t, fd_t1)
+            results.append(CompanyResult(
+                ticker=ticker, sector=sector, year_t=year_t, sector_risk=sr,
+            ))
+        except Exception as exc:
+            results.append(CompanyResult(
+                ticker=ticker, sector=sector, year_t=year_t, error=str(exc),
+            ))
+        _t.sleep(0.1)
+
+    _apply_sector_stats(results)
+    return _to_dataframe(results, top_flags=1)
+
+
 def _load_ranking(tickers, year_t):
     """Carrega resultados usando o scorer adequado por setor (Strategy Pattern)."""
     from advisor_brain_fsa.data_fetcher import CVMDataFetcher
@@ -709,42 +742,26 @@ def _load_ranking(tickers, year_t):
 
 
 def tab_home():
-    # ── Tarefa 1: Dashboard Setorial em 3 colunas ──────────────────────────
+    # ── Tarefa 2: auto-load sem botão ──────────────────────────────────────
     st.markdown(
-        '<div style="font-size:1.5rem;font-weight:700;margin-bottom:2px">'
+        '<div style="font-size:1.5rem;font-weight:700;margin-bottom:2px;color:#e2e8f0">'
         '🏠 Dashboard Setorial B3</div>'
-        '<div style="color:#64748b;font-size:.85rem;margin-bottom:16px">'
-        'Top 5 por risco — Industriais · Bancos & Financeiro · Seguros. '
-        'Selecione um ativo para ver análise detalhada inline.</div>',
+        '<div style="color:#64748b;font-size:.85rem;margin-bottom:10px">'
+        'Top 5 por risco · Industriais &nbsp;·&nbsp; Bancos &amp; Financeiro &nbsp;·&nbsp; Seguros'
+        '</div>',
         unsafe_allow_html=True,
     )
 
-    key_res = f"home_results_{year_t}"
+    with st.spinner("Analisando watchlist B3…"):
+        df = _auto_market_df(year_t)
 
-    # ── Controles de carga ──────────────────────────────────────────────────
-    col_btn, col_reset = st.columns([2, 1])
-    with col_btn:
-        load = st.button("🔄 Carregar / Atualizar Ranking", type="primary",
-                         disabled=(key_res in st.session_state))
-    with col_reset:
-        if st.button("Limpar cache", disabled=(key_res not in st.session_state)):
-            del st.session_state[key_res]
-            if "home_selected" in st.session_state:
-                del st.session_state["home_selected"]
-            st.rerun()
+    ok = df[df["Score de Risco"].notna()].copy()
 
-    if load:
-        st.session_state[key_res] = _load_ranking(DEFAULT_WATCHLIST, year_t)
+    # Botão de refresh manual (não é de "carga" — apenas invalida cache)
+    if st.button("↺ Atualizar dados", help="Invalida o cache e recarrega da CVM"):
+        st.cache_data.clear()
         st.session_state.pop("home_selected", None)
         st.rerun()
-
-    if key_res not in st.session_state:
-        st.info("Clique em **Carregar / Atualizar Ranking** para buscar os dados da CVM.")
-        return
-
-    results = st.session_state[key_res]
-    df = _to_dataframe(results, top_flags=1)
-    ok = df[df["Score de Risco"].notna()].copy()
 
     if ok.empty:
         st.warning("Nenhuma empresa com dados disponíveis.")
@@ -765,20 +782,22 @@ def tab_home():
 
     def _scorer_column(col_container, scorer_type: str, title: str, icon: str,
                        border_color: str) -> None:
-        """Renderiza um painel Top-5 com botões interativos (Tarefa 1)."""
+        """Painel Top-5 com cards #161B22 e botões interativos (Tarefas 2 + 3)."""
         top5 = _top5(scorer_type)
         with col_container:
             st.markdown(
-                f'<div style="background:#0f172a;border:1px solid {border_color};'
+                f'<div style="background:#161B22;border:1px solid {border_color};'
                 f'border-radius:8px 8px 0 0;padding:10px 14px;">'
                 f'<span style="font-size:.75rem;font-weight:700;text-transform:uppercase;'
-                f'letter-spacing:.1em;color:{border_color}">{icon} {title}</span></div>',
+                f'letter-spacing:.1em;color:{border_color}">{icon} {title}</span>'
+                f'<span style="float:right;font-size:.7rem;color:#475569">Top 5 Risco</span>'
+                f'</div>',
                 unsafe_allow_html=True,
             )
             if top5.empty:
                 st.markdown(
-                    '<div style="background:#111827;border:1px solid #1e293b;border-top:none;'
-                    'padding:12px 14px;color:#475569;font-size:.83rem;">Sem dados</div>',
+                    '<div style="background:#0E1117;border:1px solid #21262d;border-top:none;'
+                    'padding:12px 14px;color:#475569;font-size:.83rem;">Sem dados disponíveis</div>',
                     unsafe_allow_html=True,
                 )
                 return
@@ -790,13 +809,13 @@ def tab_home():
                 ticker = row["Ticker"]
                 btn_key = f"btn_{scorer_type}_{ticker}"
                 is_sel  = st.session_state.get("home_selected") == ticker
-                bg = "#1e3a5f" if is_sel else "#111827"
+                bg = "#1c2d4a" if is_sel else "#0E1117"
                 st.markdown(
-                    f'<div style="background:{bg};border:1px solid #1e293b;border-top:none;'
+                    f'<div style="background:{bg};border:1px solid #21262d;border-top:none;'
                     f'padding:1px 6px;">', unsafe_allow_html=True,
                 )
                 if st.button(
-                    f"{a_icon}  **{ticker}** — {score}   ·  _{setor}_",
+                    f"{a_icon}  **{ticker}** — `{score}`   ·  _{setor}_",
                     key=btn_key,
                     use_container_width=True,
                 ):
@@ -804,7 +823,6 @@ def tab_home():
                         st.session_state.pop("home_selected", None)
                     else:
                         st.session_state["home_selected"] = ticker
-                        # Signal tab_analyze to pre-fill (Tarefa 1 — cross-tab nav)
                         st.session_state["navigate_ticker"] = ticker
                     st.rerun()
                 st.markdown("</div>", unsafe_allow_html=True)
@@ -826,28 +844,34 @@ def tab_home():
         )
         st.plotly_chart(_sector_bar(beneish_ok), use_container_width=True)
 
-    # ── Análise Detalhada inline (Tarefa 1 — interatividade) ────────────────
+    # ── Análise Detalhada inline — re-fetch single ticker (disk-cached) ────
     selected = st.session_state.get("home_selected")
     if selected:
-        match = [r for r in results if r.ticker == selected and r.ok]
-        if match:
-            r = match[0]
-            st.divider()
-            st.markdown(
-                f'<div style="background:#0f172a;border:1px solid #1e3a5f;'
-                f'border-radius:8px;padding:12px 18px;margin-bottom:12px;">'
-                f'<span style="font-family:monospace;font-size:1.1rem;font-weight:700;'
-                f'color:#60a5fa">{selected}</span>'
-                f'<span style="color:#64748b;font-size:.85rem"> · {r.sector} · {year_t}</span>'
-                f'<span style="float:right;font-size:.75rem;color:#475569">'
-                f'scorer: {r.sector_risk.scorer_type}</span></div>',
-                unsafe_allow_html=True,
-            )
-            st.info(
-                "Para análise completa com IA (Gemini), acesse a aba **🔍 Análise Individual**.",
-                icon="💡",
-            )
-            _render_result(selected, r.sector, r.sector_risk)
+        row_df = ok[ok["Ticker"] == selected]
+        sector = row_df["Setor"].iloc[0] if not row_df.empty else get_sector(selected)
+        scorer_lbl = row_df["Scorer"].iloc[0] if not row_df.empty else "—"
+        st.divider()
+        st.markdown(
+            f'<div style="background:#161B22;border:1px solid #1e3a5f;'
+            f'border-radius:8px;padding:12px 18px;margin-bottom:12px;">'
+            f'<span style="font-family:monospace;font-size:1.1rem;font-weight:700;'
+            f'color:#60a5fa">{selected}</span>'
+            f'<span style="color:#64748b;font-size:.85rem"> · {sector} · {year_t}</span>'
+            f'<span style="float:right;font-size:.75rem;color:#475569">'
+            f'scorer: {scorer_lbl}</span></div>',
+            unsafe_allow_html=True,
+        )
+        st.info("Para narrativa IA completa, acesse a aba **🔍 Análise Individual**.", icon="💡")
+        from advisor_brain_fsa.data_fetcher import CVMDataFetcher
+        from advisor_brain_fsa.sector_scorer import get_scorer as _gs
+        try:
+            with st.spinner(f"Carregando {selected}…"):
+                _fd_t, _fd_t1 = CVMDataFetcher().get_financial_data(
+                    selected, year_t=year_t, year_t1=year_t - 1
+                )
+            _render_result(selected, sector, _gs(sector).score(_fd_t, _fd_t1))
+        except Exception as _e:
+            st.error(f"Erro ao carregar {selected}: {_e}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -983,17 +1007,48 @@ def tab_rank():
     st.download_button("⬇️ Exportar CSV", data=buf.getvalue(),
                        file_name=f"ranking_{year_t}.csv", mime="text/csv")
 
-    # Drill-down
+    # ── Tarefa 3 — Acesso Rápido + Drill-down ────────────────────────────────
     st.divider()
-    st.markdown("#### 🔎 Explorar empresa em detalhe")
     ok_tickers = list(ok["Ticker"])
-    chosen = st.selectbox("Selecione o ticker:", ["—"] + ok_tickers, key="rank_detail")
-    if chosen and chosen != "—":
-        match = [r for r in results if r.ticker == chosen and r.ok]
+
+    qcol, ncol = st.columns([3, 1])
+    with qcol:
+        st.markdown(
+            '<span style="font-size:.8rem;font-weight:700;text-transform:uppercase;'
+            'letter-spacing:.08em;color:#64748b">⚡ Acesso Rápido</span>',
+            unsafe_allow_html=True,
+        )
+        quick = st.selectbox(
+            "Selecione para análise inline ou navegue para Análise Individual:",
+            options=["— selecione —"] + ok_tickers,
+            key="rank_quick_nav",
+            label_visibility="collapsed",
+        )
+    with ncol:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button(
+            "Abrir em Análise Individual →",
+            disabled=(quick == "— selecione —"),
+            key="rank_nav_btn",
+        ):
+            if quick != "— selecione —":
+                st.session_state["navigate_ticker"] = quick
+                st.session_state["home_selected"] = quick
+
+    if quick and quick != "— selecione —":
+        match = [r for r in results if r.ticker == quick and r.ok]
         if match:
             r = match[0]
-            st.markdown(f"**{chosen}** · {r.sector}")
-            _render_result(chosen, r.sector, r.sector_risk)
+            st.markdown(
+                f'<div style="background:#161B22;border:1px solid #1e3a5f;border-radius:8px;'
+                f'padding:10px 16px;margin:8px 0;">'
+                f'<span style="font-family:monospace;font-size:1rem;font-weight:700;color:#60a5fa">'
+                f'{quick}</span>'
+                f'<span style="color:#64748b;font-size:.83rem"> · {r.sector} · scorer: {r.sector_risk.scorer_type}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            _render_result(quick, r.sector, r.sector_risk)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1018,16 +1073,23 @@ def tab_demo():
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _render_footer() -> None:
+    """
+    Tarefa 4 — Disclaimer institucional fixo: CFA Institute + isenção de IA
+    e de recomendação de investimentos.
+    """
     st.markdown(
         """
         <div class="legal-footer">
-        <b>⚠️ Aviso Legal:</b> Os indicadores apresentados (como M-Score e Accruals) são sinais
-        de alerta e não garantem a existência de fraude ou erro. Conforme as diretrizes do
-        <b>CFA Institute</b>, anomalias quantitativas podem ter origens operacionais legítimas
-        e exigem análise qualitativa profunda. &nbsp;|&nbsp;
-        <b>⚠️ Isenção de Responsabilidade:</b> Esta é uma ferramenta experimental baseada em IA
-        e processamento automático de dados da CVM; pode conter erros de cálculo ou interpretação.
-        Este conteúdo <b>não constitui recomendação de compra ou venda de ativos</b>.
+        <b>CFA Institute:</b>
+        Indicadores quantitativos (M-Score, Accruals, índices Beneish) são sinais de alerta,
+        não prova de fraude. Anomalias podem ter origens operacionais legítimas e
+        <b>exigem análise qualitativa profunda</b> conforme os padrões do CFA Institute.
+        &nbsp;·&nbsp;
+        <b>IA &amp; Dados:</b>
+        Ferramenta experimental — narrativas geradas por Gemini e dados automáticos da CVM
+        podem conter erros de cálculo ou interpretação.
+        &nbsp;·&nbsp;
+        <b>Não constitui recomendação de compra ou venda de ativos.</b>
         </div>
         """,
         unsafe_allow_html=True,
