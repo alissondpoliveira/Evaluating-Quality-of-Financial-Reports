@@ -62,6 +62,7 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+    /* ── Grade badge ─────────────────────────────────────────────────── */
     .grade-badge {
         display:inline-block; font-size:3rem; font-weight:900;
         width:90px; height:90px; line-height:90px;
@@ -71,17 +72,106 @@ st.markdown("""
     .grade-C{background:#eab308;color:#1a1a1a;} .grade-D{background:#f97316;}
     .grade-F{background:#ef4444;}
 
+    /* ── Alert pills ─────────────────────────────────────────────────── */
     .pill{display:inline-block;padding:4px 14px;border-radius:20px;font-weight:600;font-size:.85rem;}
     .pill-critico{background:#fee2e2;color:#b91c1c;}
     .pill-alto{background:#ffedd5;color:#c2410c;}
     .pill-atencao{background:#fef9c3;color:#854d0e;}
     .pill-normal{background:#dcfce7;color:#15803d;}
 
-    .flag-item{background:#fff7ed;border-left:4px solid #f97316;
-               padding:8px 14px;margin:6px 0;border-radius:0 8px 8px 0;font-size:.9rem;}
+    /* ── Red flag ────────────────────────────────────────────────────── */
+    .flag-item{background:#1e1b4b;border-left:4px solid #f97316;
+               padding:8px 14px;margin:6px 0;border-radius:0 8px 8px 0;
+               font-size:.9rem;color:#fde68a;}
 
-    .idx-explain{background:#f8fafc;border:1px solid #e2e8f0;
-                 border-radius:10px;padding:14px 16px;margin:6px 0;}
+    /* ── Index explanation cards ─────────────────────────────────────── */
+    .idx-explain{background:#0f172a;border:1px solid #1e293b;
+                 border-radius:10px;padding:14px 16px;margin:6px 0;color:#cbd5e1;}
+
+    /* ── Tarefa 4 — Equity Research dark metric cards ─────────────────── */
+    .metric-card {
+        background: #0f172a;
+        border: 1px solid #1e3a5f;
+        border-radius: 8px;
+        padding: 14px 18px;
+        margin: 5px 0;
+    }
+    .metric-label {
+        font-size: 0.72rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.09em;
+        margin-bottom: 4px;
+    }
+    .metric-value {
+        font-family: 'JetBrains Mono','Fira Code','Cascadia Code','Consolas',monospace;
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #e2e8f0;
+        letter-spacing: -0.02em;
+    }
+    .metric-value.ok  { color: #4ade80; }
+    .metric-value.warn{ color: #fb923c; }
+    .metric-value.crit{ color: #f87171; }
+    .metric-delta {
+        font-family: 'JetBrains Mono','Fira Code',monospace;
+        font-size: 0.78rem;
+        color: #94a3b8;
+        margin-top: 2px;
+    }
+
+    /* ── Scorer column header (Home dashboard) ───────────────────────── */
+    .scorer-header {
+        background: #0f172a;
+        border: 1px solid #1e3a5f;
+        border-radius: 8px 8px 0 0;
+        padding: 10px 14px;
+        margin-bottom: 0;
+    }
+    .scorer-title {
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #94a3b8;
+    }
+
+    /* ── Ticker row in top-5 panel ───────────────────────────────────── */
+    .ticker-row {
+        background: #111827;
+        border: 1px solid #1e293b;
+        border-top: none;
+        padding: 8px 14px;
+        font-family: 'JetBrains Mono','Fira Code',monospace;
+        font-size: 0.88rem;
+        color: #cbd5e1;
+        cursor: pointer;
+        transition: background 0.15s;
+    }
+    .ticker-row:hover { background: #1e293b; }
+
+    /* ── Tarefa 3 — Fixed legal footer ───────────────────────────────── */
+    .legal-footer {
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        background: rgba(2, 6, 23, 0.96);
+        border-top: 1px solid #1e293b;
+        padding: 7px 24px;
+        font-size: 0.68rem;
+        color: #475569;
+        z-index: 9999;
+        backdrop-filter: blur(6px);
+        line-height: 1.5;
+    }
+    .legal-footer b { color: #64748b; }
+
+    /* Compensate for fixed footer height */
+    .main .block-container { padding-bottom: 80px !important; }
+
+    /* ── Monospace numbers in all st.metric widgets ──────────────────── */
+    [data-testid="stMetricValue"] {
+        font-family: 'JetBrains Mono','Fira Code','Consolas',monospace !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -488,50 +578,107 @@ def _render_result(ticker: str, sector: str, sector_risk: SectorRiskResult) -> N
         )
 
 
+def _metric_card_html(label: str, value: str, delta: str = "", status: str = "ok") -> str:
+    """
+    Tarefa 4 — Dark equity-research metric card with monospaced value.
+    status: 'ok' | 'warn' | 'crit'
+    """
+    return (
+        f'<div class="metric-card">'
+        f'<div class="metric-label">{label}</div>'
+        f'<div class="metric-value {status}">{value}</div>'
+        + (f'<div class="metric-delta">{delta}</div>' if delta else "")
+        + "</div>"
+    )
+
+
 def _render_sector_metrics(scorer_type: str, metrics: dict) -> None:
-    """Cards de métricas específicas para banking e insurance."""
+    """Dark-card metric panels for banking and insurance scorers (Tarefa 4)."""
+
+    def _fmt(v, fmt=".2%", fallback="—"):
+        return (format(v, fmt) if not pd.isna(v) else fallback)
+
+    def _status(v, ok_thresh, warn_thresh, invert=False):
+        """Return 'ok'|'warn'|'crit' relative to thresholds."""
+        if pd.isna(v):
+            return "ok"
+        good = v > ok_thresh if not invert else v < ok_thresh
+        mid  = v > warn_thresh if not invert else v < warn_thresh
+        if good:
+            return "ok"
+        if mid:
+            return "warn"
+        return "crit"
+
     if scorer_type == "banking":
-        st.markdown("### 🏦 Indicadores Bancários (BACEN / Basileia)")
-        c1, c2, c3 = st.columns(3)
-        roa = metrics.get("roa", float("nan"))
+        st.markdown("### 🏦 Indicadores Bancários — BACEN / Basileia III")
+        roa = metrics.get("roa",         float("nan"))
         ci  = metrics.get("cost_income", float("nan"))
         cq  = metrics.get("cfo_quality", float("nan"))
-        sp  = metrics.get("spread", float("nan"))
-        rg  = metrics.get("rev_growth", float("nan"))
-        c1.metric("ROA", f"{roa:.2%}" if not pd.isna(roa) else "—",
-                  delta="OK" if roa > 0.008 else "Baixo", delta_color="normal" if roa > 0.008 else "inverse")
-        c2.metric("Cost/Income", f"{ci:.1%}" if not pd.isna(ci) else "—",
-                  delta="OK" if ci < 0.60 else "Alto", delta_color="normal" if ci < 0.60 else "inverse")
-        c3.metric("CFO / Lucro", f"{cq:.2f}x" if not pd.isna(cq) else "—",
-                  delta="OK" if cq > 0.50 else "Baixo", delta_color="normal" if cq > 0.50 else "inverse")
-        c4, c5, _ = st.columns(3)
-        c4.metric("Spread Financeiro", f"{sp:.1%}" if not pd.isna(sp) else "—")
-        c5.metric("Crescimento Receita", f"{rg:.1%}" if not pd.isna(rg) else "—",
-                  delta="Crescendo" if not pd.isna(rg) and rg > 1 else "Contraindo",
-                  delta_color="normal" if not pd.isna(rg) and rg > 1 else "inverse")
+        sp  = metrics.get("spread",      float("nan"))
+        rg  = metrics.get("rev_growth",  float("nan"))
+
+        cards = [
+            _metric_card_html("ROA",
+                _fmt(roa, ".2%"),
+                "Limiar saudável: > 1.0%  |  Crítico: < 0.3%",
+                _status(roa, 0.008, 0.003)),
+            _metric_card_html("Cost / Income",
+                _fmt(ci, ".1%"),
+                "Eficiente: < 50%  |  Crítico: > 75%",
+                _status(ci, 0.60, 0.75, invert=True)),
+            _metric_card_html("CFO / Lucro Líquido",
+                _fmt(cq, ".2f") + "×",
+                "> 0.5× indica qualidade de caixa adequada",
+                _status(cq, 0.50, 0.20)),
+            _metric_card_html("Spread Financeiro",
+                _fmt(sp, ".1%"),
+                "Margem líquida de intermediação"),
+            _metric_card_html("Crescimento Receita",
+                _fmt(rg, ".1%"),
+                "Crescimento YoY de receita de intermediação",
+                "ok" if (not pd.isna(rg) and rg > 0) else "warn"),
+        ]
+        c1, c2, c3 = st.columns(3)
+        c1.markdown(cards[0] + cards[3], unsafe_allow_html=True)
+        c2.markdown(cards[1] + cards[4], unsafe_allow_html=True)
+        c3.markdown(cards[2], unsafe_allow_html=True)
 
     elif scorer_type == "insurance":
-        st.markdown("### 🛡️ Indicadores de Seguros (SUSEP)")
+        st.markdown("### 🛡️ Indicadores de Seguros — SUSEP / IFRS 17")
+        lr  = metrics.get("loss_ratio",     float("nan"))
+        er  = metrics.get("expense_ratio",  float("nan"))
+        cr  = metrics.get("combined_ratio", float("nan"))
+        rg  = metrics.get("rev_growth",     float("nan"))
+        roa = metrics.get("roa",            float("nan"))
+
+        cards = [
+            _metric_card_html("Sinistralidade (Loss Ratio)",
+                _fmt(lr, ".1%"),
+                "Saudável: < 65%  |  Crítico: > 80%",
+                _status(lr, 0.65, 0.80, invert=True)),
+            _metric_card_html("Índice de Despesas",
+                _fmt(er, ".1%"),
+                "Proporção de despesas comerciais sobre prêmios retidos"),
+            _metric_card_html("Índice Combinado",
+                _fmt(cr, ".1%"),
+                "< 100% = lucro técnico de subscrição",
+                _status(cr, 0.95, 1.00, invert=True)),
+            _metric_card_html("Crescimento de Prêmios",
+                _fmt(rg, ".1%"),
+                "Crescimento YoY de prêmios retidos",
+                "ok" if (not pd.isna(rg) and rg > 0) else "warn"),
+            _metric_card_html("ROA",
+                _fmt(roa, ".2%"),
+                "Retorno sobre ativos totais"),
+        ]
         c1, c2, c3 = st.columns(3)
-        lr = metrics.get("loss_ratio", float("nan"))
-        er = metrics.get("expense_ratio", float("nan"))
-        cr = metrics.get("combined_ratio", float("nan"))
-        rg = metrics.get("rev_growth", float("nan"))
-        roa = metrics.get("roa", float("nan"))
-        c1.metric("Sinistralidade", f"{lr:.1%}" if not pd.isna(lr) else "—",
-                  delta="OK" if lr < 0.65 else "Alta", delta_color="normal" if lr < 0.65 else "inverse")
-        c2.metric("Índice de Despesas", f"{er:.1%}" if not pd.isna(er) else "—")
-        c3.metric("Índice Combinado", f"{cr:.1%}" if not pd.isna(cr) else "—",
-                  delta="Lucro técnico" if cr < 1.0 else "Prejuízo técnico",
-                  delta_color="normal" if cr < 1.0 else "inverse")
-        c4, c5, _ = st.columns(3)
-        c4.metric("Crescimento Prêmios", f"{rg:.1%}" if not pd.isna(rg) else "—",
-                  delta="Crescendo" if not pd.isna(rg) and rg > 1 else "Contraindo",
-                  delta_color="normal" if not pd.isna(rg) and rg > 1 else "inverse")
-        c5.metric("ROA", f"{roa:.2%}" if not pd.isna(roa) else "—")
+        c1.markdown(cards[0] + cards[3], unsafe_allow_html=True)
+        c2.markdown(cards[1] + cards[4], unsafe_allow_html=True)
+        c3.markdown(cards[2], unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Tab 0 — Home: Top 10 Melhores e Piores M-Score
+# Tab 0 — Home: Dashboard Setorial (3 colunas por scorer)
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _load_ranking(tickers, year_t):
@@ -562,8 +709,15 @@ def _load_ranking(tickers, year_t):
 
 
 def tab_home():
-    st.header("🏠 Visão Geral do Mercado")
-    st.caption("Top 5 melhores e piores por segmento — watchlist padrão B3.")
+    # ── Tarefa 1: Dashboard Setorial em 3 colunas ──────────────────────────
+    st.markdown(
+        '<div style="font-size:1.5rem;font-weight:700;margin-bottom:2px">'
+        '🏠 Dashboard Setorial B3</div>'
+        '<div style="color:#64748b;font-size:.85rem;margin-bottom:16px">'
+        'Top 5 por risco — Industriais · Bancos & Financeiro · Seguros. '
+        'Selecione um ativo para ver análise detalhada inline.</div>',
+        unsafe_allow_html=True,
+    )
 
     key_res = f"home_results_{year_t}"
 
@@ -575,10 +729,13 @@ def tab_home():
     with col_reset:
         if st.button("Limpar cache", disabled=(key_res not in st.session_state)):
             del st.session_state[key_res]
+            if "home_selected" in st.session_state:
+                del st.session_state["home_selected"]
             st.rerun()
 
     if load:
         st.session_state[key_res] = _load_ranking(DEFAULT_WATCHLIST, year_t)
+        st.session_state.pop("home_selected", None)
         st.rerun()
 
     if key_res not in st.session_state:
@@ -593,89 +750,104 @@ def tab_home():
         st.warning("Nenhuma empresa com dados disponíveis.")
         return
 
-    # ── Filtro de setor ──────────────────────────────────────────────────────
-    available_sectors = sorted(ok["Setor"].unique())
-    all_option = "Todos os setores"
-    sector_filter = st.selectbox(
-        "🔍 Filtrar por segmento:",
-        options=[all_option] + available_sectors,
-        index=0,
-        key="home_sector_filter",
-    )
+    # ── Split por scorer_type e seleciona Top 5 por risco (decrescente) ─────
+    _ICON_MAP = {"Crítico": "🔴", "Alto Risco": "🟠", "Atenção": "🟡", "Normal": "🟢"}
 
-    filtered = ok if sector_filter == all_option else ok[ok["Setor"] == sector_filter]
+    def _top5(scorer_type: str) -> pd.DataFrame:
+        sub = ok[ok["Scorer"] == scorer_type]
+        return sub.nlargest(5, "Score de Risco") if not sub.empty else sub
 
-    if filtered.empty:
-        st.warning(f"Nenhuma empresa disponível para o setor **{sector_filter}**.")
-        return
+    def _score_str(row) -> str:
+        if row["Scorer"] == "beneish":
+            ms = row.get("M-Score", float("nan"))
+            return f"{ms:+.3f}" if pd.notna(ms) else "—"
+        return f"{row['Score de Risco']:.1f}/10"
+
+    def _scorer_column(col_container, scorer_type: str, title: str, icon: str,
+                       border_color: str) -> None:
+        """Renderiza um painel Top-5 com botões interativos (Tarefa 1)."""
+        top5 = _top5(scorer_type)
+        with col_container:
+            st.markdown(
+                f'<div style="background:#0f172a;border:1px solid {border_color};'
+                f'border-radius:8px 8px 0 0;padding:10px 14px;">'
+                f'<span style="font-size:.75rem;font-weight:700;text-transform:uppercase;'
+                f'letter-spacing:.1em;color:{border_color}">{icon} {title}</span></div>',
+                unsafe_allow_html=True,
+            )
+            if top5.empty:
+                st.markdown(
+                    '<div style="background:#111827;border:1px solid #1e293b;border-top:none;'
+                    'padding:12px 14px;color:#475569;font-size:.83rem;">Sem dados</div>',
+                    unsafe_allow_html=True,
+                )
+                return
+            for _, row in top5.iterrows():
+                alert  = row.get("Nível de Alerta", "—")
+                a_icon = _ICON_MAP.get(alert, "⚪")
+                score  = _score_str(row)
+                setor  = row.get("Setor", "")
+                ticker = row["Ticker"]
+                btn_key = f"btn_{scorer_type}_{ticker}"
+                is_sel  = st.session_state.get("home_selected") == ticker
+                bg = "#1e3a5f" if is_sel else "#111827"
+                st.markdown(
+                    f'<div style="background:{bg};border:1px solid #1e293b;border-top:none;'
+                    f'padding:1px 6px;">', unsafe_allow_html=True,
+                )
+                if st.button(
+                    f"{a_icon}  **{ticker}** — {score}   ·  _{setor}_",
+                    key=btn_key,
+                    use_container_width=True,
+                ):
+                    if st.session_state.get("home_selected") == ticker:
+                        st.session_state.pop("home_selected", None)
+                    else:
+                        st.session_state["home_selected"] = ticker
+                        # Signal tab_analyze to pre-fill (Tarefa 1 — cross-tab nav)
+                        st.session_state["navigate_ticker"] = ticker
+                    st.rerun()
+                st.markdown("</div>", unsafe_allow_html=True)
 
     st.divider()
+    col_b, col_bk, col_i = st.columns(3)
+    _scorer_column(col_b,  "beneish",   "Industriais (Beneish)", "🏭", "#3b82f6")
+    _scorer_column(col_bk, "banking",   "Bancos & Financeiro",   "🏦", "#f59e0b")
+    _scorer_column(col_i,  "insurance", "Seguros",               "🛡️", "#10b981")
 
-    # ── Top 5 Melhores / Piores ──────────────────────────────────────────────
-    # For Beneish companies rank by M-Score; for financial by Score de Risco
-    is_fin_filter = sector_filter in FINANCIAL_GROUP
-
-    def _primary_col(row):
-        if row["Scorer"] in ("banking", "insurance"):
-            return row["Score de Risco"]
-        return row["M-Score"] if pd.notna(row["M-Score"]) else row["Score de Risco"]
-
-    filtered = filtered.copy()
-    filtered["_primary"] = filtered.apply(_primary_col, axis=1)
-
-    # Best = lowest primary score (low M-Score or low risk_score)
-    top5_best  = filtered.nsmallest(5, "_primary")
-    top5_worst = filtered.nlargest(5,  "_primary")
-
-    def _mini_table(sub: pd.DataFrame, label_col: str):
-        rows = []
-        for _, r in sub.iterrows():
-            alerta = r.get("Nível de Alerta", "—")
-            icon_map = {"Crítico": "🔴", "Alto Risco": "🟠", "Atenção": "🟡", "Normal": "🟢"}
-            icon = icon_map.get(alerta, "⚪")
-            score_val = r["_primary"]
-            scorer = r.get("Scorer", "beneish")
-            score_label = f"{score_val:+.4f}" if scorer == "beneish" else f"{score_val:.2f}/10"
-            rows.append({
-                "": icon,
-                "Ticker": r["Ticker"],
-                "Setor": r["Setor"],
-                label_col: score_label,
-                "Alerta": alerta,
-            })
-        st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
-
-    score_label = "Score de Risco" if is_fin_filter else "M-Score"
-    col_best, col_worst = st.columns(2)
-    with col_best:
-        st.markdown("#### 🟢 Top 5 Melhores")
-        st.caption("Menor risco no segmento selecionado")
-        _mini_table(top5_best, score_label)
-    with col_worst:
-        st.markdown("#### 🔴 Top 5 Piores")
-        st.caption("Maior risco no segmento selecionado")
-        _mini_table(top5_worst, score_label)
-
-    # ── Gráfico setorial (apenas quando "Todos") ──────────────────────────────
-    if sector_filter == all_option and len(ok) > 1:
+    # ── Gráfico setorial M-Score ─────────────────────────────────────────────
+    beneish_ok = ok[ok["Scorer"] == "beneish"]
+    if len(beneish_ok) > 1:
         st.divider()
-        st.markdown("#### M-Score Médio por Setor")
-        beneish_ok = ok[ok["Scorer"] == "beneish"]
-        if not beneish_ok.empty:
-            st.plotly_chart(_sector_bar(beneish_ok), use_container_width=True)
+        st.markdown(
+            '<span style="font-size:.8rem;font-weight:700;text-transform:uppercase;'
+            'letter-spacing:.08em;color:#64748b">M-Score Médio por Setor (Industriais)</span>',
+            unsafe_allow_html=True,
+        )
+        st.plotly_chart(_sector_bar(beneish_ok), use_container_width=True)
 
-    # ── Drill-down por empresa ────────────────────────────────────────────────
-    st.divider()
-    st.markdown("#### 🔎 Explorar empresa em detalhe")
-    ok_tickers = list(filtered["Ticker"])
-    chosen = st.selectbox("Selecione o ticker:", ["—"] + ok_tickers, key="home_detail")
-
-    if chosen and chosen != "—":
-        match = [r for r in results if r.ticker == chosen and r.ok]
+    # ── Análise Detalhada inline (Tarefa 1 — interatividade) ────────────────
+    selected = st.session_state.get("home_selected")
+    if selected:
+        match = [r for r in results if r.ticker == selected and r.ok]
         if match:
             r = match[0]
-            st.markdown(f"**{chosen}** · {r.sector} · Ano {year_t}")
-            _render_result(chosen, r.sector, r.sector_risk)
+            st.divider()
+            st.markdown(
+                f'<div style="background:#0f172a;border:1px solid #1e3a5f;'
+                f'border-radius:8px;padding:12px 18px;margin-bottom:12px;">'
+                f'<span style="font-family:monospace;font-size:1.1rem;font-weight:700;'
+                f'color:#60a5fa">{selected}</span>'
+                f'<span style="color:#64748b;font-size:.85rem"> · {r.sector} · {year_t}</span>'
+                f'<span style="float:right;font-size:.75rem;color:#475569">'
+                f'scorer: {r.sector_risk.scorer_type}</span></div>',
+                unsafe_allow_html=True,
+            )
+            st.info(
+                "Para análise completa com IA (Gemini), acesse a aba **🔍 Análise Individual**.",
+                icon="💡",
+            )
+            _render_result(selected, r.sector, r.sector_risk)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -686,12 +858,17 @@ def tab_analyze():
     st.header("🔍 Análise Individual")
     st.caption("Busca dados reais no Portal CVM e calcula M-Score + qualidade de accruals.")
 
+    # ── Tarefa 1: pre-fill ticker quando navegando da Home ──────────────────
+    _nav = st.session_state.pop("navigate_ticker", None)
     all_tickers = sorted(TICKER_TO_KEYWORD.keys())
+    _default_idx = (all_tickers.index(_nav) + 1) if (_nav and _nav in all_tickers) else 0
+
     col_in, col_btn = st.columns([3, 1])
     with col_in:
         ticker_sel = st.selectbox(
             "Ticker B3",
             options=[""] + all_tickers,
+            index=_default_idx,
             format_func=lambda t: t if not t else f"{t} — {TICKER_TO_KEYWORD.get(t, t)}",
         )
         custom = st.text_input("…ou CNPJ / nome livre", placeholder="33.000.167/0001-01 ou Petrobras")
@@ -699,7 +876,8 @@ def tab_analyze():
 
     with col_btn:
         st.markdown("<br>", unsafe_allow_html=True)
-        run = st.button("Calcular", type="primary", disabled=not query)
+        # Auto-run if navigated from Home
+        run = st.button("Calcular", type="primary", disabled=not query) or bool(_nav and query)
 
     if not run or not query:
         st.info("Selecione ou digite um ticker acima e clique em **Calcular**.")
@@ -836,6 +1014,27 @@ def tab_demo():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Tarefa 3 — Rodapé legal fixo (CFA Institute disclaimer)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _render_footer() -> None:
+    st.markdown(
+        """
+        <div class="legal-footer">
+        <b>⚠️ Aviso Legal:</b> Os indicadores apresentados (como M-Score e Accruals) são sinais
+        de alerta e não garantem a existência de fraude ou erro. Conforme as diretrizes do
+        <b>CFA Institute</b>, anomalias quantitativas podem ter origens operacionais legítimas
+        e exigem análise qualitativa profunda. &nbsp;|&nbsp;
+        <b>⚠️ Isenção de Responsabilidade:</b> Esta é uma ferramenta experimental baseada em IA
+        e processamento automático de dados da CVM; pode conter erros de cálculo ou interpretação.
+        Este conteúdo <b>não constitui recomendação de compra ou venda de ativos</b>.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Roteamento por abas
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -850,3 +1049,6 @@ with tab0: tab_home()
 with tab1: tab_analyze()
 with tab2: tab_rank()
 with tab3: tab_demo()
+
+# Footer fixo aparece em todas as abas (injetado uma única vez no DOM)
+_render_footer()
