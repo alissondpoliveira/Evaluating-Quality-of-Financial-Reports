@@ -1,0 +1,416 @@
+/*
+ * Advisor-Brain-FSA — Bloomberg Terminal Theme
+ * =============================================
+ * Carregado automaticamente pelo Dash a partir da pasta assets/
+ *
+ * Paleta:
+ *   BG          #000000   fundo principal
+ *   CARD        #1C1C1C   painéis e cards
+ *   BORDER      #30363D   bordas e divisores
+ *   TEXT        #D1D1D1   texto padrão
+ *   GREEN       #00FF00   bullish / normal / ok
+ *   RED         #FF3E3E   bearish / crítico / risco
+ *   ORANGE      #FFA500   selected / destaque
+ *   YELLOW      #FFD700   atenção / atenção
+ *   MUTED       #888888   labels secundários
+ */
+
+/* ── Fontes (Google Fonts fallback) ────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;900&display=swap');
+
+/* ── Reset & base ──────────────────────────────────────────────────────── */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body, html {
+    background-color: #000000 !important;
+    color: #D1D1D1 !important;
+    font-family: 'JetBrains Mono', 'Roboto Mono', 'Fira Code', 'Consolas', monospace !important;
+    font-size: 14px;
+    margin: 0;
+    padding: 0;
+    line-height: 1.5;
+}
+
+/* ── Dash root containers ───────────────────────────────────────────────── */
+#react-entry-point,
+._dash-loading,
+.dash-loading,
+.dash-container,
+._dash-container {
+    background-color: #000000 !important;
+}
+
+/* ── Scrollbar terminal-style ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #000000; }
+::-webkit-scrollbar-thumb { background: #30363D; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #FFA500; }
+
+/* ── Dash Tabs ──────────────────────────────────────────────────────────── */
+.bbg-tab {
+    background-color: #000000 !important;
+    color: #888888 !important;
+    border: none !important;
+    border-bottom: 2px solid transparent !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase !important;
+    padding: 10px 18px !important;
+    cursor: pointer !important;
+    transition: color 0.15s ease !important;
+}
+
+.bbg-tab:hover {
+    color: #D1D1D1 !important;
+    border-bottom-color: #30363D !important;
+}
+
+.bbg-tab--selected,
+.bbg-tab-selected {
+    background-color: #000000 !important;
+    color: #FFA500 !important;
+    border-bottom: 2px solid #FFA500 !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+}
+
+/* ── Dash Tab container ─────────────────────────────────────────────────── */
+.dash-tabs,
+.tab-container {
+    background-color: #000000 !important;
+    border-bottom: 1px solid #30363D !important;
+}
+
+/* ── Dropdown (Select) — Bloomberg style ────────────────────────────────── */
+.Select-control,
+.Select-menu-outer,
+.VirtualizedSelectOption,
+.VirtualizedSelectFocusedOption {
+    background-color: #1C1C1C !important;
+    border-color: #30363D !important;
+    color: #D1D1D1 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.82rem !important;
+}
+
+.Select-value-label,
+.Select-placeholder {
+    color: #D1D1D1 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+}
+
+.Select--multi .Select-value {
+    background-color: #2A1A00 !important;
+    border-color: #FFA500 !important;
+    color: #FFA500 !important;
+}
+
+.Select-option.is-focused {
+    background-color: #2A1A00 !important;
+    color: #FFA500 !important;
+}
+
+.Select-option.is-selected {
+    background-color: #1C1C1C !important;
+    color: #00FF00 !important;
+}
+
+/* ── Inputs ─────────────────────────────────────────────────────────────── */
+input[type="text"],
+input[type="search"],
+textarea {
+    background-color: #1C1C1C !important;
+    border: 1px solid #30363D !important;
+    color: #D1D1D1 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.82rem !important;
+    border-radius: 3px !important;
+    padding: 6px 10px !important;
+    outline: none !important;
+}
+
+input[type="text"]:focus,
+textarea:focus {
+    border-color: #FFA500 !important;
+    box-shadow: 0 0 0 2px #FFA50022 !important;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+button,
+.btn {
+    background-color: #1C1C1C !important;
+    border: 1px solid #30363D !important;
+    color: #D1D1D1 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.8rem !important;
+    letter-spacing: 0.04em !important;
+    border-radius: 3px !important;
+    padding: 7px 16px !important;
+    cursor: pointer !important;
+    transition: border-color 0.15s, color 0.15s !important;
+}
+
+button:hover,
+.btn:hover {
+    border-color: #FFA500 !important;
+    color: #FFA500 !important;
+}
+
+.btn-primary,
+button.primary {
+    border-color: #FFA500 !important;
+    color: #FFA500 !important;
+}
+
+/* ── DataTable Bloomberg ────────────────────────────────────────────────── */
+.dash-spreadsheet-container,
+.dash-table-container {
+    font-family: 'JetBrains Mono', monospace !important;
+}
+
+.dash-header {
+    background-color: #1C1C1C !important;
+    color: #FFA500 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.68rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.08em !important;
+    border-bottom: 1px solid #30363D !important;
+}
+
+.dash-cell {
+    background-color: #000000 !important;
+    color: #D1D1D1 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.82rem !important;
+    border: 1px solid #1C1C1C !important;
+}
+
+.dash-cell:focus {
+    outline: 1px solid #FFA500 !important;
+}
+
+/* ── Loading spinner ────────────────────────────────────────────────────── */
+._dash-loading-callback {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7) !important;
+    z-index: 9998;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ── Metric card ────────────────────────────────────────────────────────── */
+.metric-card {
+    background: #1C1C1C;
+    border: 1px solid #30363D;
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin: 4px 0;
+}
+
+.metric-label {
+    font-size: 0.65rem;
+    color: #888888;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.metric-value {
+    font-family: 'JetBrains Mono', 'Roboto Mono', 'Consolas', monospace;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: #D1D1D1;
+}
+
+.metric-value.ok   { color: #00FF00; }
+.metric-value.warn { color: #FFA500; }
+.metric-value.crit { color: #FF3E3E; }
+
+.metric-delta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    color: #888888;
+    margin-top: 3px;
+}
+
+/* ── Grade badge ────────────────────────────────────────────────────────── */
+.grade-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    border-radius: 4px;
+    font-size: 2.4rem;
+    font-weight: 900;
+    color: #000000;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.grade-A { background: #00FF00; }
+.grade-B { background: #7FFF00; }
+.grade-C { background: #FFD700; }
+.grade-D { background: #FFA500; }
+.grade-F { background: #FF3E3E; }
+
+/* ── Alert pills ────────────────────────────────────────────────────────── */
+.pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 3px;
+    font-weight: 700;
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.pill-critico { background: #FF3E3E22; border: 1px solid #FF3E3E; color: #FF3E3E; }
+.pill-alto    { background: #FFA50022; border: 1px solid #FFA500; color: #FFA500; }
+.pill-atencao { background: #FFD70022; border: 1px solid #FFD700; color: #FFD700; }
+.pill-normal  { background: #00FF0022; border: 1px solid #00FF00; color: #00FF00; }
+
+/* ── Red flag rows ──────────────────────────────────────────────────────── */
+.flag-item {
+    background: #1C1C1C;
+    border-left: 3px solid #FF3E3E;
+    padding: 8px 14px;
+    margin: 5px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    color: #FF3E3E;
+    border-radius: 0 4px 4px 0;
+}
+
+/* ── Index explanation cards ────────────────────────────────────────────── */
+.idx-card {
+    background: #1C1C1C;
+    border: 1px solid #30363D;
+    border-radius: 4px;
+    padding: 12px 16px;
+    margin: 5px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.83rem;
+    color: #D1D1D1;
+}
+
+/* ── Section labels ─────────────────────────────────────────────────────── */
+.section-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: #888888;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 8px;
+    margin-top: 16px;
+}
+
+/* ── Ticker row (Home top-5) ────────────────────────────────────────────── */
+.ticker-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: #000000;
+    border: 1px solid #30363D;
+    border-top: none;
+    cursor: pointer;
+    transition: background 0.1s;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.84rem;
+}
+
+.ticker-row:hover {
+    background: #111111;
+    border-color: #FFA500;
+}
+
+.ticker-row.selected {
+    background: #2A1A00;
+    border-color: #FFA500;
+}
+
+/* ── Dividers ───────────────────────────────────────────────────────────── */
+hr {
+    border: none;
+    border-top: 1px solid #30363D;
+    margin: 14px 0;
+}
+
+/* ── AI report output ───────────────────────────────────────────────────── */
+.ai-report {
+    background: #0A0A0A;
+    border: 1px solid #30363D;
+    border-left: 3px solid #FFA500;
+    border-radius: 4px;
+    padding: 16px 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.83rem;
+    color: #D1D1D1;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+/* ── Fixed legal footer ─────────────────────────────────────────────────── */
+.legal-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.97);
+    border-top: 1px solid #30363D;
+    padding: 6px 20px;
+    font-size: 0.62rem;
+    color: #888888;
+    font-family: 'JetBrains Mono', monospace;
+    z-index: 9999;
+    backdrop-filter: blur(4px);
+    line-height: 1.6;
+}
+
+/* ── Markdown rendering inside Dash ────────────────────────────────────── */
+.dash-markdown h1, .dash-markdown h2, .dash-markdown h3, .dash-markdown h4 {
+    color: #FFA500 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    margin-top: 14px;
+    margin-bottom: 6px;
+}
+
+.dash-markdown p { color: #D1D1D1; margin: 6px 0; }
+.dash-markdown code {
+    background: #1C1C1C;
+    border: 1px solid #30363D;
+    border-radius: 3px;
+    padding: 1px 5px;
+    color: #00FF00;
+    font-family: 'JetBrains Mono', monospace;
+}
+
+.dash-markdown blockquote {
+    border-left: 3px solid #30363D;
+    padding-left: 12px;
+    color: #888888;
+    margin: 8px 0;
+}
+
+.dash-markdown hr { border-top-color: #30363D; }
+
+/* ── Checker rows in home dashboard ───────────────────────────────────── */
+.scorer-header {
+    background: #1C1C1C;
+    border: 1px solid #30363D;
+    border-radius: 6px 6px 0 0;
+    padding: 10px 14px;
+}
