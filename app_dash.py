@@ -44,7 +44,14 @@ app = dash.Dash(
     update_title=None,
     meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
 )
-server = app.server  # ← ponto de entrada para gunicorn
+server = app.server  # ← ponto de entrada para gunicorn / Railway / Render
+
+# ── /health — rota Flask leve para Railway healthcheck ───────────────────────
+# Railway bate em healthcheckPath: "/health" (railway.json) antes do Dash
+# responder. Esta rota retorna imediatamente, sem depender do layout Dash.
+@server.route("/health")
+def _health():
+    return {"status": "ok", "app": "advisor-brain-fsa"}, 200
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Constantes Bloomberg

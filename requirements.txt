@@ -11,14 +11,15 @@ anthropic>=0.86.0           # Claude API (MDAnalyst legado)
 plotly>=5.0.0
 
 # ── Dash — app principal (app_dash.py) ───────────────────────────────────────
+# NOTA: em dash>=2.0 o dash_table já está incluso no pacote dash.
+# NÃO adicionar dash-table separadamente — causa conflito de versão.
 dash>=2.14.0
-dash-bootstrap-components>=1.5.0   # componentes Bootstrap para Dash
-dash-table>=5.0.0                  # DataTable Bloomberg (incluído no dash>=2.x)
+dash-bootstrap-components>=1.5.0   # layout responsivo (Grid, Row, Col)
 
 # ── Servidor de produção ──────────────────────────────────────────────────────
-gunicorn>=21.2.0            # WSGI server: gunicorn --bind 0.0.0.0:$PORT app_dash:server
+gunicorn>=21.2.0            # WSGI: gunicorn --bind 0.0.0.0:$PORT app_dash:server
 
-# ── Streamlit (dev local apenas, não necessário no Docker) ───────────────────
+# ── Streamlit (dev local apenas — não necessário no Docker/Railway) ───────────
 streamlit>=1.31.0
 
 # ── Testes ────────────────────────────────────────────────────────────────────
