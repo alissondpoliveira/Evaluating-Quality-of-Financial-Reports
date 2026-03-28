@@ -159,3 +159,91 @@ SPEC_BY_FIELD: dict[str, AccountSpec] = {s.field_name: s for s in ACCOUNT_SPECS}
 REQUIRED_FIELDS = frozenset(
     s.field_name for s in ACCOUNT_SPECS
 )
+
+# ---------------------------------------------------------------------------
+# Banking-specific supplementary account specs
+# ---------------------------------------------------------------------------
+# These are used to enrich risk analysis for financial institutions.
+# They map to *additional* fields not present in standard FinancialData.
+# The SectorScorer for banking uses standard FinancialData as proxies but
+# these specs document the preferred CVM codes for future direct extraction.
+
+BANKING_ACCOUNT_SPECS: List[AccountSpec] = [
+    AccountSpec(
+        field_name="loan_portfolio",
+        statement="BPA",
+        # 1.01.04 = Operações de Crédito (most banks)
+        # 1.01.03 = older taxonomy; 1.01.07 = some layouts
+        codes=["1.01.04", "1.01.03", "1.01.07", "1.02.01.01"],
+        description="Carteira de Crédito / Operações de Crédito",
+    ),
+    AccountSpec(
+        field_name="loan_loss_provision",
+        statement="BPA",
+        # PCLD is often a sub-item of loan portfolio (negative)
+        codes=["1.01.04.01", "1.01.03.01", "1.01.07.01"],
+        description="Provisão para Créditos de Liquidação Duvidosa (PCLD)",
+        sign=-1,
+    ),
+    AccountSpec(
+        field_name="shareholders_equity",
+        statement="BPP",
+        codes=["2.03"],
+        description="Patrimônio Líquido (Patrimônio de Referência — Basileia)",
+    ),
+    AccountSpec(
+        field_name="net_interest_income",
+        statement="DRE",
+        # 3.01 = Resultado de Intermediação Financeira (net)
+        # 3.01.01 = Receitas de Intermediação (gross, before funding costs)
+        codes=["3.01", "3.01.01"],
+        description="Resultado de Intermediação Financeira",
+    ),
+    AccountSpec(
+        field_name="funding_expenses",
+        statement="DRE",
+        # 3.02 = Despesas de Intermediação Financeira (funding + provisions)
+        codes=["3.02", "3.02.01"],
+        description="Despesas de Intermediação Financeira",
+        sign=-1,
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# Insurance-specific supplementary account specs
+# ---------------------------------------------------------------------------
+# For insurance companies, the standard DRE structure maps naturally:
+#   revenues              → Prêmios Retidos (3.01 or 3.01.01)
+#   cost_of_goods_sold    → Sinistros Retidos (3.02 or 3.02.01)
+#   sga_expenses          → Despesas de Comercialização + Admin
+# These specs document the preferred codes for direct extraction.
+
+INSURANCE_ACCOUNT_SPECS: List[AccountSpec] = [
+    AccountSpec(
+        field_name="retained_premiums",
+        statement="DRE",
+        codes=["3.01.01", "3.01"],
+        description="Prêmios Retidos Líquidos de Resseguro",
+    ),
+    AccountSpec(
+        field_name="retained_claims",
+        statement="DRE",
+        # Sinistros are stored negative in CVM
+        codes=["3.02.01", "3.03.01", "3.02"],
+        description="Sinistros Retidos",
+        sign=-1,
+    ),
+    AccountSpec(
+        field_name="insurance_commercial_expenses",
+        statement="DRE",
+        codes=["3.03.01", "3.04.01", "3.03"],
+        description="Despesas de Comercialização — Seguros",
+        sign=-1,
+    ),
+    AccountSpec(
+        field_name="reinsurance_result",
+        statement="DRE",
+        codes=["3.01.02", "3.02.02"],
+        description="Resultado com Resseguro",
+    ),
+]

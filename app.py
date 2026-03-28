@@ -37,7 +37,13 @@ from advisor_brain_fsa.rank_market import (
     _to_dataframe,
     detect_red_flags,
 )
-from advisor_brain_fsa.ticker_map import TICKER_TO_KEYWORD, get_sector
+from advisor_brain_fsa.sector_scorer import SectorRiskResult
+from advisor_brain_fsa.ticker_map import (
+    FINANCIAL_GROUP,
+    SECTOR_LABELS,
+    TICKER_TO_KEYWORD,
+    get_sector,
+)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Configuração da página
@@ -369,41 +375,71 @@ def _render_index_detail(mscore) -> None:
 # Bloco de resultado: shared entre abas
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _render_result(ticker: str, sector: str, mscore, cfq, flags) -> None:
-    grade, grade_label = compute_grade(mscore.m_score, cfq.accrual_ratio)
-    alert = cfq.alert_level.value
+def _render_result(ticker: str, sector: str, sector_risk: SectorRiskResult) -> None:
+    """
+    Renderiza o painel de resultado de uma empresa.
+    Adapta automaticamente ao tipo de scorer: beneish | banking | insurance.
+    """
+    alert  = sector_risk.alert_level.value
+    flags  = sector_risk.red_flags
+    ms     = sector_risk.mscore_result
+    cfq    = sector_risk.cfq_result
+    stype  = sector_risk.scorer_type
 
-    # Cabeçalho
-    col_grade, col_score, col_alert = st.columns([1, 2, 2])
-    with col_grade:
-        st.markdown(_grade_html(grade), unsafe_allow_html=True)
-        st.caption(grade_label)
-    with col_score:
-        st.markdown("**M-Score**")
-        st.markdown(_fmt_mscore(mscore.m_score), unsafe_allow_html=True)
-        st.caption(f"Limiar: −1.78 → **{mscore.classification}**")
-    with col_alert:
-        st.markdown("**Nível de Alerta**")
-        st.markdown(_pill_html(alert), unsafe_allow_html=True)
-        st.caption(f"Accrual Ratio: {cfq.accrual_ratio:+.4f} | Qualidade: {cfq.earnings_quality}")
+    # ── Cabeçalho ──────────────────────────────────────────────────────────
+    if stype == "beneish" and ms and cfq:
+        grade, grade_label = compute_grade(ms.m_score, cfq.accrual_ratio)
+        col_grade, col_score, col_alert = st.columns([1, 2, 2])
+        with col_grade:
+            st.markdown(_grade_html(grade), unsafe_allow_html=True)
+            st.caption(grade_label)
+        with col_score:
+            st.markdown("**M-Score**")
+            st.markdown(_fmt_mscore(ms.m_score), unsafe_allow_html=True)
+            st.caption(f"Limiar: −1.78 → **{ms.classification}**")
+        with col_alert:
+            st.markdown("**Nível de Alerta**")
+            st.markdown(_pill_html(alert), unsafe_allow_html=True)
+            st.caption(f"Accrual Ratio: {cfq.accrual_ratio:+.4f} | Qualidade: {cfq.earnings_quality}")
+    else:
+        # Banking / Insurance header
+        risk_color = "#ef4444" if sector_risk.risk_score >= 5 else (
+                     "#f97316" if sector_risk.risk_score >= 3 else "#22c55e")
+        col_score, col_alert, col_class = st.columns([1, 1, 2])
+        with col_score:
+            st.markdown("**Score de Risco**")
+            st.markdown(
+                f'<span style="color:{risk_color};font-size:2rem;font-weight:900">'
+                f'{sector_risk.risk_score:.1f}<span style="font-size:1rem">/10</span></span>',
+                unsafe_allow_html=True,
+            )
+            scorer_label = {"banking": "Modelo Bancário", "insurance": "Índice Combinado"}
+            st.caption(scorer_label.get(stype, stype))
+        with col_alert:
+            st.markdown("**Nível de Alerta**")
+            st.markdown(_pill_html(alert), unsafe_allow_html=True)
+        with col_class:
+            st.markdown("**Classificação**")
+            st.info(sector_risk.classification)
 
     st.divider()
 
-    # Gráficos
-    col_gauge, col_radar = st.columns(2)
-    with col_gauge:
-        st.plotly_chart(_gauge_chart(mscore.m_score), use_container_width=True)
-    with col_radar:
-        st.plotly_chart(_radar_chart(mscore), use_container_width=True)
+    # ── Visualizações ───────────────────────────────────────────────────────
+    if stype == "beneish" and ms:
+        col_gauge, col_radar = st.columns(2)
+        with col_gauge:
+            st.plotly_chart(_gauge_chart(ms.m_score), use_container_width=True)
+        with col_radar:
+            st.plotly_chart(_radar_chart(ms), use_container_width=True)
+        st.divider()
+        _render_index_detail(ms)
+    else:
+        # Sector-specific metric cards
+        _render_sector_metrics(stype, sector_risk.metrics)
 
     st.divider()
 
-    # Índices detalhados com explicações
-    _render_index_detail(mscore)
-
-    st.divider()
-
-    # Red Flags
+    # ── Red Flags ───────────────────────────────────────────────────────────
     st.markdown("#### 🚩 Red Flags Detectados")
     if flags:
         for f in flags:
@@ -411,9 +447,17 @@ def _render_result(ticker: str, sector: str, mscore, cfq, flags) -> None:
     else:
         st.success("Nenhum red flag acima do limiar detectado.")
 
-    # Tese de Risco (IA)
+    # ── Tese de Risco (IA — apenas para Beneish por ora) ───────────────────
     st.divider()
     st.markdown("#### 🤖 Tese de Risco — Narrativa Gemini")
+
+    if stype != "beneish" or not ms or not cfq:
+        st.info(
+            f"A narrativa IA está disponível para empresas industriais (Beneish). "
+            f"Para o scorer **{stype}**, os indicadores estão na seção acima.",
+            icon="ℹ️",
+        )
+        return
 
     api_key = _get_api_key()
     if not api_key:
@@ -428,7 +472,7 @@ def _render_result(ticker: str, sector: str, mscore, cfq, flags) -> None:
             try:
                 for chunk in analyst.analyze_streaming(
                     ticker=ticker, sector=sector, year=year_t,
-                    mscore_result=mscore, cfq_result=cfq, red_flags=flags,
+                    mscore_result=ms, cfq_result=cfq, red_flags=flags,
                 ):
                     full_text.append(chunk)
                     placeholder.markdown("".join(full_text))
@@ -443,31 +487,73 @@ def _render_result(ticker: str, sector: str, mscore, cfq, flags) -> None:
             mime="text/markdown",
         )
 
+
+def _render_sector_metrics(scorer_type: str, metrics: dict) -> None:
+    """Cards de métricas específicas para banking e insurance."""
+    if scorer_type == "banking":
+        st.markdown("### 🏦 Indicadores Bancários (BACEN / Basileia)")
+        c1, c2, c3 = st.columns(3)
+        roa = metrics.get("roa", float("nan"))
+        ci  = metrics.get("cost_income", float("nan"))
+        cq  = metrics.get("cfo_quality", float("nan"))
+        sp  = metrics.get("spread", float("nan"))
+        rg  = metrics.get("rev_growth", float("nan"))
+        c1.metric("ROA", f"{roa:.2%}" if not pd.isna(roa) else "—",
+                  delta="OK" if roa > 0.008 else "Baixo", delta_color="normal" if roa > 0.008 else "inverse")
+        c2.metric("Cost/Income", f"{ci:.1%}" if not pd.isna(ci) else "—",
+                  delta="OK" if ci < 0.60 else "Alto", delta_color="normal" if ci < 0.60 else "inverse")
+        c3.metric("CFO / Lucro", f"{cq:.2f}x" if not pd.isna(cq) else "—",
+                  delta="OK" if cq > 0.50 else "Baixo", delta_color="normal" if cq > 0.50 else "inverse")
+        c4, c5, _ = st.columns(3)
+        c4.metric("Spread Financeiro", f"{sp:.1%}" if not pd.isna(sp) else "—")
+        c5.metric("Crescimento Receita", f"{rg:.1%}" if not pd.isna(rg) else "—",
+                  delta="Crescendo" if not pd.isna(rg) and rg > 1 else "Contraindo",
+                  delta_color="normal" if not pd.isna(rg) and rg > 1 else "inverse")
+
+    elif scorer_type == "insurance":
+        st.markdown("### 🛡️ Indicadores de Seguros (SUSEP)")
+        c1, c2, c3 = st.columns(3)
+        lr = metrics.get("loss_ratio", float("nan"))
+        er = metrics.get("expense_ratio", float("nan"))
+        cr = metrics.get("combined_ratio", float("nan"))
+        rg = metrics.get("rev_growth", float("nan"))
+        roa = metrics.get("roa", float("nan"))
+        c1.metric("Sinistralidade", f"{lr:.1%}" if not pd.isna(lr) else "—",
+                  delta="OK" if lr < 0.65 else "Alta", delta_color="normal" if lr < 0.65 else "inverse")
+        c2.metric("Índice de Despesas", f"{er:.1%}" if not pd.isna(er) else "—")
+        c3.metric("Índice Combinado", f"{cr:.1%}" if not pd.isna(cr) else "—",
+                  delta="Lucro técnico" if cr < 1.0 else "Prejuízo técnico",
+                  delta_color="normal" if cr < 1.0 else "inverse")
+        c4, c5, _ = st.columns(3)
+        c4.metric("Crescimento Prêmios", f"{rg:.1%}" if not pd.isna(rg) else "—",
+                  delta="Crescendo" if not pd.isna(rg) and rg > 1 else "Contraindo",
+                  delta_color="normal" if not pd.isna(rg) and rg > 1 else "inverse")
+        c5.metric("ROA", f"{roa:.2%}" if not pd.isna(roa) else "—")
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Tab 0 — Home: Top 10 Melhores e Piores M-Score
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _load_ranking(tickers, year_t):
-    """Carrega resultados para o watchlist, guardando em session_state."""
+    """Carrega resultados usando o scorer adequado por setor (Strategy Pattern)."""
     from advisor_brain_fsa.data_fetcher import CVMDataFetcher
+    from advisor_brain_fsa.sector_scorer import get_scorer
     fetcher = CVMDataFetcher()
     results = []
     prog = st.progress(0, text="Carregando dados da CVM…")
     for i, ticker in enumerate(tickers):
         prog.progress((i + 1) / len(tickers), text=f"Processando {ticker}…")
+        sector = get_sector(ticker)
         try:
             fd_t, fd_t1 = fetcher.get_financial_data(ticker, year_t=year_t, year_t1=year_t - 1)
-            ms   = BeneishMScore(current=fd_t, prior=fd_t1).calculate()
-            cfq  = CashFlowQuality(current=fd_t, prior=fd_t1).calculate(ms)
-            flags = detect_red_flags(ms)
+            scorer = get_scorer(sector)
+            sr = scorer.score(fd_t, fd_t1)
             results.append(CompanyResult(
-                ticker=ticker, sector=get_sector(ticker), year_t=year_t,
-                mscore=ms, cfq=cfq, red_flags=flags,
+                ticker=ticker, sector=sector, year_t=year_t, sector_risk=sr,
             ))
         except Exception as exc:
             results.append(CompanyResult(
-                ticker=ticker, sector=get_sector(ticker), year_t=year_t,
-                mscore=None, cfq=None, red_flags=[], error=str(exc),
+                ticker=ticker, sector=sector, year_t=year_t, error=str(exc),
             ))
         time.sleep(0.2)
     prog.empty()
@@ -477,11 +563,11 @@ def _load_ranking(tickers, year_t):
 
 def tab_home():
     st.header("🏠 Visão Geral do Mercado")
-    st.caption("Top 10 melhores e piores M-Score do watchlist padrão (24 empresas B3).")
+    st.caption("Top 5 melhores e piores por segmento — watchlist padrão B3.")
 
-    key_res  = f"home_results_{year_t}"
-    key_tick = "home_selected_ticker"
+    key_res = f"home_results_{year_t}"
 
+    # ── Controles de carga ──────────────────────────────────────────────────
     col_btn, col_reset = st.columns([2, 1])
     with col_btn:
         load = st.button("🔄 Carregar / Atualizar Ranking", type="primary",
@@ -501,58 +587,95 @@ def tab_home():
 
     results = st.session_state[key_res]
     df = _to_dataframe(results, top_flags=1)
+    ok = df[df["Score de Risco"].notna()].copy()
 
-    ok = df[df["M-Score"].notna()].copy()
     if ok.empty:
         st.warning("Nenhuma empresa com dados disponíveis.")
         return
 
-    top10_best  = ok.nsmallest(10, "M-Score")
-    top10_worst = ok.nlargest(10,  "M-Score")
+    # ── Filtro de setor ──────────────────────────────────────────────────────
+    available_sectors = sorted(ok["Setor"].unique())
+    all_option = "Todos os setores"
+    sector_filter = st.selectbox(
+        "🔍 Filtrar por segmento:",
+        options=[all_option] + available_sectors,
+        index=0,
+        key="home_sector_filter",
+    )
 
-    col_best, col_worst = st.columns(2)
+    filtered = ok if sector_filter == all_option else ok[ok["Setor"] == sector_filter]
 
-    def _mini_table(sub: pd.DataFrame):
+    if filtered.empty:
+        st.warning(f"Nenhuma empresa disponível para o setor **{sector_filter}**.")
+        return
+
+    st.divider()
+
+    # ── Top 5 Melhores / Piores ──────────────────────────────────────────────
+    # For Beneish companies rank by M-Score; for financial by Score de Risco
+    is_fin_filter = sector_filter in FINANCIAL_GROUP
+
+    def _primary_col(row):
+        if row["Scorer"] in ("banking", "insurance"):
+            return row["Score de Risco"]
+        return row["M-Score"] if pd.notna(row["M-Score"]) else row["Score de Risco"]
+
+    filtered = filtered.copy()
+    filtered["_primary"] = filtered.apply(_primary_col, axis=1)
+
+    # Best = lowest primary score (low M-Score or low risk_score)
+    top5_best  = filtered.nsmallest(5, "_primary")
+    top5_worst = filtered.nlargest(5,  "_primary")
+
+    def _mini_table(sub: pd.DataFrame, label_col: str):
         rows = []
         for _, r in sub.iterrows():
-            icon = "🟢" if r["M-Score"] <= -2.20 else ("🟡" if r["M-Score"] <= -1.78 else "🔴")
+            alerta = r.get("Nível de Alerta", "—")
+            icon_map = {"Crítico": "🔴", "Alto Risco": "🟠", "Atenção": "🟡", "Normal": "🟢"}
+            icon = icon_map.get(alerta, "⚪")
+            score_val = r["_primary"]
+            scorer = r.get("Scorer", "beneish")
+            score_label = f"{score_val:+.4f}" if scorer == "beneish" else f"{score_val:.2f}/10"
             rows.append({
                 "": icon,
                 "Ticker": r["Ticker"],
                 "Setor": r["Setor"],
-                "M-Score": f"{r['M-Score']:+.4f}",
-                "Alerta": r["Nível de Alerta"],
+                label_col: score_label,
+                "Alerta": alerta,
             })
         st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
 
+    score_label = "Score de Risco" if is_fin_filter else "M-Score"
+    col_best, col_worst = st.columns(2)
     with col_best:
-        st.markdown("#### 🟢 Top 10 Melhores M-Score")
-        st.caption("Menor M-Score = menos sinais de manipulação")
-        _mini_table(top10_best)
-
+        st.markdown("#### 🟢 Top 5 Melhores")
+        st.caption("Menor risco no segmento selecionado")
+        _mini_table(top5_best, score_label)
     with col_worst:
-        st.markdown("#### 🔴 Top 10 Piores M-Score")
-        st.caption("Maior M-Score = mais próximo da zona de risco")
-        _mini_table(top10_worst)
+        st.markdown("#### 🔴 Top 5 Piores")
+        st.caption("Maior risco no segmento selecionado")
+        _mini_table(top5_worst, score_label)
 
-    # Gráfico setorial
-    if len(ok) > 1:
+    # ── Gráfico setorial (apenas quando "Todos") ──────────────────────────────
+    if sector_filter == all_option and len(ok) > 1:
         st.divider()
         st.markdown("#### M-Score Médio por Setor")
-        st.plotly_chart(_sector_bar(ok), use_container_width=True)
+        beneish_ok = ok[ok["Scorer"] == "beneish"]
+        if not beneish_ok.empty:
+            st.plotly_chart(_sector_bar(beneish_ok), use_container_width=True)
 
-    # Drill-down por empresa
+    # ── Drill-down por empresa ────────────────────────────────────────────────
     st.divider()
     st.markdown("#### 🔎 Explorar empresa em detalhe")
-    ok_tickers = list(ok["Ticker"])
-    chosen = st.selectbox("Selecione o ticker:", ["—"] + ok_tickers, key=key_tick)
+    ok_tickers = list(filtered["Ticker"])
+    chosen = st.selectbox("Selecione o ticker:", ["—"] + ok_tickers, key="home_detail")
 
     if chosen and chosen != "—":
-        match = [r for r in results if r.ticker == chosen and r.mscore is not None]
+        match = [r for r in results if r.ticker == chosen and r.ok]
         if match:
             r = match[0]
             st.markdown(f"**{chosen}** · {r.sector} · Ano {year_t}")
-            _render_result(chosen, r.sector, r.mscore, r.cfq, r.red_flags)
+            _render_result(chosen, r.sector, r.sector_risk)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -595,10 +718,10 @@ def tab_analyze():
             st.markdown("> 💡 Use a aba **Demo** para testar com dados sintéticos.")
             return
 
-    mscore = BeneishMScore(current=fd_t, prior=fd_t1).calculate()
-    cfq    = CashFlowQuality(current=fd_t, prior=fd_t1).calculate(mscore)
-    flags  = detect_red_flags(mscore)
-    _render_result(query, sector, mscore, cfq, flags)
+    from advisor_brain_fsa.sector_scorer import get_scorer
+    scorer = get_scorer(sector)
+    sr = scorer.score(fd_t, fd_t1)
+    _render_result(query, sector, sr)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -640,9 +763,10 @@ def tab_rank():
 
     st.divider()
 
-    # Tabela
-    cols = [c for c in ["Ticker","Setor","M-Score","Nível de Alerta","Accrual Ratio",
-                         "Qualidade Earnings","Δ vs Setor","Red Flag 1"] if c in ok.columns]
+    # Tabela — colunas adaptadas ao tipo de scorer presente
+    want_cols = ["Ticker","Setor","Scorer","Score de Risco","M-Score",
+                 "Nível de Alerta","Accrual Ratio","Δ vs Grupo","Red Flag 1"]
+    cols = [c for c in want_cols if c in ok.columns]
 
     def _ca(val):
         return {"Crítico":"background-color:#fee2e2;color:#b91c1c",
@@ -654,15 +778,21 @@ def tab_rank():
         if pd.isna(val): return ""
         return "color:#ef4444;font-weight:700" if val > -1.78 else "color:#16a34a;font-weight:700"
 
+    fmt = {"Score de Risco": "{:.2f}", "Accrual Ratio": "{:+.4f}", "Δ vs Grupo": "{:+.4f}"}
+    if "M-Score" in cols:
+        fmt["M-Score"] = "{:+.4f}"
+
     styled = (ok[cols].style
               .applymap(_ca, subset=["Nível de Alerta"])
               .applymap(_cm, subset=["M-Score"])
-              .format({"M-Score":"{:+.4f}","Accrual Ratio":"{:+.4f}","Δ vs Setor":"{:+.4f}"}, na_rep="—"))
+              .format(fmt, na_rep="—"))
     st.dataframe(styled, use_container_width=True, height=400)
 
     if len(ok) > 1:
-        st.markdown("#### M-Score Médio por Setor")
-        st.plotly_chart(_sector_bar(ok), use_container_width=True)
+        beneish_ok = ok[ok["Scorer"] == "beneish"]
+        if not beneish_ok.empty:
+            st.markdown("#### M-Score Médio por Setor (empresas não-financeiras)")
+            st.plotly_chart(_sector_bar(beneish_ok), use_container_width=True)
 
     if not err.empty:
         with st.expander(f"⚠️ {len(err)} ticker(s) sem dados"):
@@ -681,11 +811,11 @@ def tab_rank():
     ok_tickers = list(ok["Ticker"])
     chosen = st.selectbox("Selecione o ticker:", ["—"] + ok_tickers, key="rank_detail")
     if chosen and chosen != "—":
-        match = [r for r in results if r.ticker == chosen and r.mscore is not None]
+        match = [r for r in results if r.ticker == chosen and r.ok]
         if match:
             r = match[0]
             st.markdown(f"**{chosen}** · {r.sector}")
-            _render_result(chosen, r.sector, r.mscore, r.cfq, r.red_flags)
+            _render_result(chosen, r.sector, r.sector_risk)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -696,14 +826,13 @@ def tab_demo():
     st.header("🧪 Demo — Dados Sintéticos")
     st.caption("Funciona sem conexão com a CVM. Ideal para testar o pipeline e a IA.")
 
+    from advisor_brain_fsa.sector_scorer import BeneishSectorScorer
     empresa = st.radio("Empresa", list(_DEMO_DATA.keys()), horizontal=True)
     fd_t, fd_t1 = _DEMO_DATA[empresa]
-    mscore = BeneishMScore(current=fd_t, prior=fd_t1).calculate()
-    cfq    = CashFlowQuality(current=fd_t, prior=fd_t1).calculate(mscore)
-    flags  = detect_red_flags(mscore)
+    sr = BeneishSectorScorer().score(fd_t, fd_t1)
     ticker_demo = "SAFE3" if "Safe" in empresa else "RISKY4"
     sector_demo = "Energia" if "Safe" in empresa else "Consumo"
-    _render_result(ticker_demo, sector_demo, mscore, cfq, flags)
+    _render_result(ticker_demo, sector_demo, sr)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
