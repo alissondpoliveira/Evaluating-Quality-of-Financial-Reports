@@ -62,116 +62,203 @@ st.set_page_config(
 
 st.markdown("""
 <style>
+    /* ══════════════════════════════════════════════════════════════════
+       BLOOMBERG TERMINAL PALETTE
+       BG:#000000  CARD:#1C1C1C  BORDER:#30363D  TEXT:#D1D1D1
+       GREEN:#00FF00  RED:#FF3E3E  ORANGE:#FFA500  YELLOW:#FFD700
+    ══════════════════════════════════════════════════════════════════ */
+
+    /* ── App-wide background override ───────────────────────────────── */
+    .stApp, .stApp > div,
+    section[data-testid="stSidebar"] > div,
+    .main, .main .block-container {
+        background-color: #000000 !important;
+        color: #D1D1D1 !important;
+    }
+
+    /* Force Streamlit tab background */
+    [data-testid="stTabs"] { background-color: #000000 !important; }
+    [data-testid="stTabContent"] { background-color: #000000 !important; }
+
+    /* Global font stack — monospace for the terminal feel */
+    html, body, .stApp {
+        font-family: 'JetBrains Mono','Roboto Mono','Fira Code','Consolas',monospace !important;
+    }
+
+    /* Streamlit default text elements */
+    p, li, span, label, .stMarkdown {
+        color: #D1D1D1 !important;
+    }
+    h1, h2, h3, h4 { color: #D1D1D1 !important; }
+
+    /* Dividers */
+    hr { border-color: #30363D !important; }
+
+    /* Streamlit info/success/warning boxes → terminal style */
+    [data-testid="stAlert"] {
+        background: #1C1C1C !important;
+        border: 1px solid #30363D !important;
+        color: #D1D1D1 !important;
+    }
+
     /* ── Grade badge ─────────────────────────────────────────────────── */
     .grade-badge {
         display:inline-block; font-size:3rem; font-weight:900;
         width:90px; height:90px; line-height:90px;
-        text-align:center; border-radius:50%; color:white;
+        text-align:center; border-radius:4px; color:#000000;
+        font-family:'JetBrains Mono',monospace;
     }
-    .grade-A{background:#22c55e;} .grade-B{background:#84cc16;}
-    .grade-C{background:#eab308;color:#1a1a1a;} .grade-D{background:#f97316;}
-    .grade-F{background:#ef4444;}
+    .grade-A { background:#00FF00; }
+    .grade-B { background:#7FFF00; }
+    .grade-C { background:#FFD700; }
+    .grade-D { background:#FFA500; }
+    .grade-F { background:#FF3E3E; }
 
-    /* ── Alert pills ─────────────────────────────────────────────────── */
-    .pill{display:inline-block;padding:4px 14px;border-radius:20px;font-weight:600;font-size:.85rem;}
-    .pill-critico{background:#fee2e2;color:#b91c1c;}
-    .pill-alto{background:#ffedd5;color:#c2410c;}
-    .pill-atencao{background:#fef9c3;color:#854d0e;}
-    .pill-normal{background:#dcfce7;color:#15803d;}
+    /* ── Alert pills — Bloomberg palette ────────────────────────────── */
+    .pill {
+        display:inline-block; padding:3px 12px; border-radius:3px;
+        font-weight:700; font-size:.82rem; letter-spacing:.05em;
+        font-family:'JetBrains Mono',monospace;
+    }
+    .pill-critico { background:#FF3E3E22; border:1px solid #FF3E3E; color:#FF3E3E; }
+    .pill-alto    { background:#FFA50022; border:1px solid #FFA500; color:#FFA500; }
+    .pill-atencao { background:#FFD70022; border:1px solid #FFD700; color:#FFD700; }
+    .pill-normal  { background:#00FF0022; border:1px solid #00FF00; color:#00FF00; }
 
-    /* ── Red flag ────────────────────────────────────────────────────── */
-    .flag-item{background:#1e1b4b;border-left:4px solid #f97316;
-               padding:8px 14px;margin:6px 0;border-radius:0 8px 8px 0;
-               font-size:.9rem;color:#fde68a;}
+    /* ── Red flag rows ───────────────────────────────────────────────── */
+    .flag-item {
+        background: #1C1C1C;
+        border-left: 3px solid #FF3E3E;
+        padding: 8px 14px; margin: 5px 0;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: .88rem; color: #FF3E3E;
+    }
 
     /* ── Index explanation cards ─────────────────────────────────────── */
-    .idx-explain{background:#0f172a;border:1px solid #1e293b;
-                 border-radius:10px;padding:14px 16px;margin:6px 0;color:#cbd5e1;}
+    .idx-explain {
+        background: #1C1C1C; border: 1px solid #30363D;
+        border-radius: 4px; padding: 12px 16px; margin: 5px 0;
+        color: #D1D1D1; font-family: 'JetBrains Mono', monospace;
+        font-size: .85rem;
+    }
 
-    /* ── Tarefa 4 — Equity Research dark metric cards ─────────────────── */
+    /* ── Bloomberg metric cards ──────────────────────────────────────── */
     .metric-card {
-        background: #161B22;
-        border: 1px solid #1e3a5f;
-        border-radius: 8px;
-        padding: 14px 18px;
-        margin: 5px 0;
+        background: #1C1C1C;
+        border: 1px solid #30363D;
+        border-radius: 4px;
+        padding: 12px 16px;
+        margin: 4px 0;
     }
     .metric-label {
-        font-size: 0.72rem;
-        color: #64748b;
-        text-transform: uppercase;
-        letter-spacing: 0.09em;
+        font-size: 0.68rem; color: #888888;
+        text-transform: uppercase; letter-spacing: 0.1em;
         margin-bottom: 4px;
+        font-family: 'JetBrains Mono', monospace;
     }
     .metric-value {
-        font-family: 'JetBrains Mono','Fira Code','Cascadia Code','Consolas',monospace;
-        font-size: 1.35rem;
-        font-weight: 700;
-        color: #e2e8f0;
-        letter-spacing: -0.02em;
+        font-family: 'JetBrains Mono','Roboto Mono','Consolas', monospace;
+        font-size: 1.3rem; font-weight: 700;
+        color: #D1D1D1; letter-spacing: 0;
     }
-    .metric-value.ok  { color: #4ade80; }
-    .metric-value.warn{ color: #fb923c; }
-    .metric-value.crit{ color: #f87171; }
+    .metric-value.ok   { color: #00FF00; }
+    .metric-value.warn { color: #FFA500; }
+    .metric-value.crit { color: #FF3E3E; }
     .metric-delta {
-        font-family: 'JetBrains Mono','Fira Code',monospace;
-        font-size: 0.78rem;
-        color: #94a3b8;
-        margin-top: 2px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.72rem; color: #888888; margin-top: 3px;
     }
 
-    /* ── Scorer column header (Home dashboard) ───────────────────────── */
+    /* ── Home scorer column header ───────────────────────────────────── */
     .scorer-header {
-        background: #0f172a;
-        border: 1px solid #1e3a5f;
-        border-radius: 8px 8px 0 0;
-        padding: 10px 14px;
-        margin-bottom: 0;
+        background: #1C1C1C; border: 1px solid #30363D;
+        border-radius: 4px 4px 0 0; padding: 10px 14px;
     }
     .scorer-title {
-        font-size: 0.8rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.1em;
-        color: #94a3b8;
+        font-size: 0.72rem; font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.12em;
+        font-family: 'JetBrains Mono', monospace;
     }
 
-    /* ── Ticker row in top-5 panel ───────────────────────────────────── */
+    /* ── Ticker rows in top-5 ────────────────────────────────────────── */
     .ticker-row {
-        background: #111827;
-        border: 1px solid #1e293b;
-        border-top: none;
-        padding: 8px 14px;
-        font-family: 'JetBrains Mono','Fira Code',monospace;
-        font-size: 0.88rem;
-        color: #cbd5e1;
-        cursor: pointer;
-        transition: background 0.15s;
+        background: #1C1C1C; border: 1px solid #30363D; border-top: none;
+        padding: 8px 14px; font-family: 'JetBrains Mono', monospace;
+        font-size: 0.86rem; color: #D1D1D1;
     }
-    .ticker-row:hover { background: #1e293b; }
+    .ticker-row:hover { background: #252525; }
 
-    /* ── Tarefa 3 — Fixed legal footer ───────────────────────────────── */
-    .legal-footer {
-        position: fixed;
-        bottom: 0; left: 0; right: 0;
-        background: rgba(2, 6, 23, 0.96);
-        border-top: 1px solid #1e293b;
-        padding: 7px 24px;
-        font-size: 0.68rem;
-        color: #475569;
-        z-index: 9999;
-        backdrop-filter: blur(6px);
-        line-height: 1.5;
+    /* ── Sidebar ─────────────────────────────────────────────────────── */
+    section[data-testid="stSidebar"] {
+        background: #0A0A0A !important;
+        border-right: 1px solid #30363D !important;
     }
-    .legal-footer b { color: #64748b; }
 
-    /* Compensate for fixed footer height */
-    .main .block-container { padding-bottom: 80px !important; }
+    /* ── Streamlit tab bar ───────────────────────────────────────────── */
+    [data-testid="stTabs"] button {
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: .78rem !important; letter-spacing: .06em !important;
+        color: #888888 !important;
+    }
+    [data-testid="stTabs"] button[aria-selected="true"] {
+        color: #FFA500 !important;
+        border-bottom: 2px solid #FFA500 !important;
+    }
 
-    /* ── Monospace numbers in all st.metric widgets ──────────────────── */
+    /* ── st.metric widget ────────────────────────────────────────────── */
     [data-testid="stMetricValue"] {
-        font-family: 'JetBrains Mono','Fira Code','Consolas',monospace !important;
+        font-family: 'JetBrains Mono','Roboto Mono',monospace !important;
+        color: #D1D1D1 !important;
     }
+    [data-testid="stMetricDelta"] { font-family: 'JetBrains Mono',monospace !important; }
+
+    /* ── Dataframes / tables ─────────────────────────────────────────── */
+    [data-testid="stDataFrame"] {
+        border: 1px solid #30363D !important;
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+    [data-testid="stDataFrameGlideDataEditor"] * {
+        font-family: 'JetBrains Mono', monospace !important;
+    }
+
+    /* ── Buttons ─────────────────────────────────────────────────────── */
+    .stButton > button {
+        background: #1C1C1C !important; border: 1px solid #30363D !important;
+        color: #D1D1D1 !important; border-radius: 3px !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-size: .8rem !important; letter-spacing: .04em !important;
+    }
+    .stButton > button:hover {
+        border-color: #FFA500 !important; color: #FFA500 !important;
+    }
+    .stButton > button[kind="primary"] {
+        border-color: #FFA500 !important; color: #FFA500 !important;
+    }
+
+    /* ── Selectbox / input ───────────────────────────────────────────── */
+    [data-testid="stSelectbox"] > div,
+    [data-testid="stTextInput"] > div > div {
+        background: #1C1C1C !important; border-color: #30363D !important;
+        color: #D1D1D1 !important; font-family: 'JetBrains Mono',monospace !important;
+    }
+
+    /* ── Spinner ─────────────────────────────────────────────────────── */
+    [data-testid="stSpinner"] { color: #FFA500 !important; }
+
+    /* ── Fixed legal footer ──────────────────────────────────────────── */
+    .legal-footer {
+        position: fixed; bottom: 0; left: 0; right: 0;
+        background: rgba(0,0,0,0.97);
+        border-top: 1px solid #30363D;
+        padding: 6px 24px;
+        font-size: 0.65rem; color: #888888;
+        font-family: 'JetBrains Mono', monospace;
+        z-index: 9999; backdrop-filter: blur(4px); line-height: 1.6;
+    }
+    .legal-footer b { color: #FFA500; }
+
+    /* Compensate for fixed footer */
+    .main .block-container { padding-bottom: 72px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -220,9 +307,9 @@ with st.sidebar:
     st.markdown("""
 **Modelo:** Beneish M-Score (1999)
 **Accruals:** CFA Level 2 — Sloan (1996)
-**IA:** Gemini 2.0 Flash
+**IA:** Gemini 2.5 Flash
     """)
-    st.caption("v0.5.0 — dados: Portal CVM Dados Abertos")
+    st.caption("v0.6.0 — dados: Portal CVM Dados Abertos")
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Constantes de UI
@@ -331,69 +418,109 @@ def _grade_html(grade: str) -> str:
     return f'<div class="grade-badge grade-{grade}">{grade}</div>'
 
 def _fmt_mscore(val: float) -> str:
-    color = "#ef4444" if val > -1.78 else "#16a34a"
-    return f'<span style="color:{color};font-size:2rem;font-weight:900">{val:+.4f}</span>'
+    color = "#FF3E3E" if val > -1.78 else "#00FF00"
+    return (
+        f'<span style="color:{color};font-size:2rem;font-weight:900;'
+        f'font-family:\'JetBrains Mono\',monospace">{val:+.4f}</span>'
+    )
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Gráficos Plotly
 # ─────────────────────────────────────────────────────────────────────────────
 
+_BBG_LAYOUT = dict(
+    paper_bgcolor="#000000",
+    plot_bgcolor="#000000",
+    font=dict(family="'JetBrains Mono','Roboto Mono',monospace", color="#D1D1D1"),
+)
+
 def _gauge_chart(m_score: float) -> go.Figure:
+    is_bad = m_score > -1.78
+    bar_color = "#FF3E3E" if is_bad else "#00FF00"
     fig = go.Figure(go.Indicator(
         mode="gauge+number+delta",
         value=m_score,
-        delta={"reference": -1.78, "valueformat": ".3f"},
-        number={"valueformat": "+.4f", "font": {"size": 28}},
+        delta={"reference": -1.78, "valueformat": ".3f",
+               "increasing": {"color": "#FF3E3E"}, "decreasing": {"color": "#00FF00"}},
+        number={"valueformat": "+.4f", "font": {"size": 26, "color": bar_color}},
         gauge={
-            "axis": {"range": [-5, 2], "tickwidth": 1},
-            "bar": {"color": "#ef4444" if m_score > -1.78 else "#22c55e", "thickness": 0.25},
+            "axis": {"range": [-5, 2], "tickwidth": 1,
+                     "tickcolor": "#888888", "tickfont": {"color": "#888888"}},
+            "bgcolor": "#1C1C1C",
+            "bar": {"color": bar_color, "thickness": 0.22},
+            "bordercolor": "#30363D", "borderwidth": 1,
             "steps": [
-                {"range": [-5, -1.78], "color": "#dcfce7"},
-                {"range": [-1.78, 2],  "color": "#fee2e2"},
+                {"range": [-5, -1.78], "color": "#001a00"},
+                {"range": [-1.78, 2],  "color": "#1a0000"},
             ],
-            "threshold": {"line": {"color": "#b91c1c", "width": 3}, "thickness": 0.8, "value": -1.78},
+            "threshold": {
+                "line": {"color": "#FF3E3E", "width": 2},
+                "thickness": 0.8, "value": -1.78,
+            },
         },
-        title={"text": "M-Score  (limiar −1.78)", "font": {"size": 14}},
+        title={"text": "M-SCORE  |  LIMIAR −1.78",
+               "font": {"size": 11, "color": "#888888"}},
     ))
-    fig.update_layout(height=240, margin=dict(l=20, r=20, t=50, b=20), paper_bgcolor="rgba(0,0,0,0)")
+    fig.update_layout(height=240, margin=dict(l=20, r=20, t=50, b=10), **_BBG_LAYOUT)
     return fig
 
 def _radar_chart(mscore) -> go.Figure:
-    idx = ["DSRI","GMI","AQI","SGI","DEPI","SGAI","LVGI","TATA"]
-    vals = [mscore.dsri, mscore.gmi, mscore.aqi, mscore.sgi,
-            mscore.depi, mscore.sgai, mscore.lvgi, mscore.tata]
+    idx    = ["DSRI","GMI","AQI","SGI","DEPI","SGAI","LVGI","TATA"]
+    vals   = [mscore.dsri, mscore.gmi, mscore.aqi, mscore.sgi,
+              mscore.depi, mscore.sgai, mscore.lvgi, mscore.tata]
     thresh = [_THRESHOLDS[i] for i in idx]
-    colors = ["#ef4444" if v > t else "#22c55e" for v, t in zip(vals, thresh)]
+    colors = ["#FF3E3E" if v > t else "#00FF00" for v, t in zip(vals, thresh)]
     fig = go.Figure()
     fig.add_trace(go.Scatterpolar(
         r=thresh+[thresh[0]], theta=idx+[idx[0]], fill="toself",
-        fillcolor="rgba(59,130,246,0.08)", line=dict(color="rgba(59,130,246,0.4)", dash="dash"),
-        name="Limiar não-manipulador",
+        fillcolor="rgba(255,165,0,0.06)", line=dict(color="#FFA500", dash="dot", width=1),
+        name="Limiar",
     ))
     fig.add_trace(go.Scatterpolar(
         r=vals+[vals[0]], theta=idx+[idx[0]], fill="toself",
-        fillcolor="rgba(239,68,68,0.08)", line=dict(color="#ef4444", width=2),
-        marker=dict(color=colors, size=8), name="Empresa",
+        fillcolor="rgba(255,62,62,0.08)", line=dict(color="#FF3E3E", width=1.5),
+        marker=dict(color=colors, size=7), name="Empresa",
     ))
-    fig.update_layout(polar=dict(radialaxis=dict(visible=True, showticklabels=False)),
-                      showlegend=True, height=360, margin=dict(l=30,r=30,t=40,b=30),
-                      paper_bgcolor="rgba(0,0,0,0)")
+    fig.update_layout(
+        polar=dict(
+            bgcolor="#1C1C1C",
+            radialaxis=dict(visible=True, showticklabels=False,
+                            gridcolor="#30363D", linecolor="#30363D"),
+            angularaxis=dict(gridcolor="#30363D", linecolor="#30363D",
+                             tickfont=dict(color="#D1D1D1")),
+        ),
+        showlegend=True,
+        legend=dict(font=dict(color="#888888", size=10)),
+        height=340, margin=dict(l=30, r=30, t=40, b=20),
+        **_BBG_LAYOUT,
+    )
     return fig
 
 def _sector_bar(df: pd.DataFrame) -> go.Figure:
     ok = df[df["M-Score"].notna()]
     if ok.empty:
         return go.Figure()
-    avg = ok.groupby("Setor")["M-Score"].mean().sort_values()
-    colors = ["#ef4444" if v > -1.78 else "#22c55e" for v in avg.values]
+    avg    = ok.groupby("Setor")["M-Score"].mean().sort_values()
+    colors = ["#FF3E3E" if v > -1.78 else "#00FF00" for v in avg.values]
     fig = go.Figure(go.Bar(
         x=avg.values, y=avg.index, orientation="h",
-        marker_color=colors, text=[f"{v:+.3f}" for v in avg.values], textposition="outside",
+        marker_color=colors, marker_line_width=0,
+        text=[f"{v:+.3f}" for v in avg.values],
+        textposition="outside",
+        textfont=dict(family="JetBrains Mono", size=10, color="#D1D1D1"),
     ))
-    fig.add_vline(x=-1.78, line_dash="dot", line_color="#b91c1c",
-                  annotation_text="−1.78", annotation_position="top")
-    fig.update_layout(height=max(250, len(avg)*40), margin=dict(l=10,r=60,t=20,b=30),
-                      paper_bgcolor="rgba(0,0,0,0)", xaxis_title="M-Score Médio")
+    fig.add_vline(x=-1.78, line_dash="dot", line_color="#FF3E3E", line_width=1,
+                  annotation_text="−1.78", annotation_font_color="#FF3E3E",
+                  annotation_position="top")
+    fig.update_layout(
+        height=max(220, len(avg) * 36),
+        margin=dict(l=10, r=70, t=16, b=24),
+        xaxis=dict(gridcolor="#30363D", zerolinecolor="#30363D",
+                   tickfont=dict(color="#888888")),
+        yaxis=dict(gridcolor="#30363D", tickfont=dict(color="#D1D1D1")),
+        xaxis_title="M-Score Médio",
+        **_BBG_LAYOUT,
+    )
     return fig
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -448,10 +575,10 @@ def _render_index_detail(mscore) -> None:
         ):
             c1, c2 = st.columns([1, 2])
             with c1:
-                color = "#ef4444" if above else "#16a34a"
+                color = "#FF3E3E" if above else "#00FF00"
                 st.markdown(
                     f"<div style='font-size:2.2rem;font-weight:900;color:{color}'>{value:+.4f}</div>"
-                    f"<div style='font-size:.8rem;color:#64748b'>Limiar Beneish 1999: {threshold}</div>"
+                    f"<div style='font-size:.8rem;color:#888888'>Limiar Beneish 1999: {threshold}</div>"
                     f"<div style='margin-top:6px'><b>Status:</b> {icon} {status}</div>",
                     unsafe_allow_html=True,
                 )
@@ -493,8 +620,8 @@ def _render_result(ticker: str, sector: str, sector_risk: SectorRiskResult) -> N
             st.caption(f"Accrual Ratio: {cfq.accrual_ratio:+.4f} | Qualidade: {cfq.earnings_quality}")
     else:
         # Banking / Insurance header
-        risk_color = "#ef4444" if sector_risk.risk_score >= 5 else (
-                     "#f97316" if sector_risk.risk_score >= 3 else "#22c55e")
+        risk_color = "#FF3E3E" if sector_risk.risk_score >= 5 else (
+                     "#FFA500" if sector_risk.risk_score >= 3 else "#00FF00")
         col_score, col_alert, col_class = st.columns([1, 1, 2])
         with col_score:
             st.markdown("**Score de Risco**")
@@ -746,7 +873,7 @@ def tab_home():
     st.markdown(
         '<div style="font-size:1.5rem;font-weight:700;margin-bottom:2px;color:#e2e8f0">'
         '🏠 Dashboard Setorial B3</div>'
-        '<div style="color:#64748b;font-size:.85rem;margin-bottom:10px">'
+        '<div style="color:#888888;font-size:.85rem;margin-bottom:10px">'
         'Top 5 por risco · Industriais &nbsp;·&nbsp; Bancos &amp; Financeiro &nbsp;·&nbsp; Seguros'
         '</div>',
         unsafe_allow_html=True,
@@ -782,22 +909,22 @@ def tab_home():
 
     def _scorer_column(col_container, scorer_type: str, title: str, icon: str,
                        border_color: str) -> None:
-        """Painel Top-5 com cards #161B22 e botões interativos (Tarefas 2 + 3)."""
+        """Painel Top-5 com cards #1C1C1C e botões interativos (Tarefas 2 + 3)."""
         top5 = _top5(scorer_type)
         with col_container:
             st.markdown(
-                f'<div style="background:#161B22;border:1px solid {border_color};'
+                f'<div style="background:#1C1C1C;border:1px solid {border_color};'
                 f'border-radius:8px 8px 0 0;padding:10px 14px;">'
                 f'<span style="font-size:.75rem;font-weight:700;text-transform:uppercase;'
                 f'letter-spacing:.1em;color:{border_color}">{icon} {title}</span>'
-                f'<span style="float:right;font-size:.7rem;color:#475569">Top 5 Risco</span>'
+                f'<span style="float:right;font-size:.7rem;color:#888888">Top 5 Risco</span>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
             if top5.empty:
                 st.markdown(
-                    '<div style="background:#0E1117;border:1px solid #21262d;border-top:none;'
-                    'padding:12px 14px;color:#475569;font-size:.83rem;">Sem dados disponíveis</div>',
+                    '<div style="background:#000000;border:1px solid #30363D;border-top:none;'
+                    'padding:12px 14px;color:#888888;font-size:.83rem;">Sem dados disponíveis</div>',
                     unsafe_allow_html=True,
                 )
                 return
@@ -809,9 +936,9 @@ def tab_home():
                 ticker = row["Ticker"]
                 btn_key = f"btn_{scorer_type}_{ticker}"
                 is_sel  = st.session_state.get("home_selected") == ticker
-                bg = "#1c2d4a" if is_sel else "#0E1117"
+                bg = "#2A1A00" if is_sel else "#000000"
                 st.markdown(
-                    f'<div style="background:{bg};border:1px solid #21262d;border-top:none;'
+                    f'<div style="background:{bg};border:1px solid #30363D;border-top:none;'
                     f'padding:1px 6px;">', unsafe_allow_html=True,
                 )
                 if st.button(
@@ -839,7 +966,7 @@ def tab_home():
         st.divider()
         st.markdown(
             '<span style="font-size:.8rem;font-weight:700;text-transform:uppercase;'
-            'letter-spacing:.08em;color:#64748b">M-Score Médio por Setor (Industriais)</span>',
+            'letter-spacing:.08em;color:#888888">M-Score Médio por Setor (Industriais)</span>',
             unsafe_allow_html=True,
         )
         st.plotly_chart(_sector_bar(beneish_ok), use_container_width=True)
@@ -852,12 +979,12 @@ def tab_home():
         scorer_lbl = row_df["Scorer"].iloc[0] if not row_df.empty else "—"
         st.divider()
         st.markdown(
-            f'<div style="background:#161B22;border:1px solid #1e3a5f;'
+            f'<div style="background:#1C1C1C;border:1px solid #30363D;'
             f'border-radius:8px;padding:12px 18px;margin-bottom:12px;">'
             f'<span style="font-family:monospace;font-size:1.1rem;font-weight:700;'
-            f'color:#60a5fa">{selected}</span>'
-            f'<span style="color:#64748b;font-size:.85rem"> · {sector} · {year_t}</span>'
-            f'<span style="float:right;font-size:.75rem;color:#475569">'
+            f'color:#FFA500">{selected}</span>'
+            f'<span style="color:#888888;font-size:.85rem"> · {sector} · {year_t}</span>'
+            f'<span style="float:right;font-size:.75rem;color:#888888">'
             f'scorer: {scorer_lbl}</span></div>',
             unsafe_allow_html=True,
         )
@@ -971,14 +1098,14 @@ def tab_rank():
     cols = [c for c in want_cols if c in ok.columns]
 
     def _ca(val):
-        return {"Crítico":"background-color:#fee2e2;color:#b91c1c",
-                "Alto Risco":"background-color:#ffedd5;color:#c2410c",
-                "Atenção":"background-color:#fef9c3;color:#854d0e",
-                "Normal":"background-color:#dcfce7;color:#15803d"}.get(val, "")
+        return {"Crítico":"background-color:#2a0000;color:#FF3E3E;font-family:monospace",
+                "Alto Risco":"background-color:#2a1a00;color:#FFA500;font-family:monospace",
+                "Atenção":"background-color:#2a2000;color:#FFD700;font-family:monospace",
+                "Normal":"background-color:#002200;color:#00FF00;font-family:monospace"}.get(val, "")
 
     def _cm(val):
         if pd.isna(val): return ""
-        return "color:#ef4444;font-weight:700" if val > -1.78 else "color:#16a34a;font-weight:700"
+        return "color:#FF3E3E;font-weight:700;font-family:monospace" if val > -1.78 else "color:#00FF00;font-weight:700;font-family:monospace"
 
     fmt = {"Score de Risco": "{:.2f}", "Accrual Ratio": "{:+.4f}", "Δ vs Grupo": "{:+.4f}"}
     if "M-Score" in cols:
@@ -1015,7 +1142,7 @@ def tab_rank():
     with qcol:
         st.markdown(
             '<span style="font-size:.8rem;font-weight:700;text-transform:uppercase;'
-            'letter-spacing:.08em;color:#64748b">⚡ Acesso Rápido</span>',
+            'letter-spacing:.08em;color:#888888">⚡ Acesso Rápido</span>',
             unsafe_allow_html=True,
         )
         quick = st.selectbox(
@@ -1040,11 +1167,11 @@ def tab_rank():
         if match:
             r = match[0]
             st.markdown(
-                f'<div style="background:#161B22;border:1px solid #1e3a5f;border-radius:8px;'
+                f'<div style="background:#1C1C1C;border:1px solid #30363D;border-radius:8px;'
                 f'padding:10px 16px;margin:8px 0;">'
-                f'<span style="font-family:monospace;font-size:1rem;font-weight:700;color:#60a5fa">'
+                f'<span style="font-family:monospace;font-size:1rem;font-weight:700;color:#FFA500">'
                 f'{quick}</span>'
-                f'<span style="color:#64748b;font-size:.83rem"> · {r.sector} · scorer: {r.sector_risk.scorer_type}</span>'
+                f'<span style="color:#888888;font-size:.83rem"> · {r.sector} · scorer: {r.sector_risk.scorer_type}</span>'
                 f'</div>',
                 unsafe_allow_html=True,
             )
@@ -1086,7 +1213,7 @@ def _render_footer() -> None:
         <b>exigem análise qualitativa profunda</b> conforme os padrões do CFA Institute.
         &nbsp;·&nbsp;
         <b>IA &amp; Dados:</b>
-        Ferramenta experimental — narrativas geradas por Gemini e dados automáticos da CVM
+        Ferramenta baseada em IA (Gemini 2.5 Flash) — narrativas geradas automaticamente e dados da CVM
         podem conter erros de cálculo ou interpretação.
         &nbsp;·&nbsp;
         <b>Não constitui recomendação de compra ou venda de ativos.</b>
