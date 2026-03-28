@@ -92,6 +92,12 @@ _SETOR_RULES: List[Tuple[Tuple[str, ...], str, str]] = [
         "banking",
         "Financeiro",
     ),
+    # BDRs — Recibos de Depósito Brasileiros (emissores estrangeiros na B3)
+    (
+        ("RECIBO DE DEPOSITO", "BDR", "DEPOSITARY RECEIPT"),
+        "beneish",
+        "BDR",
+    ),
     # Setores não-financeiros → BeneishSectorScorer
     (("PETROLEO", "GAS", "COMBUSTIVEL", "EXPLORACAO DE PETROLE"), "beneish", "Energia"),
     (("ELETRIC", "ENERGIA ELETR", "TRANSMISSAO DE ENERGIA"),      "beneish", "Energia"),

@@ -664,17 +664,9 @@ def _render_result(ticker: str, sector: str, sector_risk: SectorRiskResult) -> N
     else:
         st.success("Nenhum red flag acima do limiar detectado.")
 
-    # ── Tese de Risco (IA — apenas para Beneish por ora) ───────────────────
+    # ── Tese de Risco (IA — todos os scorers) ──────────────────────────────
     st.divider()
     st.markdown("#### 🤖 Tese de Risco — Narrativa Gemini")
-
-    if stype != "beneish" or not ms or not cfq:
-        st.info(
-            f"A narrativa IA está disponível para empresas industriais (Beneish). "
-            f"Para o scorer **{stype}**, os indicadores estão na seção acima.",
-            icon="ℹ️",
-        )
-        return
 
     api_key = _get_api_key()
     if not api_key:
@@ -690,6 +682,7 @@ def _render_result(ticker: str, sector: str, sector_risk: SectorRiskResult) -> N
                 for chunk in analyst.analyze_streaming(
                     ticker=ticker, sector=sector, year=year_t,
                     mscore_result=ms, cfq_result=cfq, red_flags=flags,
+                    sector_risk=sector_risk,
                 ):
                     full_text.append(chunk)
                     placeholder.markdown("".join(full_text))

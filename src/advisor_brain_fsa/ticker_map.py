@@ -125,6 +125,15 @@ TICKER_TO_KEYWORD: dict[str, str] = {
     "COGN3": "COGNA",           "YDUQ3": "YDUQS",
     "SEER3": "SER EDUCACIONAL", "ANIM3": "ANIMA",
     "AFYA3": "AFYA",
+
+    # BDRs (Brazilian Depositary Receipts — nível III, negociados na B3)
+    "MSFT34": "MICROSOFT",      "AAPL34": "APPLE",
+    "GOOGL34": "ALPHABET",      "AMZO34": "AMAZON",
+    "TSLA34": "TESLA",          "META34": "META PLATFORMS",
+    "NVDC34": "NVIDIA",         "JPMC34": "JPMORGAN CHASE",
+    "BERK34": "BERKSHIRE HATHAWAY", "VISA34": "VISA",
+    "NFLX34": "NETFLIX",        "DISB34": "WALT DISNEY",
+    "GOGL34": "ALPHABET",       "AMGN34": "AMGEN",
 }
 
 # ---------------------------------------------------------------------------
@@ -150,6 +159,7 @@ SECTOR_LABELS: dict[str, str] = {
     "Papel & Celulose": "Papel, Celulose e Embalagens",
     "Agronegócio":      "Agronegócio e Insumos",
     "Educação":         "Educação",
+    "BDR":              "BDRs — Recibos de Depósito Brasileiros",
     "Outros":           "Demais Setores",
 }
 
@@ -259,6 +269,15 @@ TICKER_SECTOR: dict[str, str] = {
     "COGN3": "Educação",  "YDUQ3": "Educação",
     "SEER3": "Educação",  "ANIM3": "Educação",
     "AFYA3": "Educação",
+
+    # BDRs
+    "MSFT34": "BDR",    "AAPL34": "BDR",
+    "GOOGL34": "BDR",   "AMZO34": "BDR",
+    "TSLA34": "BDR",    "META34": "BDR",
+    "NVDC34": "BDR",    "JPMC34": "BDR",
+    "BERK34": "BDR",    "VISA34": "BDR",
+    "NFLX34": "BDR",    "DISB34": "BDR",
+    "GOGL34": "BDR",    "AMGN34": "BDR",
 }
 
 

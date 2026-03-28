@@ -104,6 +104,22 @@ def compute_grade(m_score: float, accrual_ratio: float) -> tuple[str, str]:
     return "C", "Qualidade questionável — divergências precisam de explicação"
 
 
+def compute_grade_financial(risk_score: float, alert_level_value: str) -> tuple[str, str]:
+    """
+    Return (letter_grade, label) for banking / insurance scorers.
+    Uses the normalised 0-10 risk_score from SectorRiskResult.
+    """
+    if risk_score <= 2.5:
+        return "A", "Qualidade exemplar — indicadores financeiros saudáveis"
+    if risk_score <= 4.5:
+        return "B", "Boa qualidade — monitorar indicadores secundários"
+    if risk_score <= 6.5:
+        return "C", "Qualidade questionável — desvios precisam de explicação"
+    if risk_score <= 8.0:
+        return "D", "Alto risco — múltiplos indicadores comprometidos"
+    return "F", "Risco crítico — indicadores em zona de alerta máximo"
+
+
 # ---------------------------------------------------------------------------
 # System prompt (persona + output contract)
 # ---------------------------------------------------------------------------
@@ -240,6 +256,88 @@ class PromptBuilder:
             especificado no seu prompt de sistema. Use a Nota Qualitativa acima ({grade}).
             Identifique a conta contábil mais suspeita com base nos índices apresentados.
             Formule três perguntas técnicas que um analista CFA faria ao RI da empresa.
+        """)
+
+    def build_financial(
+        self,
+        ticker: str,
+        sector: str,
+        year: int,
+        scorer_type: str,
+        metrics: dict,
+        risk_score: float,
+        classification: str,
+        red_flags: list,
+        grade: str,
+        grade_label: str,
+    ) -> str:
+        """Return the user-turn prompt for banking or insurance scorers."""
+        import textwrap as _tw
+
+        flags_block = "\n".join(
+            f"  - {f}" for f in red_flags
+        ) if red_flags else "  - Nenhum red flag acima do limiar detectado"
+
+        def _fmt(v):
+            if v != v:  # NaN
+                return "N/D"
+            return f"{v:.4f}"
+
+        if scorer_type == "banking":
+            metrics_block = _tw.dedent(f"""                ## Indicadores Bancários
+                | Métrica             | Valor              | Referência Prudencial |
+                |---------------------|--------------------|-----------------------|
+                | ROA                 | {_fmt(metrics.get('roa', float('nan')))} | > 1,0% (BACEN bom) |
+                | Cost-to-Income      | {_fmt(metrics.get('cost_income', float('nan')))} | < 50% (eficiente) |
+                | CFO Quality         | {_fmt(metrics.get('cfo_quality', float('nan')))} | > 0 (caixa saudável) |
+                | Crescimento Receita | {_fmt(metrics.get('rev_growth', float('nan')))} | referência setorial |
+                | Spread Bancário     | {_fmt(metrics.get('spread', float('nan')))} | referência setorial |
+                | Alavancagem         | {_fmt(metrics.get('leverage', float('nan')))} | < 12x (Basileia III) |
+
+                **Score de Risco: {risk_score:.2f}/10**
+                **Classificação: {classification}**
+
+                > Analise ROA, eficiência operacional e qualidade do CFO sob a ótica do
+                > Acordo de Basileia III (capital mínimo, índice de cobertura de liquidez).
+                > Verifique se o crescimento de receita é sustentado por spread saudável ou
+                > por alavancagem excessiva (risco de crédito sistêmico).""")
+        else:  # insurance
+            metrics_block = _tw.dedent(f"""                ## Indicadores de Seguros
+                | Métrica              | Valor              | Referência SUSEP  |
+                |----------------------|--------------------|-------------------|
+                | Sinistralidade       | {_fmt(metrics.get('loss_ratio', float('nan')))} | < 70% (aceitável) |
+                | Índice de Despesas   | {_fmt(metrics.get('expense_ratio', float('nan')))} | < 30% (eficiente) |
+                | Índice Combinado     | {_fmt(metrics.get('combined_ratio', float('nan')))} | < 100% (lucrativo) |
+                | Crescimento Receita  | {_fmt(metrics.get('rev_growth', float('nan')))} | referência setorial |
+                | ROA                  | {_fmt(metrics.get('roa', float('nan')))} | > 2% (seguros) |
+                | Qualidade CFO        | {_fmt(metrics.get('cfo_quality', float('nan')))} | > 0 (caixa positivo)|
+
+                **Score de Risco: {risk_score:.2f}/10**
+                **Classificação: {classification}**
+
+                > Analise sinistralidade, índice combinado e qualidade do CFO sob a ótica
+                > das normas SUSEP (Circular 667/2022) e IFRS 17 (Insurance Contracts).
+                > Verifique se provisões técnicas são suficientes (adequacy test) e se o
+                > índice combinado reflete gerenciamento agressivo de sinistros.""")
+
+        return _tw.dedent(f"""            # Dados para Análise — {ticker} | Setor: {sector} | Exercício: {year}
+
+            **Tipo de Scorer:** {scorer_type.upper()} (especializado — não aplica Beneish M-Score)
+
+            {metrics_block}
+
+            ## Red Flags / Alertas Detectados
+            {flags_block}
+
+            ## Nota Qualitativa Pré-calculada
+            **Letra: {grade}** — {grade_label}
+
+            ---
+            Com base nesses dados, redija a Tese de Risco seguindo EXATAMENTE o formato
+            especificado no seu prompt de sistema. Use a Nota Qualitativa acima ({grade}).
+            Adapte as referências normativas ao setor ({sector}): para bancos, use Basileia III
+            e BACEN; para seguros, use SUSEP e IFRS 17. Substitua as perguntas sobre DSRI/GMI
+            por perguntas específicas sobre os indicadores acima que mais se desviam do padrão.
         """)
 
 
@@ -445,38 +543,50 @@ class GeminiAnalyst:
         self,
         ticker: str,
         year: int,
-        mscore_result: MScoreResult,
-        cfq_result: CashFlowQualityResult,
+        mscore_result: Optional[MScoreResult],
+        cfq_result: Optional[CashFlowQualityResult],
+        sector_risk=None,
     ) -> str:
         """
         Short hash that changes when financial data is restated (CVM VERSAO).
-        Uses key model outputs so a new DFP version triggers a cache miss.
+        For beneish: uses M-Score + accrual_ratio.
+        For banking/insurance: uses risk_score + scorer_type + classification.
         """
-        sig = (
-            f"{ticker}|{year}|{mscore_result.m_score:.6f}"
-            f"|{cfq_result.accrual_ratio:.6f}|{cfq_result.earnings_quality}"
-        )
+        if mscore_result is not None and cfq_result is not None:
+            sig = (
+                f"{ticker}|{year}|{mscore_result.m_score:.6f}"
+                f"|{cfq_result.accrual_ratio:.6f}|{cfq_result.earnings_quality}"
+            )
+        elif sector_risk is not None:
+            sig = (
+                f"{ticker}|{year}|{sector_risk.risk_score:.6f}"
+                f"|{sector_risk.scorer_type}|{sector_risk.classification}"
+            )
+        else:
+            sig = f"{ticker}|{year}"
         return hashlib.md5(sig.encode()).hexdigest()[:10]
 
     def _cache_path(
         self,
         ticker: str,
         year: int,
-        mscore_result: MScoreResult,
-        cfq_result: CashFlowQualityResult,
+        mscore_result: Optional[MScoreResult],
+        cfq_result: Optional[CashFlowQualityResult],
+        sector_risk=None,
     ) -> Path:
-        h = self._sig_hash(ticker, year, mscore_result, cfq_result)
+        h = self._sig_hash(ticker, year, mscore_result, cfq_result, sector_risk)
         return self.cache_dir / f"{ticker}_{year}_{h}.md"
 
     def _load_cache(
         self,
         ticker: str,
         year: int,
-        mscore_result: MScoreResult,
-        cfq_result: CashFlowQualityResult,
+        mscore_result: Optional[MScoreResult],
+        cfq_result: Optional[CashFlowQualityResult],
+        sector_risk=None,
     ) -> Optional[str]:
         """Return cached report text, or None on miss."""
-        p = self._cache_path(ticker, year, mscore_result, cfq_result)
+        p = self._cache_path(ticker, year, mscore_result, cfq_result, sector_risk)
         if p.exists():
             return p.read_text(encoding="utf-8")
         return None
@@ -485,11 +595,12 @@ class GeminiAnalyst:
         self,
         ticker: str,
         year: int,
-        mscore_result: MScoreResult,
-        cfq_result: CashFlowQualityResult,
+        mscore_result: Optional[MScoreResult],
+        cfq_result: Optional[CashFlowQualityResult],
         content: str,
+        sector_risk=None,
     ) -> None:
-        p = self._cache_path(ticker, year, mscore_result, cfq_result)
+        p = self._cache_path(ticker, year, mscore_result, cfq_result, sector_risk)
         p.write_text(content, encoding="utf-8")
 
     # ------------------------------------------------------------------
@@ -501,15 +612,18 @@ class GeminiAnalyst:
         ticker: str,
         sector: str,
         year: int,
-        mscore_result: MScoreResult,
-        cfq_result: CashFlowQualityResult,
-        red_flags: List[str],
+        mscore_result: Optional[MScoreResult] = None,
+        cfq_result: Optional[CashFlowQualityResult] = None,
+        red_flags: Optional[List[str]] = None,
+        sector_risk=None,
     ) -> str:
         """
         Generate the full Risk Thesis report (non-streaming).
         Returns cached result if data signature matches; calls API otherwise.
+        Supports beneish (mscore_result + cfq_result) and banking/insurance (sector_risk).
         """
-        cached = self._load_cache(ticker, year, mscore_result, cfq_result)
+        red_flags = red_flags or []
+        cached = self._load_cache(ticker, year, mscore_result, cfq_result, sector_risk)
         if cached is not None:
             return cached
         return "".join(
@@ -518,6 +632,7 @@ class GeminiAnalyst:
                 mscore_result=mscore_result,
                 cfq_result=cfq_result,
                 red_flags=red_flags,
+                sector_risk=sector_risk,
             )
         )
 
@@ -526,15 +641,18 @@ class GeminiAnalyst:
         ticker: str,
         sector: str,
         year: int,
-        mscore_result: MScoreResult,
-        cfq_result: CashFlowQualityResult,
-        red_flags: List[str],
+        mscore_result: Optional[MScoreResult] = None,
+        cfq_result: Optional[CashFlowQualityResult] = None,
+        red_flags: Optional[List[str]] = None,
+        sector_risk=None,
     ) -> Generator[str, None, None]:
         """
         Yield text chunks.  On cache hit: yields the full cached text as one
         chunk (instant).  On cache miss: streams from Gemini and persists.
+        Supports beneish (mscore_result + cfq_result) and banking/insurance (sector_risk).
         """
-        cached = self._load_cache(ticker, year, mscore_result, cfq_result)
+        red_flags = red_flags or []
+        cached = self._load_cache(ticker, year, mscore_result, cfq_result, sector_risk)
         if cached is not None:
             yield cached
             return
@@ -545,22 +663,56 @@ class GeminiAnalyst:
             mscore_result=mscore_result,
             cfq_result=cfq_result,
             red_flags=red_flags,
+            sector_risk=sector_risk,
         ):
             parts.append(chunk)
             yield chunk
 
-        self._save_cache(ticker, year, mscore_result, cfq_result, "".join(parts))
+        self._save_cache(ticker, year, mscore_result, cfq_result, "".join(parts), sector_risk)
+
+    @staticmethod
+    def _report_header_financial(
+        ticker: str,
+        year: int,
+        grade: str,
+        grade_label: str,
+        scorer_type: str,
+        risk_score: float,
+        classification: str,
+        alert_level_value: str,
+    ) -> str:
+        """Report header for banking / insurance scorers."""
+        alert_emoji = {
+            "Critico": "🔴", "Crítico": "🔴",
+            "Alto Risco": "🟠",
+            "Atencao": "🟡", "Atenção": "🟡",
+            "Normal": "🟢",
+        }.get(alert_level_value, "⚪")
+        scorer_label = {
+            "banking": "Modelo Bancário (ROA + Cost-to-Income + CFO Quality)",
+            "insurance": "Índice Combinado SUSEP + IFRS 17",
+        }.get(scorer_type, scorer_type.upper())
+        return (
+            f"# Tese de Risco — {ticker} ({year})\n\n"
+            f"> **Scorer:** {scorer_label}  \n"
+            f"> **Score de Risco:** `{risk_score:.2f}/10` — **{classification}**  \n"
+            f"> **Nível de Alerta:** {alert_emoji} {alert_level_value}  \n"
+            f"> **Nota Qualitativa:** **{grade}** — {grade_label}  \n\n"
+            "---\n\n"
+        )
 
     def _stream_api(
         self,
         ticker: str,
         sector: str,
         year: int,
-        mscore_result: MScoreResult,
-        cfq_result: CashFlowQualityResult,
-        red_flags: List[str],
+        mscore_result: Optional[MScoreResult] = None,
+        cfq_result: Optional[CashFlowQualityResult] = None,
+        red_flags: Optional[List[str]] = None,
+        sector_risk=None,
     ) -> Generator[str, None, None]:
-        """Internal: always calls the Gemini API (no cache check)."""
+        """Internal: always calls the Gemini API (no cache check).
+        Routes to beneish or financial prompt based on available data."""
         genai = _get_genai()
 
         if not self.api_key:
@@ -568,14 +720,45 @@ class GeminiAnalyst:
                 "No Google API key found. Set GOOGLE_API_KEY or pass api_key=."
             )
 
-        grade, grade_label = compute_grade(
-            mscore_result.m_score, cfq_result.accrual_ratio
-        )
-        user_prompt = self._builder.build(
-            ticker=ticker, sector=sector, year=year,
-            mscore_result=mscore_result, cfq_result=cfq_result,
-            red_flags=red_flags, grade=grade, grade_label=grade_label,
-        )
+        red_flags = red_flags or []
+        is_beneish = (mscore_result is not None and cfq_result is not None)
+
+        if is_beneish:
+            grade, grade_label = compute_grade(
+                mscore_result.m_score, cfq_result.accrual_ratio
+            )
+            user_prompt = self._builder.build(
+                ticker=ticker, sector=sector, year=year,
+                mscore_result=mscore_result, cfq_result=cfq_result,
+                red_flags=red_flags, grade=grade, grade_label=grade_label,
+            )
+            header = MDAnalyst._report_header(
+                ticker, year, grade, grade_label, mscore_result, cfq_result
+            )
+        elif sector_risk is not None:
+            grade, grade_label = compute_grade_financial(
+                sector_risk.risk_score, sector_risk.alert_level.value
+            )
+            user_prompt = self._builder.build_financial(
+                ticker=ticker, sector=sector, year=year,
+                scorer_type=sector_risk.scorer_type,
+                metrics=sector_risk.metrics,
+                risk_score=sector_risk.risk_score,
+                classification=sector_risk.classification,
+                red_flags=red_flags,
+                grade=grade, grade_label=grade_label,
+            )
+            header = GeminiAnalyst._report_header_financial(
+                ticker, year, grade, grade_label,
+                sector_risk.scorer_type,
+                sector_risk.risk_score,
+                sector_risk.classification,
+                sector_risk.alert_level.value,
+            )
+        else:
+            raise ValueError(
+                "Provide either mscore_result+cfq_result (beneish) or sector_risk (banking/insurance)."
+            )
 
         genai.configure(api_key=self.api_key)
         genai_model = genai.GenerativeModel(
@@ -583,9 +766,7 @@ class GeminiAnalyst:
             system_instruction=_SYSTEM_PROMPT,
         )
 
-        yield MDAnalyst._report_header(
-            ticker, year, grade, grade_label, mscore_result, cfq_result
-        )
+        yield header
 
         response = genai_model.generate_content(user_prompt, stream=True)
         for chunk in response:
