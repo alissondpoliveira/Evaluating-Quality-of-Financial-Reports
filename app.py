@@ -53,7 +53,7 @@ st.set_page_config(
     page_title="Advisor-Brain-FSA",
     page_icon="🔍",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -70,7 +70,6 @@ st.markdown("""
 
     /* ── App-wide background override ───────────────────────────────── */
     .stApp, .stApp > div,
-    section[data-testid="stSidebar"] > div,
     .main, .main .block-container {
         background-color: #000000 !important;
         color: #D1D1D1 !important;
@@ -188,10 +187,11 @@ st.markdown("""
     }
     .ticker-row:hover { background: #252525; }
 
-    /* ── Sidebar ─────────────────────────────────────────────────────── */
-    section[data-testid="stSidebar"] {
-        background: #0A0A0A !important;
-        border-right: 1px solid #30363D !important;
+    /* ── Sidebar — completamente oculta ─────────────────────────────── */
+    section[data-testid="stSidebar"],
+    [data-testid="collapsedControl"],
+    button[data-testid="baseButton-headerNoPadding"] {
+        display: none !important;
     }
 
     /* ── Streamlit tab bar ───────────────────────────────────────────── */
@@ -257,8 +257,13 @@ st.markdown("""
     }
     .legal-footer b { color: #FFA500; }
 
-    /* Compensate for fixed footer */
-    .main .block-container { padding-bottom: 72px !important; }
+    /* Compensate for fixed footer + remove default sidebar padding */
+    .main .block-container {
+        padding-bottom: 72px !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+        max-width: 1400px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -276,40 +281,57 @@ def _get_api_key() -> str:
     return os.environ.get("GOOGLE_API_KEY", "")
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Sidebar
+# Barra superior — sem sidebar
 # ─────────────────────────────────────────────────────────────────────────────
 
-with st.sidebar:
-    st.title("Advisor-Brain-FSA")
-    st.caption("Qualidade de Relatórios Financeiros")
-    st.divider()
+current_year = date.today().year
 
-    current_year = date.today().year
+_tb_brand, _tb_year, _tb_ai, _tb_ver = st.columns([5, 2, 2, 1])
+with _tb_brand:
+    st.markdown(
+        '<span style="font-family:\'JetBrains Mono\',monospace;font-size:1rem;'
+        'font-weight:700;color:#FFA500;letter-spacing:.1em">ADVISOR-BRAIN-FSA</span>'
+        '<span style="color:#888888;font-size:.72rem;margin-left:12px">'
+        'Qualidade de Relatórios Financeiros · B3</span>',
+        unsafe_allow_html=True,
+    )
+with _tb_year:
+    _prev_year = st.session_state.get("_last_year_t")
     year_t = st.selectbox(
-        "Ano de Referência",
+        "Ano de Balanço",
         options=list(range(current_year - 1, current_year - 6, -1)),
         index=0,
+        key="global_year_t",
+        label_visibility="collapsed",
+        help="Ano de referência do balanço (DFP CVM)",
+    )
+    if _prev_year is not None and _prev_year != year_t:
+        # Ano mudou — limpa cache de análise para forçar recálculo
+        st.session_state.pop("_analyze_cache", None)
+        st.cache_data.clear()
+    st.session_state["_last_year_t"] = year_t
+with _tb_ai:
+    _key_status = _get_api_key()
+    if _key_status:
+        st.markdown(
+            '<span style="font-size:.72rem;color:#00FF00;font-family:\'JetBrains Mono\',monospace">'
+            '■ GEMINI OK</span>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<span style="font-size:.72rem;color:#FF3E3E;font-family:\'JetBrains Mono\',monospace">'
+            '■ SEM API KEY</span>',
+            unsafe_allow_html=True,
+        )
+with _tb_ver:
+    st.markdown(
+        '<span style="font-size:.65rem;color:#444444;font-family:\'JetBrains Mono\',monospace">'
+        'v0.7.0</span>',
+        unsafe_allow_html=True,
     )
 
-    st.divider()
-    _key = _get_api_key()
-    if _key:
-        st.success("Gemini API configurada", icon="✅")
-    else:
-        st.warning(
-            "GOOGLE_API_KEY não encontrada.\n\n"
-            "Configure em `.streamlit/secrets.toml` ou via variável de ambiente "
-            "para habilitar a Tese de Risco com IA.",
-            icon="🔑",
-        )
-
-    st.divider()
-    st.markdown("""
-**Modelo:** Beneish M-Score (1999)
-**Accruals:** CFA Level 2 — Sloan (1996)
-**IA:** Gemini 2.5 Flash
-    """)
-    st.caption("v0.6.0 — dados: Portal CVM Dados Abertos")
+st.markdown('<hr style="margin:4px 0 10px 0;border-color:#30363D">', unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Constantes de UI
@@ -999,15 +1021,20 @@ def tab_home():
 # ─────────────────────────────────────────────────────────────────────────────
 
 def tab_analyze():
-    st.header("🔍 Análise Individual")
-    st.caption("Busca dados reais no Portal CVM e calcula M-Score + qualidade de accruals.")
+    st.markdown(
+        '<div style="font-size:1.2rem;font-weight:700;margin-bottom:2px;color:#D1D1D1">'
+        '🔍 Análise Individual</div>'
+        '<div style="color:#888888;font-size:.8rem;margin-bottom:10px">'
+        'Dados reais do Portal CVM · M-Score + Accruals + Narrativa IA</div>',
+        unsafe_allow_html=True,
+    )
 
-    # ── Tarefa 1: pre-fill ticker quando navegando da Home ──────────────────
+    # ── Pre-fill ticker navegando da Home ───────────────────────────────────
     _nav = st.session_state.pop("navigate_ticker", None)
     all_tickers = sorted(TICKER_TO_KEYWORD.keys())
     _default_idx = (all_tickers.index(_nav) + 1) if (_nav and _nav in all_tickers) else 0
 
-    col_in, col_btn = st.columns([3, 1])
+    col_in, col_year_lbl, col_btn = st.columns([4, 1, 1])
     with col_in:
         ticker_sel = st.selectbox(
             "Ticker B3",
@@ -1015,20 +1042,67 @@ def tab_analyze():
             index=_default_idx,
             format_func=lambda t: t if not t else f"{t} — {TICKER_TO_KEYWORD.get(t, t)}",
         )
-        custom = st.text_input("…ou CNPJ / nome livre", placeholder="33.000.167/0001-01 ou Petrobras")
-    query = custom.strip() if custom.strip() else ticker_sel
-
+        custom = st.text_input(
+            "ou CNPJ / nome livre",
+            placeholder="33.000.167/0001-01 ou Petrobras",
+            label_visibility="collapsed",
+        )
+    with col_year_lbl:
+        st.markdown(
+            f'''<div style="margin-top:28px;font-size:.78rem;color:#888888;
+            font-family:\'JetBrains Mono\',monospace">Ano: <b style="color:#FFA500">{year_t}</b></div>''',
+            unsafe_allow_html=True,
+        )
     with col_btn:
         st.markdown("<br>", unsafe_allow_html=True)
-        # Auto-run if navigated from Home
-        run = st.button("Calcular", type="primary", disabled=not query) or bool(_nav and query)
+        run = st.button("Calcular", type="primary", use_container_width=True) or bool(_nav)
 
-    if not run or not query:
-        st.info("Selecione ou digite um ticker acima e clique em **Calcular**.")
+    query = custom.strip() if custom.strip() else ticker_sel
+
+    # ── Verificar cache de análise anterior (persiste o resultado entre reruns) ─
+    # Isso garante que clicar em "Gerar Tese de Risco" não reseta a busca.
+    _cache = st.session_state.get("_analyze_cache")
+    _cache_valid = (
+        _cache is not None
+        and _cache.get("query") == query
+        and _cache.get("year_t") == year_t
+        and not run
+    )
+
+    if not run and not _cache_valid:
+        if query:
+            st.markdown(
+                '<div style="color:#888888;font-size:.83rem;padding:8px 0">' +
+                f'Ticker selecionado: <b style="color:#FFA500">{query}</b> — clique em <b>Calcular</b> para analisar.</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.info("Selecione ou digite um ticker acima e clique em **Calcular**.", icon="🔍")
         return
 
+    if _cache_valid:
+        # Re-renderiza resultado em cache sem chamar CVM (persiste resultado para Gemini)
+        sector = _cache["sector"]
+        sr = _cache["sr"]
+        st.markdown(
+            f'<div style="background:#1C1C1C;border:1px solid #30363D;border-radius:6px;' +
+            f'padding:8px 16px;margin-bottom:8px;font-size:.82rem;">' +
+            f'<span style="color:#FFA500;font-weight:700">{query}</span>' +
+            f' <span style="color:#888888">· {sector} · {year_t}</span></div>',
+            unsafe_allow_html=True,
+        )
+        _render_result(query, sector, sr)
+        return
+
+    # ── Nova análise ─────────────────────────────────────────────────────────
     sector = get_sector(query)
-    st.markdown(f"**{query}** · Setor: {sector} · Ano: {year_t} vs {year_t - 1}")
+    st.markdown(
+        f'<div style="background:#1C1C1C;border:1px solid #30363D;border-radius:6px;' +
+        f'padding:8px 16px;margin-bottom:8px;font-size:.82rem;">' +
+        f'<span style="color:#FFA500;font-weight:700">{query}</span>' +
+        f' <span style="color:#888888">· {sector} · Ano: {year_t} vs {year_t - 1}</span></div>',
+        unsafe_allow_html=True,
+    )
 
     from advisor_brain_fsa.data_fetcher import CVMDataFetcher
     with st.spinner(f"Baixando dados da CVM para {query}…"):
@@ -1043,6 +1117,12 @@ def tab_analyze():
     from advisor_brain_fsa.sector_scorer import get_scorer
     scorer = get_scorer(sector)
     sr = scorer.score(fd_t, fd_t1)
+
+    # Salva resultado em cache de sessão para persistir entre reruns (ex: clique no Gemini)
+    st.session_state["_analyze_cache"] = {
+        "query": query, "sector": sector, "sr": sr, "year_t": year_t
+    }
+
     _render_result(query, sector, sr)
 
 
