@@ -1,0 +1,55 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# ── Ambientes virtuais ────────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+.env
+
+# ── Testes ────────────────────────────────────────────────────────────────────
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── Ferramentas de linting ────────────────────────────────────────────────────
+.mypy_cache/
+.ruff_cache/
+.flake8
+
+# ── Secrets — NUNCA entrar no container ──────────────────────────────────────
+.streamlit/secrets.toml
+.env.*
+*.env
+
+# ── Git ───────────────────────────────────────────────────────────────────────
+.git/
+.gitignore
+
+# ── CI / IDE ──────────────────────────────────────────────────────────────────
+.github/
+.vscode/
+.idea/
+*.code-workspace
+
+# ── Cache de dados (volume Railway monta /app/data em runtime) ────────────────
+# Exclui cache local do desenvolvedor — no container o volume está em /app/data
+data/cache/
+data/ai_reports/
+
+# ── Documentação ──────────────────────────────────────────────────────────────
+README.md
+docs/
+
+# ── macOS / Windows ───────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
