@@ -328,6 +328,7 @@ def get_home_dashboard_data(
     cache_dir: Optional[Path | str] = None,
     max_age_days: int = _HOME_CACHE_MAX_AGE_DAYS,
     force: bool = False,
+    quick: bool = False,
     retry_delay: float = 0.05,
 ) -> pd.DataFrame:
     """
@@ -378,15 +379,32 @@ def get_home_dashboard_data(
                 logger.warning("Cache read failed (%s) — rebuilding.", exc)
 
     # ── Full rebuild ─────────────────────────────────────────────────────────
-    logger.info("Building home dashboard for year_t=%d (force=%s)...", year_t, force)
-    all_tickers = [t for t, s in TICKER_SECTOR.items() if s != "BDR"]
+    if quick:
+        # Fast path: DEFAULT_WATCHLIST (27 tickers) — used on cold start so
+        # gunicorn never blocks for the 3-5 minutes a full 121-ticker run takes.
+        tickers_to_score = DEFAULT_WATCHLIST
+        logger.info(
+            "Building home dashboard QUICK (year_t=%d, %d tickers)...",
+            year_t, len(tickers_to_score),
+        )
+    else:
+        tickers_to_score = [t for t, s in TICKER_SECTOR.items() if s != "BDR"]
+        logger.info(
+            "Building home dashboard FULL (year_t=%d, %d tickers, force=%s)...",
+            year_t, len(tickers_to_score), force,
+        )
+
     df = rank_market(
-        tickers=all_tickers,
+        tickers=tickers_to_score,
         year_t=year_t,
         year_t1=year_t - 1,
         cache_dir=_cache_dir,
         retry_delay=retry_delay,
     )
+
+    # Only write to disk when doing a full build (quick previews are not cached)
+    if quick:
+        return df
 
     # ── Cache write ──────────────────────────────────────────────────────────
     try:

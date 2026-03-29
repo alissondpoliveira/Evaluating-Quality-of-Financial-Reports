@@ -331,7 +331,7 @@ def _layout_home():
             html.Div([
                 html.Span("Dashboard Setorial B3",
                           style={"fontSize":"1.15rem","fontWeight":"700","color":_B["text"]}),
-                html.Span(" · Top 5 por risco · Industriais / Bancos / Seguros",
+                html.Span(" · Top 5 por risco · Industriais / Bancos / Seguros · clique ↺ para análise completa (121 tickers)",
                           style={"fontSize":"0.75rem","color":_B["muted"],"marginLeft":"10px"}),
             ]),
             html.Button("↺ Atualizar", id="home-refresh", n_clicks=0,
@@ -359,9 +359,13 @@ def _load_home(_ni, _nb, year_t):
     # Force rebuild only when the ↺ button triggered this callback.
     # Initial auto-load (home-init) uses the disk cache if it is fresh.
     force_refresh = (ctx.triggered_id == "home-refresh")
+    # On auto-load (home-init), use quick mode so gunicorn never blocks.
+    # quick=True scores only DEFAULT_WATCHLIST (~27 tickers, ~10s) when no
+    # disk cache exists.  Full 121-ticker rebuild is triggered only by the ↺ button.
+    quick_mode = not force_refresh
 
     try:
-        df = get_home_dashboard_data(year_t=year_t, force=force_refresh)
+        df = get_home_dashboard_data(year_t=year_t, force=force_refresh, quick=quick_mode)
     except Exception as exc:
         return html.Div(
             f"Erro ao carregar dados: {exc}",
@@ -562,19 +566,6 @@ def _render_result_layout(ticker, sector, sr: SectorRiskResult, year_t) -> html.
         _lbl("🚩 Red Flags Detectados"),
         html.Div(flag_items),
     ])
-
-
-@callback(
-    Output("analise-result",     "children", allow_duplicate=True),
-    Output("analise-ai-section", "children", allow_duplicate=True),
-    Output("analyze-store",      "data",     allow_duplicate=True),
-    Input("analise-dd",          "value"),
-    Input("analise-cnpj",        "value"),
-    prevent_initial_call=True,
-)
-def _invalidate_on_query_change(_dd, _cnpj):
-    """Clear results and store whenever the user picks a new ticker or CNPJ."""
-    return None, None, None
 
 
 @callback(
