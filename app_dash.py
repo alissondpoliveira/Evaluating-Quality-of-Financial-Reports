@@ -30,7 +30,9 @@ from advisor_brain_fsa.rank_market import (
     DEFAULT_WATCHLIST, CompanyResult, _apply_sector_stats, _to_dataframe,
 )
 from advisor_brain_fsa.sector_scorer import SectorRiskResult, get_scorer
-from advisor_brain_fsa.ticker_map import TICKER_TO_KEYWORD, SECTOR_LABELS, get_sector
+from advisor_brain_fsa.ticker_map import (
+    TICKER_TO_KEYWORD, SECTOR_LABELS, TICKER_SECTOR, FINANCIAL_GROUP, get_sector,
+)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -339,6 +341,29 @@ def _layout_home():
     ])
 
 
+def _home_ticker_groups() -> tuple[list[str], list[str], list[str]]:
+    """
+    Derive banking, insurance and beneish ticker lists dynamically from
+    TICKER_SECTOR (all 135 known B3 tickers + BDRs).  BDRs are excluded
+    from the home ranking because their DFP data is not on the CVM portal.
+
+    Returns (banking_tickers, insurance_tickers, beneish_tickers).
+    """
+    banking    = []
+    insurance  = []
+    beneish    = []
+    for ticker, sector in TICKER_SECTOR.items():
+        if sector == "BDR":
+            continue
+        elif sector in ("Bancos", "Financeiro"):
+            banking.append(ticker)
+        elif sector == "Seguros":
+            insurance.append(ticker)
+        else:
+            beneish.append(ticker)
+    return banking, insurance, beneish
+
+
 @callback(
     Output("home-content","children"),
     Input("home-init","n_intervals"),
@@ -350,8 +375,13 @@ def _load_home(_ni, _nb, year_t):
     year_t = year_t or (_CY - 1)
     from advisor_brain_fsa.data_fetcher import CVMDataFetcher
     fetcher = CVMDataFetcher()
+
+    # Dynamic groups — no hardcoded watchlist filter
+    banking_tickers, insurance_tickers, beneish_tickers = _home_ticker_groups()
+    all_tickers = banking_tickers + insurance_tickers + beneish_tickers
+
     results = []
-    for ticker in _DEFAULT_WL:
+    for ticker in all_tickers:
         sector = get_sector(ticker)
         try:
             fd_t, fd_t1 = fetcher.get_financial_data(ticker, year_t=year_t, year_t1=year_t-1)
@@ -558,6 +588,19 @@ def _render_result_layout(ticker, sector, sr: SectorRiskResult, year_t) -> html.
         _lbl("🚩 Red Flags Detectados"),
         html.Div(flag_items),
     ])
+
+
+@callback(
+    Output("analise-result",     "children", allow_duplicate=True),
+    Output("analise-ai-section", "children", allow_duplicate=True),
+    Output("analyze-store",      "data",     allow_duplicate=True),
+    Input("analise-dd",          "value"),
+    Input("analise-cnpj",        "value"),
+    prevent_initial_call=True,
+)
+def _invalidate_on_query_change(_dd, _cnpj):
+    """Clear results and store whenever the user picks a new ticker or CNPJ."""
+    return None, None, None
 
 
 @callback(

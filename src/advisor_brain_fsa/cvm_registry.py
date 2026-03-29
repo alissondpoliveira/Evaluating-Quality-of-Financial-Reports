@@ -37,7 +37,7 @@ from .sector_scorer import (
     InsuranceScorer,
     SectorScorer,
 )
-from .ticker_map import TICKER_TO_KEYWORD
+from .ticker_map import TICKER_TO_KEYWORD, TICKER_SECTOR
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ CVM_CAD_URL = (
     "https://dados.cvm.gov.br/dados/CIA_ABERTA/CAD/DADOS/cad_cia_aberta.csv"
 )
 _CACHE_FILENAME = "cad_cia_aberta.csv"
-_DEFAULT_CACHE = Path(__file__).resolve().parents[2] / "data" / "cache"
+_DEFAULT_CACHE = Path(__file__).resolve().parent.parent.parent / "data" / "cache"
 _CSV_ENCODING = "latin-1"
 _CSV_SEP = ";"
 
@@ -61,7 +61,7 @@ _CSV_SEP = ";"
 _SETOR_RULES: List[Tuple[Tuple[str, ...], str, str]] = [
     # Seguros / Previdência / Resseguro → InsuranceScorer
     (
-        ("SEGUR", "PREVID", "RESSEGUR", "CAPITALIZACAO"),
+        ("SEGUR", "PREVID", "RESSEGUR", "CAPITALIZACAO", "SEGUROS", "RESSEGUROS"),
         "insurance",
         "Seguros",
     ),
@@ -69,17 +69,21 @@ _SETOR_RULES: List[Tuple[Tuple[str, ...], str, str]] = [
     (
         (
             "BANCO",
+            "BANCOS",
             "CREDITO",
             "INTERMEDIACAO",
+            "INTERMEDIACAO FINANCEIRA",
             "FINANCIAMENTO",
             "ARRENDAMENTO",
             "LEASING",
             "CAMBIO",
+            "FINANCEI",          # captura "Serviços Financeiros", "Intermediação Financeira"
+            "SERV FINANC",
         ),
         "banking",
         "Bancos",
     ),
-    # Mercado de capitais / holdings financeiras → BankingScorer (Financeiro)
+    # Mercado de capitais / holdings financeiras / participações → BankingScorer (Financeiro)
     (
         (
             "BOLSA",
@@ -87,7 +91,9 @@ _SETOR_RULES: List[Tuple[Tuple[str, ...], str, str]] = [
             "DISTRIBUIDOR",
             "ADMINISTRACAO DE FUNDOS",
             "HOLDING FINANCEIR",
+            "HOLDING",           # captura "Holdings Diversificadas", "Holding Pura"
             "FUNDO DE INVESTIMENT",
+            "PARTICIPAC",        # captura "Participações", "Sociedade de Participações"
         ),
         "banking",
         "Financeiro",
@@ -384,17 +390,40 @@ class CVMRegistry:
         2. Fuzzy-search in DENOM_SOCIAL (all words must match).
         3. Return the classification of the top hit.
         4. Fall back to ``("Outros", "beneish")`` when nothing is found.
+
+        BDR tickers (e.g. MSFT34, AAPL34) are short-circuited via the static
+        TICKER_SECTOR map — they have no CVM cadastral entry (foreign issuers).
+        Other tickers in TICKER_SECTOR also bypass the registry lookup so
+        the static map always takes precedence.
         """
-        keyword = TICKER_TO_KEYWORD.get(ticker.upper(), ticker)
+        upper = ticker.upper()
+        # Fast path: use static TICKER_SECTOR when available (includes BDRs)
+        if upper in TICKER_SECTOR:
+            sector_label = TICKER_SECTOR[upper]
+            # Map sector label → scorer_type
+            if sector_label in ("Bancos", "Financeiro"):
+                scorer_type = "banking"
+            elif sector_label == "Seguros":
+                scorer_type = "insurance"
+            else:
+                scorer_type = "beneish"
+            logger.debug(
+                "resolve_ticker_sector(%s) → %s/%s (static map)",
+                upper, sector_label, scorer_type,
+            )
+            return sector_label, scorer_type
+
+        # Slow path: fuzzy CVM registry lookup for unknown tickers
+        keyword = TICKER_TO_KEYWORD.get(upper, upper)
         hits = self.search_by_name(keyword, top_n=1)
         if hits:
             h = hits[0]
             logger.debug(
                 "resolve_ticker_sector(%s) → %s via '%s'",
-                ticker, h["sector"], h["denom_social"],
+                upper, h["sector"], h["denom_social"],
             )
             return h["sector"], h["scorer_type"]
-        logger.debug("resolve_ticker_sector(%s) → no match, defaulting", ticker)
+        logger.debug("resolve_ticker_sector(%s) → no match, defaulting", upper)
         return "Outros", "beneish"
 
     def get_scorer_instance(self, scorer_type: str) -> SectorScorer:

@@ -80,7 +80,7 @@ _CSV_ENCODING = "latin-1"
 _CSV_SEP = ";"
 
 # Default cache directory
-_DEFAULT_CACHE = Path(__file__).resolve().parents[2] / "data" / "cache"
+_DEFAULT_CACHE = Path(__file__).resolve().parent.parent.parent / "data" / "cache"
 
 
 # ---------------------------------------------------------------------------

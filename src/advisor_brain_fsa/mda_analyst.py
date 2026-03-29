@@ -521,7 +521,7 @@ class GeminiAnalyst:
     """
 
     DEFAULT_MODEL = "gemini-2.5-flash"
-    _DEFAULT_CACHE = Path(__file__).resolve().parents[2] / "data" / "ai_reports"
+    _DEFAULT_CACHE = Path(__file__).resolve().parent.parent.parent / "data" / "ai_reports"
 
     def __init__(
         self,
