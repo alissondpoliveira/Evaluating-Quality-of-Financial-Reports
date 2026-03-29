@@ -22,12 +22,13 @@ import pandas as pd
 import plotly.graph_objects as go
 
 import dash
-from dash import dcc, html, Input, Output, State, callback, dash_table, no_update
+from dash import dcc, html, Input, Output, State, callback, dash_table, no_update, ctx
 from dash.exceptions import PreventUpdate
 
 from advisor_brain_fsa.mda_analyst import GeminiAnalyst, compute_grade, compute_grade_financial
 from advisor_brain_fsa.rank_market import (
     DEFAULT_WATCHLIST, CompanyResult, _apply_sector_stats, _to_dataframe,
+    get_home_dashboard_data,
 )
 from advisor_brain_fsa.sector_scorer import SectorRiskResult, get_scorer
 from advisor_brain_fsa.ticker_map import (
@@ -345,29 +346,6 @@ def _layout_home():
     ])
 
 
-def _home_ticker_groups() -> tuple[list[str], list[str], list[str]]:
-    """
-    Derive banking, insurance and beneish ticker lists dynamically from
-    TICKER_SECTOR (all 135 known B3 tickers + BDRs).  BDRs are excluded
-    from the home ranking because their DFP data is not on the CVM portal.
-
-    Returns (banking_tickers, insurance_tickers, beneish_tickers).
-    """
-    banking    = []
-    insurance  = []
-    beneish    = []
-    for ticker, sector in TICKER_SECTOR.items():
-        if sector == "BDR":
-            continue
-        elif sector in ("Bancos", "Financeiro"):
-            banking.append(ticker)
-        elif sector == "Seguros":
-            insurance.append(ticker)
-        else:
-            beneish.append(ticker)
-    return banking, insurance, beneish
-
-
 @callback(
     Output("home-content","children"),
     Input("home-init","n_intervals"),
@@ -377,27 +355,19 @@ def _home_ticker_groups() -> tuple[list[str], list[str], list[str]]:
 )
 def _load_home(_ni, _nb, year_t):
     year_t = year_t or (_CY - 1)
-    from advisor_brain_fsa.data_fetcher import CVMDataFetcher
-    fetcher = CVMDataFetcher()
 
-    # Dynamic groups — no hardcoded watchlist filter
-    banking_tickers, insurance_tickers, beneish_tickers = _home_ticker_groups()
-    all_tickers = banking_tickers + insurance_tickers + beneish_tickers
+    # Force rebuild only when the ↺ button triggered this callback.
+    # Initial auto-load (home-init) uses the disk cache if it is fresh.
+    force_refresh = (ctx.triggered_id == "home-refresh")
 
-    results = []
-    for ticker in all_tickers:
-        sector = get_sector(ticker)
-        try:
-            fd_t, fd_t1 = fetcher.get_financial_data(ticker, year_t=year_t, year_t1=year_t-1)
-            sr = get_scorer(sector).score(fd_t, fd_t1)
-            results.append(CompanyResult(ticker=ticker, sector=sector,
-                                         year_t=year_t, sector_risk=sr))
-        except Exception as exc:
-            results.append(CompanyResult(ticker=ticker, sector=sector,
-                                         year_t=year_t, error=str(exc)))
-        time.sleep(0.05)
-    _apply_sector_stats(results)
-    df = _to_dataframe(results, top_flags=1)
+    try:
+        df = get_home_dashboard_data(year_t=year_t, force=force_refresh)
+    except Exception as exc:
+        return html.Div(
+            f"Erro ao carregar dados: {exc}",
+            style={"color": _B["red"], "fontFamily": _B["mono"], "fontSize": "0.83rem"},
+        )
+
     ok = df[df["Score de Risco"].notna()].copy()
     if ok.empty:
         return html.Div("Nenhum dado disponível.", style={"color":_B["muted"]})

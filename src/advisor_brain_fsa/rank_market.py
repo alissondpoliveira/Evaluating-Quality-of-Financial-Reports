@@ -17,9 +17,10 @@ Delta vs Setor respects group boundaries (Tarefa 4):
 from __future__ import annotations
 
 import logging
+import pickle
 import time
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -312,3 +313,87 @@ def _to_dataframe(results: List[CompanyResult], top_flags: int) -> pd.DataFrame:
           .drop(columns=["_alerta_rank"])
           .reset_index(drop=True)
     )
+
+
+# ---------------------------------------------------------------------------
+# Home Dashboard — persistent disk cache
+# ---------------------------------------------------------------------------
+
+_HOME_CACHE_MAX_AGE_DAYS: int = 3
+_HOME_CACHE_FILENAME = "home_dashboard_{year_t}.pkl"
+
+
+def get_home_dashboard_data(
+    year_t: Optional[int] = None,
+    cache_dir: Optional[Path | str] = None,
+    max_age_days: int = _HOME_CACHE_MAX_AGE_DAYS,
+    force: bool = False,
+    retry_delay: float = 0.05,
+) -> pd.DataFrame:
+    """
+    Return the ranked DataFrame for the Home Dashboard, using a persistent
+    pickle cache to avoid recalculating scores for all 121 B3 tickers on
+    every page load.
+
+    Cache logic
+    -----------
+    - Cache file: ``{cache_dir}/home_dashboard_{year_t}.pkl``
+    - Hit condition: file exists **and** ``age < max_age_days``
+    - On hit: deserialise and return immediately (O(1) I/O)
+    - On miss / ``force=True``: run full scoring pipeline, serialise, return
+
+    Parameters
+    ----------
+    year_t : int | None
+        Reference fiscal year.  Defaults to last calendar year.
+    cache_dir : Path | str | None
+        Directory for the pickle file.  Defaults to ``data/cache/``.
+    max_age_days : int
+        Invalidate the cache after this many days.  Default 3.
+    force : bool
+        Skip cache check and always rebuild (use for manual refresh).
+    retry_delay : float
+        Sleep between per-ticker CVM requests (seconds).
+    """
+    from .data_fetcher import _DEFAULT_CACHE as _DC  # avoids circular import
+
+    current_year = date.today().year
+    year_t = year_t or (current_year - 1)
+    _cache_dir = Path(cache_dir) if cache_dir else _DC
+    _cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = _cache_dir / _HOME_CACHE_FILENAME.format(year_t=year_t)
+
+    # ── Cache read ───────────────────────────────────────────────────────────
+    if not force and cache_path.exists():
+        age = datetime.now() - datetime.fromtimestamp(cache_path.stat().st_mtime)
+        if age <= timedelta(days=max_age_days):
+            try:
+                with open(cache_path, "rb") as fh:
+                    df: pd.DataFrame = pickle.load(fh)
+                logger.info(
+                    "Home dashboard loaded from cache %s (age %s)", cache_path, age
+                )
+                return df
+            except Exception as exc:
+                logger.warning("Cache read failed (%s) — rebuilding.", exc)
+
+    # ── Full rebuild ─────────────────────────────────────────────────────────
+    logger.info("Building home dashboard for year_t=%d (force=%s)...", year_t, force)
+    all_tickers = [t for t, s in TICKER_SECTOR.items() if s != "BDR"]
+    df = rank_market(
+        tickers=all_tickers,
+        year_t=year_t,
+        year_t1=year_t - 1,
+        cache_dir=_cache_dir,
+        retry_delay=retry_delay,
+    )
+
+    # ── Cache write ──────────────────────────────────────────────────────────
+    try:
+        with open(cache_path, "wb") as fh:
+            pickle.dump(df, fh, protocol=pickle.HIGHEST_PROTOCOL)
+        logger.info("Home dashboard cache written → %s", cache_path)
+    except Exception as exc:
+        logger.warning("Cache write failed: %s", exc)
+
+    return df

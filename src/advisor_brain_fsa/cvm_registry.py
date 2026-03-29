@@ -20,6 +20,7 @@ Data source:
 
 from __future__ import annotations
 
+import concurrent.futures
 import logging
 import re
 import time
@@ -142,10 +143,9 @@ def classify_setor_ativ(setor_ativ: str) -> Tuple[str, str]:
     """
     Map a CVM SETOR_ATIV string to ``(scorer_type, sector_label)``.
 
-    Case-insensitive: both the input and all rule keywords are normalised
-    to ASCII uppercase via ``_normalise()`` before comparison, so CVM
-    inconsistencies like "Banco Comercial" / "BANCO COMERCIAL" / "banco comercial"
-    all match correctly.
+    Case-insensitive: input is normalised to uppercase ASCII via ``_normalise()``
+    before comparison. Keywords in ``_SETOR_RULES`` are already uppercase, so
+    any CVM capitalisation variant matches correctly.
 
     Parameters
     ----------
@@ -157,16 +157,47 @@ def classify_setor_ativ(setor_ativ: str) -> Tuple[str, str]:
     scorer_type : ``"beneish"`` | ``"banking"`` | ``"insurance"``
     sector_label : human-readable label aligned with ticker_map.py SECTOR_LABELS
     """
-    # Normalise to upper-ASCII so matching is always case-insensitive
-    norm_upper = _normalise(setor_ativ)          # uppercase path
-    norm_lower = norm_upper.lower()              # lowercase path (extra safety)
+    norm = _normalise(setor_ativ)   # → uppercase ASCII, no accents
     for keywords, scorer_type, label in _SETOR_RULES:
-        kws_upper = [kw.upper() for kw in keywords]
-        kws_lower = [kw.lower() for kw in keywords]
-        if any(kw in norm_upper for kw in kws_upper) or \
-           any(kw in norm_lower for kw in kws_lower):
+        if any(kw in norm for kw in keywords):
             return scorer_type, label
     return "beneish", "Outros"
+
+
+# ---------------------------------------------------------------------------
+# P1.5 — Dynamic ticker → company-name translation via yfinance
+# ---------------------------------------------------------------------------
+
+# Regex for B3 ticker format: 4 uppercase letters + 1-2 digits (e.g. PETR4, BPAC11)
+_TICKER_RE = re.compile(r"^[A-Z]{4}[0-9]{1,2}$")
+
+
+def _yfinance_longname(ticker: str, timeout: float = 3.0) -> Optional[str]:
+    """
+    Query Yahoo Finance for the company's long name given a B3 ticker.
+
+    Appends ".SA" suffix (São Paulo Exchange convention used by Yahoo Finance).
+    The network call is executed in a thread and cancelled after *timeout*
+    seconds to avoid blocking the Dash callback worker.
+
+    Returns ``None`` on timeout, ImportError (yfinance not installed), or any
+    network/parsing error.
+    """
+    def _fetch() -> Optional[str]:
+        try:
+            import yfinance as yf  # lazy import — optional dependency
+            info = yf.Ticker(f"{ticker}.SA").info
+            return info.get("longName") or info.get("shortName")
+        except Exception:
+            return None
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        fut = ex.submit(_fetch)
+        try:
+            return fut.result(timeout=timeout)
+        except concurrent.futures.TimeoutError:
+            logger.warning("_yfinance_longname: timeout after %.1fs for %s", timeout, ticker)
+            return None
 
 
 # ---------------------------------------------------------------------------
@@ -489,6 +520,27 @@ class CVMRegistry:
                 "cnpj_digits":  "",
                 "source":       "static_map",
             }
+
+        # ── P1.5: yfinance dynamic ticker translation ────────────────────────
+        # Handles B3 tickers NOT in the 135-ticker static map (small/mid caps,
+        # newly listed companies, etc.).  Resolves ticker → company long name
+        # and forwards to fuzzy matching (P3) so the CVM registry can be used.
+        # Example: "GFSA3" → "GAFISA S.A." → matches DENOM_SOCIAL in the CSV.
+        if _TICKER_RE.match(upper):
+            long_name = _yfinance_longname(upper)
+            if long_name:
+                logger.info(
+                    "resolve_query(%s) → P1.5/yfinance long_name='%s'", q, long_name
+                )
+                hits = self.search_by_name(long_name, top_n=1)
+                if hits:
+                    h = hits[0]
+                    h["source"] = "yfinance_fuzzy"
+                    return h
+            else:
+                logger.debug(
+                    "resolve_query(%s) → P1.5/yfinance returned nothing", q
+                )
 
         # ── P2: CNPJ lookup (digits-only, via regex strip) ───────────────────
         digits = re.sub(r"\D", "", q)           # remove all non-digit chars

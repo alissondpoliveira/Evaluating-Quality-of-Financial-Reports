@@ -337,6 +337,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Diretório para salvar relatório .md e .csv.",
     )
 
+    # ── Cache management ───────────────────────────────────────────────────
+    parser.add_argument(
+        "--refresh-home-cache", action="store_true",
+        help=(
+            "Força a regeneração do cache do Home Dashboard "
+            "(home_dashboard_{ano}.pkl). Use após publicação de novos "
+            "balanços pela CVM para que o app Dash exiba dados atualizados."
+        ),
+    )
+
     return parser
 
 
@@ -360,6 +370,15 @@ def main() -> None:
     current_year = date.today().year
     year_t  = args.year or (current_year - 1)
     year_t1 = year_t - 1
+
+    if args.refresh_home_cache:
+        from advisor_brain_fsa.rank_market import get_home_dashboard_data
+        print(f"\n  Regenerando cache Home Dashboard — ano {year_t}...")
+        df = get_home_dashboard_data(year_t=year_t, force=True)
+        ok = df[df["Score de Risco"].notna()]
+        print(f"  ✓ Cache gerado: {len(ok)} tickers com dados | "
+              f"{len(df) - len(ok)} sem dados\n")
+        return
 
     if args.analyze:
         cmd_analyze(
