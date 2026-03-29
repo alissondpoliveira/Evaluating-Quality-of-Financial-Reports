@@ -21,6 +21,7 @@ Data source:
 from __future__ import annotations
 
 import logging
+import re
 import time
 import unicodedata
 import urllib.error
@@ -141,6 +142,11 @@ def classify_setor_ativ(setor_ativ: str) -> Tuple[str, str]:
     """
     Map a CVM SETOR_ATIV string to ``(scorer_type, sector_label)``.
 
+    Case-insensitive: both the input and all rule keywords are normalised
+    to ASCII uppercase via ``_normalise()`` before comparison, so CVM
+    inconsistencies like "Banco Comercial" / "BANCO COMERCIAL" / "banco comercial"
+    all match correctly.
+
     Parameters
     ----------
     setor_ativ : str
@@ -151,9 +157,14 @@ def classify_setor_ativ(setor_ativ: str) -> Tuple[str, str]:
     scorer_type : ``"beneish"`` | ``"banking"`` | ``"insurance"``
     sector_label : human-readable label aligned with ticker_map.py SECTOR_LABELS
     """
-    norm = _normalise(setor_ativ)
+    # Normalise to upper-ASCII so matching is always case-insensitive
+    norm_upper = _normalise(setor_ativ)          # uppercase path
+    norm_lower = norm_upper.lower()              # lowercase path (extra safety)
     for keywords, scorer_type, label in _SETOR_RULES:
-        if any(kw in norm for kw in keywords):
+        kws_upper = [kw.upper() for kw in keywords]
+        kws_lower = [kw.lower() for kw in keywords]
+        if any(kw in norm_upper for kw in kws_upper) or \
+           any(kw in norm_lower for kw in kws_lower):
             return scorer_type, label
     return "beneish", "Outros"
 
@@ -425,6 +436,83 @@ class CVMRegistry:
             return h["sector"], h["scorer_type"]
         logger.debug("resolve_ticker_sector(%s) → no match, defaulting", upper)
         return "Outros", "beneish"
+
+    # ------------------------------------------------------------------
+    # Chain of Responsibility — unified free-form query resolver
+    # ------------------------------------------------------------------
+
+    _CNPJ_RE = re.compile(r"^\d{2}[\.\-]?\d{3}[\.\-]?\d{3}[/\-]?\d{4}[\-]?\d{2}$")
+
+    def resolve_query(self, query: str) -> Optional[Dict]:
+        """
+        Resolve a free-form query (ticker, CNPJ, or name) to registry metadata
+        using a three-priority Chain of Responsibility:
+
+        Priority 1 — Static ticker map (fast path, zero I/O)
+            Covers all 135 known B3 tickers including BDRs (MSFT34, AAPL34…).
+            BDRs have no CVM cadastral entry; without this step they would
+            fall through to the fuzzy search and return no results.
+
+        Priority 2 — CNPJ lookup
+            Strips all non-digit characters with regex before querying the
+            registry, so both "33.000.167/0001-01" and "33000167000101" work.
+            Requires at least 8 digits (CNPJ_BASICO partial match).
+
+        Priority 3 — Fuzzy name matching
+            All words in the query must appear in DENOM_SOCIAL (normalised
+            ASCII, case-insensitive). Returns the top-1 hit.
+
+        Returns
+        -------
+        dict with keys ``denom_social``, ``sector``, ``scorer_type``,
+        ``setor_ativ``, ``cnpj_digits``, ``source`` — or ``None`` if
+        no match is found at any priority level.
+        """
+        q = query.strip()
+        upper = q.upper()
+
+        # ── P1: Static ticker map ────────────────────────────────────────────
+        if upper in TICKER_SECTOR:
+            sector_label = TICKER_SECTOR[upper]
+            if sector_label in ("Bancos", "Financeiro"):
+                scorer_type = "banking"
+            elif sector_label == "Seguros":
+                scorer_type = "insurance"
+            else:
+                scorer_type = "beneish"
+            logger.debug("resolve_query(%s) → P1/static sector=%s", q, sector_label)
+            return {
+                "denom_social": TICKER_TO_KEYWORD.get(upper, upper),
+                "sector":       sector_label,
+                "scorer_type":  scorer_type,
+                "setor_ativ":   "",
+                "cnpj_digits":  "",
+                "source":       "static_map",
+            }
+
+        # ── P2: CNPJ lookup (digits-only, via regex strip) ───────────────────
+        digits = re.sub(r"\D", "", q)           # remove all non-digit chars
+        if len(digits) >= 8:
+            hit = self.lookup_by_cnpj(digits)
+            if hit:
+                hit["source"] = "cnpj_lookup"
+                logger.debug(
+                    "resolve_query(%s) → P2/cnpj denom=%s", q, hit.get("denom_social")
+                )
+                return hit
+
+        # ── P3: Fuzzy name matching ──────────────────────────────────────────
+        hits = self.search_by_name(q, top_n=1)
+        if hits:
+            h = hits[0]
+            h["source"] = "fuzzy_name"
+            logger.debug(
+                "resolve_query(%s) → P3/fuzzy denom=%s", q, h.get("denom_social")
+            )
+            return h
+
+        logger.debug("resolve_query(%s) → no match at any priority", q)
+        return None
 
     def get_scorer_instance(self, scorer_type: str) -> SectorScorer:
         """Instantiate the right SectorScorer from a scorer_type string."""

@@ -249,13 +249,20 @@ app.layout = html.Div([
                       style={"fontSize":"0.68rem","color":_B["muted"],"marginLeft":"10px"}),
         ], style={"flex":"1"}),
         # Seletor de ano inline
+        # NOTA: width deve ser definido no wrapper div, NAO no style do Dropdown.
+        # React-Select herda o container width; se <=90px o arrow (~30px) +
+        # padding interno (~16px) deixam <44px para o texto e o overflow:hidden
+        # do .Select-value-label clipa "2025" para apenas "2".
         html.Div([
-            html.Span("ANO ", style={"fontSize":"0.62rem","color":_B["muted"],
-                                          "fontFamily":_B["mono"]}),
-            dcc.Dropdown(id="year-dd", options=_YEAR_OPTS, value=_CY-1, clearable=False,
-                style={"display":"inline-block","width":"90px","backgroundColor":_B["card"],
-                       "color":_B["text"],"border":"none","fontFamily":_B["mono"],
-                       "fontSize":"0.82rem","verticalAlign":"middle"}),
+            html.Span("ANO ", style={"fontSize":"0.62rem","color":_B["muted"],
+                                     "fontFamily":_B["mono"]}),
+            html.Div(
+                dcc.Dropdown(id="year-dd", options=_YEAR_OPTS, value=_CY-1,
+                    clearable=False, searchable=False,
+                    style={"backgroundColor":_B["card"],"border":"none",
+                           "fontFamily":_B["mono"],"fontSize":"0.82rem"}),
+                style={"width":"116px","minWidth":"116px"},
+            ),
         ], style={"display":"flex","alignItems":"center","gap":"6px","marginRight":"18px"}),
         html.Div(id="api-status",
                  style={"fontSize":"0.72rem","fontFamily":_B["mono"],"marginRight":"18px"}),
@@ -272,8 +279,6 @@ app.layout = html.Div([
             dcc.Tab(label="🔍 Análise Individual", value="analise",
                     className="bbg-tab", selected_className="bbg-tab-selected"),
             dcc.Tab(label="📊 Ranking",             value="ranking",
-                    className="bbg-tab", selected_className="bbg-tab-selected"),
-            dcc.Tab(label="🧪 Demo",                value="demo",
                     className="bbg-tab", selected_className="bbg-tab-selected"),
         ],
         style={"borderBottom":f"1px solid {_B['border']}","backgroundColor":_B["bg"]},
@@ -312,7 +317,6 @@ def _render_tab(tab, year_t):
     if   tab == "home":    return _layout_home()
     elif tab == "analise": return _layout_analise()
     elif tab == "ranking": return _layout_ranking()
-    elif tab == "demo":    return _layout_demo()
     return html.Div("Tab desconhecida")
 
 
@@ -884,60 +888,6 @@ def _run_ranking(n, tickers, year_t):
 
     return html.Div([summary, table, *chart, *err_block]), df.to_json(orient="records")
 
-# ─────────────────────────────────────────────────────────────────────────────
-# TAB DEMO — dados sintéticos, sem rede
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _layout_demo():
-    from advisor_brain_fsa.beneish_mscore import FinancialData
-
-    _DEMO = {
-        "SAFE3 — Empresa Saudável": (
-            FinancialData(receivables=100, sales=1000, cogs=600,
-                          total_assets=800, ppe=300, sga=100,
-                          net_income=80, cfo=90, total_debt=200,
-                          intangibles=20, current_assets=400,
-                          current_liabilities=150),
-            FinancialData(receivables=95, sales=950, cogs=580,
-                          total_assets=770, ppe=290, sga=95,
-                          net_income=75, cfo=85, total_debt=195,
-                          intangibles=18, current_assets=380,
-                          current_liabilities=145),
-        ),
-        "RISKY4 — Empresa Suspeita": (
-            FinancialData(receivables=280, sales=1000, cogs=750,
-                          total_assets=900, ppe=280, sga=160,
-                          net_income=30, cfo=5, total_debt=500,
-                          intangibles=60, current_assets=500,
-                          current_liabilities=280),
-            FinancialData(receivables=180, sales=850, cogs=600,
-                          total_assets=800, ppe=300, sga=120,
-                          net_income=60, cfo=50, total_debt=350,
-                          intangibles=40, current_assets=400,
-                          current_liabilities=180),
-        ),
-    }
-
-    from advisor_brain_fsa.sector_scorer import BeneishSectorScorer
-    panels = []
-    for name, (fd_t, fd_t1) in _DEMO.items():
-        sr  = BeneishSectorScorer().score(fd_t, fd_t1)
-        ticker = name.split(" ")[0]
-        sector = "Energia" if "SAFE" in ticker else "Consumo"
-        panels.append(html.Div([
-            _card(_render_result_layout(ticker, sector, sr, _CY-1),
-                  {"marginBottom":"0"}),
-        ], style={"marginBottom":"20px"}))
-
-    return html.Div([
-        html.Div([
-            html.Span("Demo — Dados Sintéticos",
-                      style={"fontSize":"1.15rem","fontWeight":"700","color":_B["text"]}),
-            html.Div("Funciona sem conexão com a CVM. Ideal para testar o pipeline e a IA.",
-                     style={"fontSize":"0.75rem","color":_B["muted"],"marginTop":"2px"}),
-        ], style={"marginBottom":"16px"}),
-        *panels,
-    ])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
