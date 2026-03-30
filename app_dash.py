@@ -67,6 +67,16 @@ _B = {
     "mono":   "'JetBrains Mono','Roboto Mono','Fira Code','Consolas',monospace",
 }
 
+# ── Versão lida do arquivo VERSION (atualizada a cada commit) ─────────────────
+def _read_version() -> str:
+    try:
+        p = Path(__file__).resolve().parent / "VERSION"
+        return "v" + p.read_text(encoding="utf-8").strip()
+    except Exception:
+        return "v?"
+
+_APP_VERSION = _read_version()
+
 _CY = date.today().year
 _YEAR_OPTS  = [{"label": str(y), "value": y} for y in range(_CY - 1, _CY - 6, -1)]
 _FINANCIAL_SECTORS = {"Bancos", "Seguros", "Financeiro", "BDR"}
@@ -269,7 +279,11 @@ app.layout = html.Div([
         ], style={"display":"flex","alignItems":"center","gap":"6px","marginRight":"18px"}),
         html.Div(id="api-status",
                  style={"fontSize":"0.72rem","fontFamily":_B["mono"],"marginRight":"18px"}),
-        html.Span("v0.7.0", style={"fontSize":"0.62rem","color":"#333333","fontFamily":_B["mono"]}),
+        html.Span(_APP_VERSION, style={
+            "fontSize":"0.68rem","color":_B["orange"],"fontFamily":_B["mono"],
+            "fontWeight":"700","border":f"1px solid {_B['border']}",
+            "padding":"1px 7px","borderRadius":"3px","letterSpacing":"0.05em",
+        }),
     ], style={"display":"flex","alignItems":"center","padding":"8px 20px",
               "background":_B["bg"],"borderBottom":f"1px solid {_B['border']}",
               "position":"sticky","top":"0","zIndex":"1000"}),
