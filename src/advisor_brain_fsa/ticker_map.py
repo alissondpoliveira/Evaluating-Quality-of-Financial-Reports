@@ -82,6 +82,9 @@ TICKER_TO_KEYWORD: dict[str, str] = {
     "OIBR3": "OI S.A",
 
     # Consumo, Varejo & Alimentos
+    "VULC3": "VULCABRAS",       "GRND3": "GRENDENE",
+    "CEAB3": "CEA MODAS",       "AMAR3": "MARISA",
+    "CVCB3": "CVC BRASIL",
     "ABEV3": "AMBEV",           "LREN3": "LOJAS RENNER",
     "MGLU3": "MAGAZINE LUIZA",  "PCAR3": "GRUPO PAO DE ACUCAR",
     "ASAI3": "SENDAS DISTRIBUIDORA", "CRFB3": "CARREFOUR",
@@ -257,6 +260,9 @@ TICKER_SECTOR: dict[str, str] = {
     "OIBR3": "Telecom",
 
     # Consumo
+    "VULC3": "Consumo",  "GRND3": "Consumo",
+    "CEAB3": "Consumo",  "AMAR3": "Consumo",
+    "CVCB3": "Consumo",
     "ABEV3": "Consumo",  "LREN3": "Consumo",
     "MGLU3": "Consumo",  "PCAR3": "Consumo",
     "ASAI3": "Consumo",  "CRFB3": "Consumo",

@@ -80,11 +80,52 @@ _APP_VERSION = _read_version()
 _CY = date.today().year
 _YEAR_OPTS  = [{"label": str(y), "value": y} for y in range(_CY - 1, _CY - 6, -1)]
 _FINANCIAL_SECTORS = {"Bancos", "Seguros", "Financeiro", "BDR"}
-_TICK_OPTS = [
-    {"label": f"{t} — {TICKER_TO_KEYWORD.get(t, t)}", "value": t}
+
+# Static opts (non-financial tickers from map) — initial fast list shown immediately
+_TICK_OPTS_STATIC = [
+    {"label": f"{t} — {TICKER_TO_KEYWORD[t]}", "value": t}
     for t in sorted(TICKER_TO_KEYWORD.keys())
     if TICKER_SECTOR.get(t) not in _FINANCIAL_SECTORS
 ]
+
+# Pre-build set of upper-cased keywords for non-financial tickers (for dedup)
+_NON_FIN_KWS: set[str] = {
+    TICKER_TO_KEYWORD[t].upper()
+    for t in TICKER_TO_KEYWORD
+    if TICKER_SECTOR.get(t) not in _FINANCIAL_SECTORS
+}
+
+
+def _build_tick_opts() -> list:
+    """
+    Merge static non-financial tickers with ALL non-financial B3 companies
+    from the CVM cadastral registry.  Companies already covered by a static
+    ticker are deduplicated.  CVM-only companies use CNPJ as the option value
+    (CVMDataFetcher accepts both tickers and CNPJs).
+    Falls back to static list if the CVM registry is unavailable.
+    """
+    try:
+        from advisor_brain_fsa.cvm_registry import CVMRegistry
+        nf_df = CVMRegistry.get_instance().get_non_financial_df()
+
+        extra: list = []
+        for _, row in nf_df.iterrows():
+            denom = str(row.get("DENOM_COMERC") or row.get("DENOM_SOCIAL") or "").strip()
+            cnpj  = str(row.get("CNPJ_CIA") or row.get("CNPJ") or "").strip()
+            if not denom or not cnpj:
+                continue
+            # Skip companies already represented by a static ticker
+            norm = denom.upper()
+            if any(kw in norm or norm in kw for kw in _NON_FIN_KWS):
+                continue
+            setor = str(row.get("_SECTOR_LABEL") or "Outros")
+            extra.append({"label": f"{denom} — {setor}", "value": cnpj})
+
+        return _TICK_OPTS_STATIC + sorted(extra, key=lambda x: x["label"])
+    except Exception:
+        return _TICK_OPTS_STATIC
+
+
 _MULTI_OPTS = [{"label": f"{t} — {TICKER_TO_KEYWORD.get(t, t)}", "value": t}
                for t in sorted(TICKER_TO_KEYWORD.keys())]
 
@@ -468,6 +509,8 @@ def _load_home(_ni, _nb, year_t):
 
 def _layout_analise():
     return html.Div([
+        # Trigger that fires once after render to load full CVM ticker list
+        dcc.Interval(id="cvm-opts-trigger", interval=800, max_intervals=1),
         html.Div([
             html.Span("Análise Individual",
                       style={"fontSize":"1.15rem","fontWeight":"700","color":_B["text"]}),
@@ -477,7 +520,7 @@ def _layout_analise():
         # ── Barra de entrada ────────────────────────────────────────────────
         html.Div([
             html.Div([
-                dcc.Dropdown(id="analise-dd", options=_TICK_OPTS, placeholder="Selecione um ticker B3...",
+                dcc.Dropdown(id="analise-dd", options=_TICK_OPTS_STATIC, placeholder="Selecione um ticker B3...",
                     clearable=True,
                     style={"backgroundColor":_B["card"],"color":_B["text"],
                            "fontFamily":_B["mono"],"fontSize":"0.85rem","border":"none"}),
@@ -644,6 +687,16 @@ def _build_ai_section(ticker, year_t):
         dcc.Loading(type="circle", color=_B["orange"],
             children=html.Div(id="gemini-output")),
     ])
+
+
+@callback(
+    Output("analise-dd", "options"),
+    Input("cvm-opts-trigger", "n_intervals"),
+    prevent_initial_call=False,
+)
+def _load_cvm_opts(_n):
+    """Fires once after page render; replaces static ticker list with full CVM universe."""
+    return _build_tick_opts()
 
 
 @callback(
