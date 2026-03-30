@@ -130,7 +130,7 @@ def _radar(ms) -> go.Figure:
         line_color=_B["orange"], line_dash="dot", fill="none"))
     fig.add_trace(go.Scatterpolar(
         r=vals+[vals[0]], theta=cats+[cats[0]], name="Empresa",
-        line_color=_B["red"], fill="toself", fillcolor=_B["red"]+"22"))
+        line_color=_B["red"], fill="toself", fillcolor="rgba(255,62,62,0.13)"))
     fig.update_layout(**_BBG_LAYOUT,
         title=dict(text="Índices Beneish", font=dict(size=10, color=_B["muted"])),
         polar=dict(bgcolor=_B["card"],
