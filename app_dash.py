@@ -602,23 +602,34 @@ def _run_analysis(n, ticker_sel, cnpj, year_t, cache):
                     html.Span(str(exc), style={"color":_B["text"]}),
                 ], style={"fontFamily":_B["mono"],"fontSize":"0.83rem"}),
                 no_update, no_update)
-    sector = get_sector(query)
-    sr     = get_scorer(sector).score(fd_t, fd_t1)
+    try:
+        sector = get_sector(query)
+        sr     = get_scorer(sector).score(fd_t, fd_t1)
 
-    # Persiste no Store para o botão Gemini não perder o estado
-    new_cache = {"query": query, "sector": sector, "year_t": year_t,
-                 "stype": sr.scorer_type,
-                 "ms_score": sr.mscore_result.m_score if sr.mscore_result else None,
-                 "accrual":  sr.cfq_result.accrual_ratio if sr.cfq_result else None,
-                 "risk_score": sr.risk_score,
-                 "classification": sr.classification,
-                 "metrics": sr.metrics,
-                 "flags": sr.red_flags,
-                 "alert": sr.alert_level.value}
+        # Persiste no Store para o botão Gemini não perder o estado
+        new_cache = {"query": query, "sector": sector, "year_t": year_t,
+                     "stype": sr.scorer_type,
+                     "ms_score": sr.mscore_result.m_score if sr.mscore_result else None,
+                     "accrual":  sr.cfq_result.accrual_ratio if sr.cfq_result else None,
+                     "risk_score": sr.risk_score,
+                     "classification": sr.classification,
+                     "metrics": sr.metrics,
+                     "flags": sr.red_flags,
+                     "alert": sr.alert_level.value}
 
-    result_panel = _render_result_layout(query, sector, sr, year_t)
-    ai_section   = _build_ai_section(query, year_t)
-    return result_panel, ai_section, new_cache
+        result_panel = _render_result_layout(query, sector, sr, year_t)
+        ai_section   = _build_ai_section(query, year_t)
+        return result_panel, ai_section, new_cache
+    except Exception as exc:
+        import traceback
+        detail = traceback.format_exc()
+        return (html.Div([
+                    html.Span("Erro no cálculo: ", style={"color":_B["red"],"fontWeight":"700"}),
+                    html.Span(str(exc), style={"color":_B["text"]}),
+                    html.Pre(detail, style={"color":_B["muted"],"fontSize":"0.72rem",
+                                           "marginTop":"8px","whiteSpace":"pre-wrap"}),
+                ], style={"fontFamily":_B["mono"],"fontSize":"0.83rem"}),
+                no_update, no_update)
 
 
 def _build_ai_section(ticker, year_t):

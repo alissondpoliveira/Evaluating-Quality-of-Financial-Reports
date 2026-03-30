@@ -50,6 +50,7 @@ TICKER_TO_KEYWORD: dict[str, str] = {
     "GOAU3": "METALURGICA GERDAU", "GOAU4": "METALURGICA GERDAU",
     "USIM3": "USIMINAS",        "USIM5": "USIMINAS",
     "CMIN3": "CSN MINERACAO",
+    "CBAV3": "CIA BRASILEIRA DE ALUMINIO",
 
     # Utilidades
     "ELET3": "CENTRAIS ELETRICAS BRASILEIRAS",
@@ -64,6 +65,16 @@ TICKER_TO_KEYWORD: dict[str, str] = {
     "SAPR3": "SANEPAR",         "SAPR11": "SANEPAR",
     "ENEV3": "ENEVA",           "AURE3": "AUREN",
     "EQTL3": "EQUATORIAL",      "ISAE4": "ISA ENERGIA",
+    "CPLE3": "COPEL",           "CPLE6": "COPEL",
+    "NEOE3": "NEOENERGIA",
+    "CGAS5": "COMPANHIA DE GAS DE SAO PAULO",
+    "ALUP11": "ALUPAR INVESTIMENTO", "ALUP3": "ALUPAR INVESTIMENTO",
+    "ENGI11": "ENERGISA",
+    "ENBR3": "ENERGIAS DO BRASIL",
+    "LIGT3": "LIGHT",
+    "CLSC3": "CENTRAIS ELETRICAS DE SANTA CATARINA", "CLSC4": "CENTRAIS ELETRICAS DE SANTA CATARINA",
+    "OMGE3": "OMEGA ENERGIA RENOVAVEL",
+    "AESB3": "AES BRASIL OPERACOES",
 
     # Telecom
     "VIVT3": "TELEFONICA",
@@ -80,17 +91,30 @@ TICKER_TO_KEYWORD: dict[str, str] = {
     "SOMA3": "GRUPO SOMA",      "ARZZ3": "AREZZO",
     "ALPA4": "ALPARGATAS",      "NTCO3": "NATURA",
     "SMTO3": "SAO MARTINHO",    "CAML3": "CAMIL ALIMENTOS",
+    "GMAT3": "GRUPO MATEUS",    "VIVA3": "VIVARA",
+    "LJQQ3": "LOJAS QUERO QUERO",
+    "PETZ3": "PET CENTER",      "ESPA3": "ESPACOLASER",
+    "ARML3": "ARMAC LOCACAO",
 
     # Imobiliário & Real Estate
     "MRVE3": "MRV",             "CYRE3": "CYRELA",
     "EZTC3": "EZTEC",           "EVEN3": "EVEN",
     "DIRR3": "DIRECIONAL",      "MULT3": "MULTIPLAN",
     "IGUV3": "IGUATEMI",        "ALOS3": "ALLOS",
+    "GFSA3": "GAFISA",          "JHSF3": "JHSF PARTICIPACOES",
+    "TEND3": "CONSTRUTORA TENDA", "CURY3": "CURY CONSTRUTORA",
+    "LAVV3": "LAVVI EMPREENDIMENTOS",
+    "HBOR3": "HELBOR EMPREENDIMENTOS",
+    "TRIS3": "TRISUL",          "MTRE3": "MITRE REALTY",
 
     # Logística, Transporte & Aviação
     "RAIL3": "RUMO",            "CCRO3": "CCR",
     "ECOR3": "ECORODOVIAS",     "GOLL4": "GOL LINHAS AEREAS",
     "AZUL4": "AZUL",            "POMO4": "MARCOPOLO",
+    "STBP3": "SANTOS BRASIL",   "HBSA3": "HIDROVIAS DO BRASIL",
+    "TGMA3": "TEGMA GESTAO LOGISTICA",
+    "LOGN3": "LOG-IN LOGISTICA",
+    "SIMH3": "SIMPAR",
 
     # Locação de Veículos & Equipamentos
     "RENT3": "LOCALIZA",        "MOVI3": "MOVIDA",
@@ -101,14 +125,21 @@ TICKER_TO_KEYWORD: dict[str, str] = {
     "GNDI3": "NOTRE DAME INTERMEDICA",
     "FLRY3": "FLEURY",          "QUAL3": "QUALICORP",
     "DASA3": "DIAGNOSTICOS DA AMERICA",
+    "PARD3": "INSTITUTO HERMES PARDINI",
+    "MATD3": "MATER DEI",       "AALR3": "ALLIAR",
 
     # Tecnologia & Dados
     "TOTVS3": "TOTVS",          "LWSA3": "LOCAWEB",
     "INTB3": "INTELBRAS",       "POSI3": "POSITIVO",
+    "BMOB3": "BEMOBI MOBILE",   "DESK3": "DESKTOP SIGMANET",
+    "MELI34": "MERCADOLIBRE",
 
     # Indústria & Engenharia
     "WEGE3": "WEG",             "EMBR3": "EMBRAER",
     "RAPT4": "RANDON",          "FRAS3": "FRAS-LE",
+    "MYPK3": "IOCHPE MAXION",   "LEVE3": "MAHLE METAL LEVE",
+    "TUPY3": "TUPY",            "ROMI3": "INDUSTRIAS ROMI",
+    "KEPL3": "KEPLER WEBER",    "FESA4": "FERBASA",
 
     # Química & Petroquímica
     "BRKM5": "BRASKEM",         "UNIP6": "UNIPAR",
@@ -120,6 +151,8 @@ TICKER_TO_KEYWORD: dict[str, str] = {
     # Agronegócio
     "SLCE3": "SLC AGRICOLA",    "AGRO3": "BRASILAGRO",
     "JALL3": "JALLES MACHADO",
+    "SOJA3": "BOA SAFRA SEMENTES",
+    "LAND3": "TERRA SANTA AGRO",
 
     # Educação
     "COGN3": "COGNA",           "YDUQ3": "YDUQS",
@@ -199,7 +232,7 @@ TICKER_SECTOR: dict[str, str] = {
     "GGBR3": "Mineração",  "GGBR4": "Mineração",
     "GOAU3": "Mineração",  "GOAU4": "Mineração",
     "USIM3": "Mineração",  "USIM5": "Mineração",
-    "CMIN3": "Mineração",
+    "CMIN3": "Mineração",  "CBAV3": "Mineração",
 
     # Utilidades
     "ELET3": "Utilidades",  "ELET6": "Utilidades",
@@ -211,6 +244,13 @@ TICKER_SECTOR: dict[str, str] = {
     "SAPR11": "Utilidades", "ENEV3": "Utilidades",
     "AURE3": "Utilidades",  "EQTL3": "Utilidades",
     "ISAE4": "Utilidades",
+    "CPLE3": "Utilidades",  "CPLE6": "Utilidades",
+    "NEOE3": "Utilidades",  "CGAS5": "Utilidades",
+    "ALUP11": "Utilidades", "ALUP3": "Utilidades",
+    "ENGI11": "Utilidades", "ENBR3": "Utilidades",
+    "LIGT3": "Utilidades",
+    "CLSC3": "Utilidades",  "CLSC4": "Utilidades",
+    "OMGE3": "Utilidades",  "AESB3": "Utilidades",
 
     # Telecom
     "VIVT3": "Telecom",  "TIMS3": "Telecom",
@@ -226,18 +266,28 @@ TICKER_SECTOR: dict[str, str] = {
     "HYPE3": "Consumo",  "SOMA3": "Consumo",
     "ARZZ3": "Consumo",  "ALPA4": "Consumo",
     "NTCO3": "Consumo",  "CAML3": "Consumo",
+    "GMAT3": "Consumo",  "VIVA3": "Consumo",
+    "LJQQ3": "Consumo",  "PETZ3": "Consumo",
+    "ESPA3": "Consumo",  "ARML3": "Locação",
 
     # Imobiliário
     "MRVE3": "Imobiliário",  "CYRE3": "Imobiliário",
     "EZTC3": "Imobiliário",  "EVEN3": "Imobiliário",
     "DIRR3": "Imobiliário",  "MULT3": "Imobiliário",
     "IGUV3": "Imobiliário",  "ALOS3": "Imobiliário",
+    "GFSA3": "Imobiliário",  "JHSF3": "Imobiliário",
+    "TEND3": "Imobiliário",  "CURY3": "Imobiliário",
+    "LAVV3": "Imobiliário",  "HBOR3": "Imobiliário",
+    "TRIS3": "Imobiliário",  "MTRE3": "Imobiliário",
 
     # Logística
     "RAIL3": "Logística",  "CCRO3": "Logística",
     "ECOR3": "Logística",  "GOLL4": "Logística",
     "AZUL4": "Logística",  "EMBR3": "Logística",
     "POMO4": "Logística",
+    "STBP3": "Logística",  "HBSA3": "Logística",
+    "TGMA3": "Logística",  "LOGN3": "Logística",
+    "SIMH3": "Logística",
 
     # Locação
     "RENT3": "Locação",  "MOVI3": "Locação",
@@ -247,14 +297,21 @@ TICKER_SECTOR: dict[str, str] = {
     "RDOR3": "Saúde",   "HAPV3": "Saúde",
     "GNDI3": "Saúde",   "FLRY3": "Saúde",
     "QUAL3": "Saúde",   "DASA3": "Saúde",
+    "PARD3": "Saúde",   "MATD3": "Saúde",
+    "AALR3": "Saúde",
 
     # Tecnologia
     "TOTVS3": "Tecnologia",  "LWSA3": "Tecnologia",
     "INTB3": "Tecnologia",   "POSI3": "Tecnologia",
+    "BMOB3": "Tecnologia",   "DESK3": "Tecnologia",
+    "MELI34": "BDR",
 
     # Indústria
     "WEGE3": "Indústria",  "RAPT4": "Indústria",
     "FRAS3": "Indústria",
+    "MYPK3": "Indústria",  "LEVE3": "Indústria",
+    "TUPY3": "Indústria",  "ROMI3": "Indústria",
+    "KEPL3": "Indústria",  "FESA4": "Indústria",
 
     # Química
     "BRKM5": "Química",  "UNIP6": "Química",
@@ -266,6 +323,7 @@ TICKER_SECTOR: dict[str, str] = {
     # Agronegócio
     "SLCE3": "Agronegócio",  "AGRO3": "Agronegócio",
     "JALL3": "Agronegócio",
+    "SOJA3": "Agronegócio",  "LAND3": "Agronegócio",
 
     # Educação
     "COGN3": "Educação",  "YDUQ3": "Educação",
