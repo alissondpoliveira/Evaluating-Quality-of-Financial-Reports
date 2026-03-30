@@ -33,12 +33,7 @@ from typing import Dict, List, Optional, Tuple
 
 import pandas as pd
 
-from .sector_scorer import (
-    BankingScorer,
-    BeneishSectorScorer,
-    InsuranceScorer,
-    SectorScorer,
-)
+from .sector_scorer import BeneishSectorScorer, SectorScorer
 from .ticker_map import TICKER_TO_KEYWORD, TICKER_SECTOR
 
 logger = logging.getLogger(__name__)
@@ -54,6 +49,35 @@ _CACHE_FILENAME = "cad_cia_aberta.csv"
 _DEFAULT_CACHE = Path(__file__).resolve().parent.parent.parent / "data" / "cache"
 _CSV_ENCODING = "latin-1"
 _CSV_SEP = ";"
+
+# ---------------------------------------------------------------------------
+# Blacklist de setores financeiros — excluídos do ranking Beneish
+# Palavras normalizadas (uppercase ASCII, sem acentos) presentes em SETOR_ATIV
+# que classificam a empresa como instituição financeira.
+# ---------------------------------------------------------------------------
+
+FINANCIAL_BLACKLIST_KEYWORDS: frozenset[str] = frozenset({
+    "BANCO",
+    "BANCOS",
+    "SEGUR",       # SEGURO, SEGUROS, SEGURADORA
+    "RESSEGUR",    # RESSEGURO, RESSEGURADORA
+    "PREVID",      # PREVIDENCIA, PREVIDÊNCIA
+    "CAPITALIZACAO",
+    "INTERMEDIACAO FINANCEIRA",
+    "INTERMEDIACAO",
+    "ARRENDAMENTO",
+    "SECURITIZACAO",
+    "CREDITO",
+    "FINANCIAMENTO",
+    "LEASING",
+    "CAMBIO",
+    "FINANCEI",    # SERVIÇOS FINANCEIROS, INTERMEDIAÇÃO FINANCEIRA
+    "HOLDING FINANCEIR",
+    "FUNDO DE INVESTIMENT",
+    "CORRETORA",
+    "DISTRIBUIDORA DE VALORES",
+})
+
 
 # ---------------------------------------------------------------------------
 # Tarefa 2 — Regras SETOR_ATIV → (scorer_type, sector_label)
@@ -442,18 +466,11 @@ class CVMRegistry:
         # Fast path: use static TICKER_SECTOR when available (includes BDRs)
         if upper in TICKER_SECTOR:
             sector_label = TICKER_SECTOR[upper]
-            # Map sector label → scorer_type
-            if sector_label in ("Bancos", "Financeiro"):
-                scorer_type = "banking"
-            elif sector_label == "Seguros":
-                scorer_type = "insurance"
-            else:
-                scorer_type = "beneish"
             logger.debug(
-                "resolve_ticker_sector(%s) → %s/%s (static map)",
-                upper, sector_label, scorer_type,
+                "resolve_ticker_sector(%s) → %s/beneish (static map)",
+                upper, sector_label,
             )
-            return sector_label, scorer_type
+            return sector_label, "beneish"
 
         # Slow path: fuzzy CVM registry lookup for unknown tickers
         keyword = TICKER_TO_KEYWORD.get(upper, upper)
@@ -505,17 +522,11 @@ class CVMRegistry:
         # ── P1: Static ticker map ────────────────────────────────────────────
         if upper in TICKER_SECTOR:
             sector_label = TICKER_SECTOR[upper]
-            if sector_label in ("Bancos", "Financeiro"):
-                scorer_type = "banking"
-            elif sector_label == "Seguros":
-                scorer_type = "insurance"
-            else:
-                scorer_type = "beneish"
             logger.debug("resolve_query(%s) → P1/static sector=%s", q, sector_label)
             return {
                 "denom_social": TICKER_TO_KEYWORD.get(upper, upper),
                 "sector":       sector_label,
-                "scorer_type":  scorer_type,
+                "scorer_type":  "beneish",
                 "setor_ativ":   "",
                 "cnpj_digits":  "",
                 "source":       "static_map",
@@ -566,13 +577,66 @@ class CVMRegistry:
         logger.debug("resolve_query(%s) → no match at any priority", q)
         return None
 
-    def get_scorer_instance(self, scorer_type: str) -> SectorScorer:
-        """Instantiate the right SectorScorer from a scorer_type string."""
-        if scorer_type == "insurance":
-            return InsuranceScorer()
-        if scorer_type == "banking":
-            return BankingScorer()
+    def get_scorer_instance(self, scorer_type: str) -> SectorScorer:  # noqa: ARG002
+        """Return BeneishSectorScorer (single scorer for all non-financial companies)."""
         return BeneishSectorScorer()
+
+    # ------------------------------------------------------------------
+    # Tarefa 2 — Dynamic non-financial company universe
+    # ------------------------------------------------------------------
+
+    def get_non_financial_df(self) -> pd.DataFrame:
+        """
+        Return a filtered DataFrame of active B3-listed non-financial companies.
+
+        Filters applied (in order):
+        1. SIT_REG == 'ATIVO'  (or SIT == 'ATIVO' in older CSV versions)
+           → only companies with active CVM registration.
+        2. TP_MERC contains 'BOLSA'
+           → only companies listed on B3 (discards FI, debentures, etc.).
+        3. SETOR_ATIV does NOT contain any keyword from FINANCIAL_BLACKLIST_KEYWORDS
+           → removes banks, insurers, credit companies, and other institutions
+             for which the Beneish M-Score is not applicable.
+
+        Returns
+        -------
+        pd.DataFrame
+            Columns include at minimum: DENOM_SOCIAL, CNPJ_CIA (or CNPJ),
+            SETOR_ATIV, _SECTOR_LABEL, _SCORER_TYPE, _CNPJ_DIGITS, _DENOM_NORM.
+        """
+        df = self.df.copy()
+
+        # ── Filter 1: active registration ────────────────────────────────
+        # CVM changed the column name between dataset versions.
+        sit_col = next((c for c in ["SIT_REG", "SIT"] if c in df.columns), None)
+        if sit_col:
+            df = df[df[sit_col].str.upper().str.strip() == "ATIVO"].copy()
+        else:
+            logger.warning("get_non_financial_df: SIT_REG/SIT column not found, skipping status filter")
+
+        # ── Filter 2: B3-listed (TP_MERC contains 'BOLSA') ───────────────
+        if "TP_MERC" in df.columns:
+            df = df[
+                df["TP_MERC"].str.upper().str.strip().str.contains("BOLSA", na=False)
+            ].copy()
+        else:
+            logger.warning("get_non_financial_df: TP_MERC column not found, skipping market filter")
+
+        # ── Filter 3: blacklist financial sectors ─────────────────────────
+        setor_col = next((c for c in ["SETOR_ATIV", "SETOR"] if c in df.columns), None)
+        if setor_col:
+            def _is_financial(setor: str) -> bool:
+                norm = _normalise(str(setor))
+                return any(kw in norm for kw in FINANCIAL_BLACKLIST_KEYWORDS)
+
+            df = df[~df[setor_col].apply(_is_financial)].copy()
+        else:
+            logger.warning("get_non_financial_df: SETOR_ATIV column not found, skipping financial blacklist")
+
+        logger.info(
+            "get_non_financial_df: %d non-financial B3-listed active companies", len(df)
+        )
+        return df.reset_index(drop=True)
 
     # ------------------------------------------------------------------
     # Summary helpers (useful for audit / UI)

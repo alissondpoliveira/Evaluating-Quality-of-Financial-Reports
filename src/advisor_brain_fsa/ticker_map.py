@@ -163,8 +163,10 @@ SECTOR_LABELS: dict[str, str] = {
     "Outros":           "Demais Setores",
 }
 
-# Sectors that use specialised financial risk scorers (not Beneish)
-FINANCIAL_GROUP: frozenset[str] = frozenset({"Bancos", "Seguros", "Financeiro"})
+# Financial sectors are excluded from Beneish ranking (CVM blacklist).
+# FINANCIAL_GROUP is kept for reference but is intentionally empty —
+# all companies now use BeneishSectorScorer.
+FINANCIAL_GROUP: frozenset[str] = frozenset()
 
 TICKER_SECTOR: dict[str, str] = {
     # Energia

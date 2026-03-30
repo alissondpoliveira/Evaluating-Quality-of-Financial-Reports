@@ -25,14 +25,14 @@ import dash
 from dash import dcc, html, Input, Output, State, callback, dash_table, no_update, ctx
 from dash.exceptions import PreventUpdate
 
-from advisor_brain_fsa.mda_analyst import GeminiAnalyst, compute_grade, compute_grade_financial
+from advisor_brain_fsa.mda_analyst import GeminiAnalyst, compute_grade
 from advisor_brain_fsa.rank_market import (
     DEFAULT_WATCHLIST, CompanyResult, _apply_sector_stats, _to_dataframe,
-    get_home_dashboard_data,
+    get_home_dashboard_data, read_market_cache,
 )
 from advisor_brain_fsa.sector_scorer import SectorRiskResult, get_scorer
 from advisor_brain_fsa.ticker_map import (
-    TICKER_TO_KEYWORD, SECTOR_LABELS, TICKER_SECTOR, FINANCIAL_GROUP, get_sector,
+    TICKER_TO_KEYWORD, SECTOR_LABELS, TICKER_SECTOR, get_sector,
 )
 
 
@@ -69,9 +69,11 @@ _B = {
 
 _CY = date.today().year
 _YEAR_OPTS  = [{"label": str(y), "value": y} for y in range(_CY - 1, _CY - 6, -1)]
-_TICK_OPTS  = [
+_FINANCIAL_SECTORS = {"Bancos", "Seguros", "Financeiro", "BDR"}
+_TICK_OPTS = [
     {"label": f"{t} — {TICKER_TO_KEYWORD.get(t, t)}", "value": t}
     for t in sorted(TICKER_TO_KEYWORD.keys())
+    if TICKER_SECTOR.get(t) not in _FINANCIAL_SECTORS
 ]
 _MULTI_OPTS = [{"label": f"{t} — {TICKER_TO_KEYWORD.get(t, t)}", "value": t}
                for t in sorted(TICKER_TO_KEYWORD.keys())]
@@ -331,7 +333,7 @@ def _layout_home():
             html.Div([
                 html.Span("Dashboard Setorial B3",
                           style={"fontSize":"1.15rem","fontWeight":"700","color":_B["text"]}),
-                html.Span(" · Top 5 por risco · Industriais / Bancos / Seguros · clique ↺ para análise completa (121 tickers)",
+                html.Span(" · Empresas não-financeiras B3 · Beneish M-Score · execute build_market_cache.py para dados completos",
                           style={"fontSize":"0.75rem","color":_B["muted"],"marginLeft":"10px"}),
             ]),
             html.Button("↺ Atualizar", id="home-refresh", n_clicks=0,
@@ -356,38 +358,51 @@ def _layout_home():
 def _load_home(_ni, _nb, year_t):
     year_t = year_t or (_CY - 1)
 
-    # Force rebuild only when the ↺ button triggered this callback.
-    # Initial auto-load (home-init) uses the disk cache if it is fresh.
     force_refresh = (ctx.triggered_id == "home-refresh")
-    # On auto-load (home-init), use quick mode so gunicorn never blocks.
-    # quick=True scores only DEFAULT_WATCHLIST (~27 tickers, ~10s) when no
-    # disk cache exists.  Full 121-ticker rebuild is triggered only by the ↺ button.
-    quick_mode = not force_refresh
 
-    try:
-        df = get_home_dashboard_data(year_t=year_t, force=force_refresh, quick=quick_mode)
-    except Exception as exc:
-        return html.Div(
-            f"Erro ao carregar dados: {exc}",
-            style={"color": _B["red"], "fontFamily": _B["mono"], "fontSize": "0.83rem"},
-        )
+    df = None
+
+    # Priority 1: static JSON built by build_market_cache.py (zero CVM I/O)
+    if not force_refresh:
+        df = read_market_cache()
+        if df is not None and df.empty:
+            df = None
+
+    # Priority 2: force refresh — trigger offline rebuild warning
+    if df is None and force_refresh:
+        return html.Div([
+            html.Div("Cache estático não encontrado.",
+                     style={"color": _B["orange"], "fontFamily": _B["mono"],
+                            "fontSize": "0.88rem", "fontWeight": "700"}),
+            html.Div("Execute: python build_market_cache.py  para gerar o ranking completo.",
+                     style={"color": _B["muted"], "fontFamily": _B["mono"],
+                            "fontSize": "0.8rem", "marginTop": "6px"}),
+        ])
+
+    # Priority 3: fallback to quick live scoring (DEFAULT_WATCHLIST) if JSON missing
+    if df is None:
+        try:
+            df = get_home_dashboard_data(year_t=year_t, force=False, quick=True)
+        except Exception as exc:
+            return html.Div(
+                f"Erro ao carregar dados: {exc}",
+                style={"color": _B["red"], "fontFamily": _B["mono"], "fontSize": "0.83rem"},
+            )
 
     ok = df[df["Score de Risco"].notna()].copy()
     if ok.empty:
         return html.Div("Nenhum dado disponível.", style={"color":_B["muted"]})
 
-    def _top5_col(scorer_type, title, icon, border):
-        sub = ok[ok["Scorer"] == scorer_type]
-        top = sub.nlargest(5, "Score de Risco") if not sub.empty else sub
-        _icon = {"Crítico":"🔴","Alto Risco":"🟠","Atenção":"🟡","Normal":"🟢"}
+    _icon = {"Crítico":"🔴","Alto Risco":"🟠","Atenção":"🟡","Normal":"🟢"}
+
+    def _top_col(title, icon, border, subset, n=10):
+        top = subset.nlargest(n, "Score de Risco") if not subset.empty else subset
         rows = []
         for _, row in top.iterrows():
-            t     = row["Ticker"]
-            alert = row.get("Nível de Alerta","—")
-            score = (f"{row.get('M-Score',float('nan')):+.3f}"
-                     if scorer_type=="beneish" else
-                     f"{row.get('Score de Risco',0):.1f}/10")
-            setor = row.get("Setor","")
+            t     = row.get("Ticker", row.get("Nome", "—"))
+            alert = row.get("Nível de Alerta", "—")
+            score = f"{row.get('M-Score', float('nan')):+.3f}"
+            setor = row.get("Setor", "")
             rows.append(html.Div([
                 html.Span(f"{_icon.get(alert,'⚪')} ", style={"marginRight":"4px"}),
                 html.Span(t, style={"color":_B["orange"],"fontWeight":"700","marginRight":"8px"}),
@@ -402,26 +417,33 @@ def _load_home(_ni, _nb, year_t):
                           style={"fontSize":"0.7rem","fontWeight":"700",
                                  "textTransform":"uppercase","letterSpacing":"0.1em",
                                  "color":border}),
-                html.Span("Top 5", style={"float":"right","fontSize":"0.65rem","color":_B["muted"]}),
+                html.Span(f"Top {n}", style={"float":"right","fontSize":"0.65rem","color":_B["muted"]}),
             ], style={"background":_B["card"],"border":f"1px solid {border}",
                       "borderRadius":"6px 6px 0 0","padding":"9px 14px"}),
             *rows,
         ])
 
-    col_b, col_bk, col_i = _top5_col("beneish","Industriais","🏭","#3b82f6"),                             _top5_col("banking","Bancos & Financeiro","🏦","#f59e0b"),                             _top5_col("insurance","Seguros","🛡️","#10b981")
+    # Split into risk bands for the three columns
+    crit_hi  = ok[ok["Nível de Alerta"].isin(["Crítico", "Alto Risco"])]
+    watch    = ok[ok["Nível de Alerta"] == "Atenção"]
+    normal   = ok[ok["Nível de Alerta"] == "Normal"]
+
+    col_crit   = _top_col("Crítico / Alto Risco", "🔴", "#ef4444", crit_hi,  n=10)
+    col_watch  = _top_col("Atenção", "🟡", "#f59e0b", watch,   n=10)
+    col_normal = _top_col("Normal", "🟢", "#10b981", normal,  n=10)
+
     charts = []
-    b_df = ok[ok["Scorer"] == "beneish"]
-    if len(b_df) > 1:
+    if len(ok) > 1:
         charts = [_divider(),
-                  html.Div("M-Score Médio por Setor (Industriais)",
+                  html.Div("M-Score Médio por Setor",
                            style={"fontSize":"0.7rem","fontWeight":"700","textTransform":"uppercase",
                                   "letterSpacing":"0.08em","color":_B["muted"],"fontFamily":_B["mono"]}),
-                  dcc.Graph(figure=_sector_bar(b_df), config={"displayModeBar":False})]
+                  dcc.Graph(figure=_sector_bar(ok), config={"displayModeBar":False})]
     return html.Div([
         html.Div([
-            html.Div(col_b,  style={"flex":"1","minWidth":"0"}),
-            html.Div(col_bk, style={"flex":"1","minWidth":"0"}),
-            html.Div(col_i,  style={"flex":"1","minWidth":"0"}),
+            html.Div(col_crit,   style={"flex":"1","minWidth":"0"}),
+            html.Div(col_watch,  style={"flex":"1","minWidth":"0"}),
+            html.Div(col_normal, style={"flex":"1","minWidth":"0"}),
         ], style={"display":"flex","gap":"12px"}),
         *charts,
     ])
@@ -479,42 +501,28 @@ def _render_result_layout(ticker, sector, sr: SectorRiskResult, year_t) -> html.
     flags = sr.red_flags or []
 
     # ── Cabeçalho ──────────────────────────────────────────────────────────
-    if stype == "beneish" and ms and cfq:
+    if ms and cfq:
         grade, g_label = compute_grade(ms.m_score, cfq.accrual_ratio)
-        header = html.Div([
-            html.Div(_grade_badge(grade), style={"marginRight":"16px"}),
-            html.Div([
-                html.Div([_mono(f"M-Score: ", _B["muted"],"0.8rem"),
-                          _mono(f"{ms.m_score:+.4f}",
-                                _B["red"] if ms.m_score > -1.78 else _B["green"],
-                                "1.1rem", bold=True)]),
-                html.Div([_mono("Limiar: −1.78 → ", _B["muted"], "0.75rem"),
-                          _mono(ms.classification, _B["orange"], "0.75rem", bold=True)]),
-                html.Div([_mono("Accrual Ratio: ", _B["muted"], "0.75rem"),
-                          _mono(f"{cfq.accrual_ratio:+.4f}", _B["text"], "0.75rem")],
-                         style={"marginTop":"3px"}),
-            ], style={"flex":"1"}),
-            html.Div([_pill(alert)], style={"marginLeft":"auto","alignSelf":"center"}),
-        ], style={"display":"flex","alignItems":"center","marginBottom":"12px"})
     else:
-        risk_color = (_B["red"] if sr.risk_score >= 5 else
-                      _B["orange"] if sr.risk_score >= 3 else _B["green"])
-        grade, g_label = compute_grade_financial(sr.risk_score, alert)
-        header = html.Div([
-            html.Div([
-                _mono(f"{sr.risk_score:.1f}", risk_color, "2rem", bold=True),
-                _mono("/10", _B["muted"], "0.9rem"),
-            ], style={"marginRight":"16px"}),
-            html.Div([
-                html.Div(_mono(sr.classification, _B["orange"], "0.88rem", bold=True)),
-                html.Div(_mono({"banking":"Modelo Bancário","insurance":"Índice Combinado SUSEP"}
-                               .get(stype, stype), _B["muted"], "0.75rem")),
-            ], style={"flex":"1"}),
-            html.Div(_pill(alert), style={"marginLeft":"auto"}),
-        ], style={"display":"flex","alignItems":"center","marginBottom":"12px"})
+        grade, g_label = "N/D", "Dados insuficientes para análise"
+    header = html.Div([
+        html.Div(_grade_badge(grade), style={"marginRight":"16px"}),
+        html.Div([
+            html.Div([_mono("M-Score: ", _B["muted"],"0.8rem"),
+                      _mono(f"{ms.m_score:+.4f}" if ms else "N/D",
+                            _B["red"] if ms and ms.m_score > -1.78 else _B["green"],
+                            "1.1rem", bold=True)]),
+            html.Div([_mono("Limiar: −1.78 → ", _B["muted"], "0.75rem"),
+                      _mono(ms.classification if ms else "—", _B["orange"], "0.75rem", bold=True)]),
+            html.Div([_mono("Accrual Ratio: ", _B["muted"], "0.75rem"),
+                      _mono(f"{cfq.accrual_ratio:+.4f}" if cfq else "N/D", _B["text"], "0.75rem")],
+                     style={"marginTop":"3px"}),
+        ], style={"flex":"1"}),
+        html.Div([_pill(alert)], style={"marginLeft":"auto","alignSelf":"center"}),
+    ], style={"display":"flex","alignItems":"center","marginBottom":"12px"})
 
     # ── Gráficos / métricas ─────────────────────────────────────────────────
-    if stype == "beneish" and ms:
+    if ms:
         charts = html.Div([
             html.Div(dcc.Graph(figure=_gauge(ms.m_score), config={"displayModeBar":False}),
                      style={"flex":"1"}),
@@ -522,27 +530,8 @@ def _render_result_layout(ticker, sector, sr: SectorRiskResult, year_t) -> html.
                      style={"flex":"1"}),
         ], style={"display":"flex","gap":"12px"})
     else:
-        def _fmt(v):
-            return "N/D" if (v != v) else f"{v:.4f}"
-        m = sr.metrics or {}
-        if stype == "banking":
-            items = [("ROA",_fmt(m.get("roa",float("nan"))),"ok" if m.get("roa",0)>0.01 else "warn"),
-                     ("Cost-to-Income",_fmt(m.get("cost_income",float("nan"))),"ok" if m.get("cost_income",1)<0.5 else "warn"),
-                     ("CFO Quality",_fmt(m.get("cfo_quality",float("nan"))),"ok" if m.get("cfo_quality",0)>0 else "crit"),
-                     ("Crescimento Rev.",_fmt(m.get("rev_growth",float("nan"))),"ok"),
-                     ("Spread",_fmt(m.get("spread",float("nan"))),"ok"),
-                     ("Alavancagem",_fmt(m.get("leverage",float("nan"))),"ok" if m.get("leverage",0)<12 else "crit"),]
-        else:
-            items = [("Sinistralidade",_fmt(m.get("loss_ratio",float("nan"))),"ok" if m.get("loss_ratio",1)<0.7 else "crit"),
-                     ("Índ. Despesas",_fmt(m.get("expense_ratio",float("nan"))),"ok" if m.get("expense_ratio",1)<0.3 else "warn"),
-                     ("Índ. Combinado",_fmt(m.get("combined_ratio",float("nan"))),"ok" if m.get("combined_ratio",1)<1.0 else "crit"),
-                     ("Crescimento Rev.",_fmt(m.get("rev_growth",float("nan"))),"ok"),
-                     ("ROA",_fmt(m.get("roa",float("nan"))),"ok" if m.get("roa",0)>0.02 else "warn"),
-                     ("CFO Quality",_fmt(m.get("cfo_quality",float("nan"))),"ok")]
-        charts = html.Div(
-            [html.Div(_metric_card(l, v, status=s), style={"flex":"1","minWidth":"140px"})
-             for l,v,s in items],
-            style={"display":"flex","flexWrap":"wrap","gap":"8px"})
+        charts = html.Div("Dados insuficientes para gráficos.",
+                          style={"color":_B["muted"],"fontFamily":_B["mono"],"fontSize":"0.83rem"})
 
     # ── Red flags ───────────────────────────────────────────────────────────
     if flags:
@@ -670,7 +659,7 @@ def _run_gemini(n, cache, year_t):
         report  = "".join(analyst.analyze_streaming(
             ticker=query, sector=sector, year=year_t,
             mscore_result=sr.mscore_result, cfq_result=sr.cfq_result,
-            red_flags=sr.red_flags or [], sector_risk=sr,
+            red_flags=sr.red_flags or [],
         ))
     except Exception as exc:
         return html.Div(f"Erro na API Gemini: {exc}",

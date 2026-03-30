@@ -16,6 +16,7 @@ Delta vs Setor respects group boundaries (Tarefa 4):
 
 from __future__ import annotations
 
+import json
 import logging
 import pickle
 import time
@@ -31,7 +32,7 @@ from .accruals import AlertLevel, CashFlowQuality, CashFlowQualityResult
 from .beneish_mscore import BeneishMScore, FinancialData, MScoreResult
 from .data_fetcher import CVMDataFetcher
 from .sector_scorer import SectorRiskResult, get_scorer
-from .ticker_map import FINANCIAL_GROUP, TICKER_SECTOR, get_sector, get_sector_dynamic
+from .ticker_map import TICKER_SECTOR, get_sector, get_sector_dynamic
 
 logger = logging.getLogger(__name__)
 
@@ -214,14 +215,11 @@ def rank_market(
 
 def _apply_sector_stats(results: List[CompanyResult]) -> None:
     sector_mscores: Dict[str, List[float]] = {}
-    fin_scores: List[float] = []
 
     for r in results:
         if not r.ok:
             continue
-        if r.sector in FINANCIAL_GROUP:
-            fin_scores.append(r.sector_risk.risk_score)
-        elif r.sector_risk.mscore_result is not None:
+        if r.sector_risk.mscore_result is not None:
             sector_mscores.setdefault(r.sector, []).append(
                 r.sector_risk.mscore_result.m_score
             )
@@ -229,15 +227,11 @@ def _apply_sector_stats(results: List[CompanyResult]) -> None:
     sector_avg: Dict[str, float] = {
         s: float(np.mean(v)) for s, v in sector_mscores.items()
     }
-    fin_avg = float(np.mean(fin_scores)) if fin_scores else float("nan")
 
     for r in results:
         if not r.ok:
             continue
-        if r.sector in FINANCIAL_GROUP:
-            r.sector_avg_score = fin_avg
-            r.score_vs_sector  = r.sector_risk.risk_score - fin_avg
-        elif r.sector_risk.mscore_result is not None:
+        if r.sector_risk.mscore_result is not None:
             avg = sector_avg.get(r.sector, float("nan"))
             r.sector_avg_score = avg
             r.score_vs_sector  = r.sector_risk.mscore_result.m_score - avg
@@ -275,10 +269,6 @@ def _to_dataframe(results: List[CompanyResult], top_flags: int) -> pd.DataFrame:
                 "SGAI":  round(ms.sgai,  4) if ms else float("nan"),
                 "LVGI":  round(ms.lvgi,  4) if ms else float("nan"),
                 "TATA":  round(ms.tata,  4) if ms else float("nan"),
-                "ROA":              round(sr.metrics.get("roa",            float("nan")), 4),
-                "Cost_Income":      round(sr.metrics.get("cost_income",    float("nan")), 4),
-                "Indice_Combinado": round(sr.metrics.get("combined_ratio", float("nan")), 4),
-                "Sinistralidade":   round(sr.metrics.get("loss_ratio",     float("nan")), 4),
                 "Erro":             "",
             }
             flags = r.red_flags + [""] * top_flags
@@ -294,8 +284,6 @@ def _to_dataframe(results: List[CompanyResult], top_flags: int) -> pd.DataFrame:
                 "AQI": float("nan"),  "SGI": float("nan"),
                 "DEPI": float("nan"), "SGAI": float("nan"),
                 "LVGI": float("nan"), "TATA": float("nan"),
-                "ROA": float("nan"), "Cost_Income": float("nan"),
-                "Indice_Combinado": float("nan"), "Sinistralidade": float("nan"),
                 "Erro": r.error or "",
             }
             flags = [""] * top_flags
@@ -388,7 +376,8 @@ def get_home_dashboard_data(
             year_t, len(tickers_to_score),
         )
     else:
-        tickers_to_score = [t for t, s in TICKER_SECTOR.items() if s != "BDR"]
+        _EXCLUDED = {"BDR", "Bancos", "Seguros", "Financeiro"}
+        tickers_to_score = [t for t, s in TICKER_SECTOR.items() if s not in _EXCLUDED]
         logger.info(
             "Building home dashboard FULL (year_t=%d, %d tickers, force=%s)...",
             year_t, len(tickers_to_score), force,
@@ -415,3 +404,39 @@ def get_home_dashboard_data(
         logger.warning("Cache write failed: %s", exc)
 
     return df
+
+
+# ---------------------------------------------------------------------------
+# Static JSON cache — written by build_market_cache.py
+# ---------------------------------------------------------------------------
+
+_MARKET_RANKING_JSON = (
+    Path(__file__).resolve().parent.parent.parent / "data" / "cache"
+    / "market_ranking_current.json"
+)
+
+
+def read_market_cache(
+    cache_path: Optional[Path | str] = None,
+) -> Optional[pd.DataFrame]:
+    """
+    Read the static market ranking JSON produced by ``build_market_cache.py``.
+
+    Returns
+    -------
+    pd.DataFrame | None
+        DataFrame with all scored companies, or None if the file does not exist.
+    """
+    p = Path(cache_path) if cache_path else _MARKET_RANKING_JSON
+    if not p.exists():
+        logger.debug("read_market_cache: file not found at %s", p)
+        return None
+    try:
+        with open(p, encoding="utf-8") as fh:
+            records = json.load(fh)
+        df = pd.DataFrame(records)
+        logger.info("read_market_cache: loaded %d records from %s", len(df), p)
+        return df
+    except Exception as exc:
+        logger.warning("read_market_cache: failed to read %s — %s", p, exc)
+        return None
