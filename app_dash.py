@@ -182,6 +182,125 @@ def _radar(ms) -> go.Figure:
     )
     return fig
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Audit table helpers
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _brl(v: float) -> str:
+    """Format a BRL monetary value into a readable millions/billions string."""
+    absv = abs(v)
+    if absv >= 1e12:
+        return f"R$ {v/1e12:.2f} T"
+    if absv >= 1e9:
+        return f"R$ {v/1e9:.2f} Bn"
+    if absv >= 1e6:
+        return f"R$ {v/1e6:.2f} M"
+    if absv >= 1e3:
+        return f"R$ {v/1e3:.1f} K"
+    return f"R$ {v:.0f}"
+
+
+def _delta(t1: float, t: float) -> tuple:
+    """Return (formatted_pct_string, color) for a YoY change."""
+    if abs(t1) < 1e-6:
+        return "—", _B["muted"]
+    pct = (t - t1) / abs(t1) * 100
+    color = _B["green"] if pct >= 0 else _B["red"]
+    return f"{pct:+.1f}%", color
+
+
+def _audit_table(fd_t, fd_t1, year_t: int) -> html.Details:
+    """
+    Collapsible 'Auditoria de Dados (YoY)' section.
+    Shows the raw accounting inputs that feed the M-Score and Accrual Ratio,
+    with year-over-year comparison formatted in millions/billions BRL.
+    """
+    yr1 = year_t - 1
+    yr0 = year_t
+
+    # Derived metrics
+    gp_t  = fd_t.revenues  - fd_t.cost_of_goods_sold
+    gp_t1 = fd_t1.revenues - fd_t1.cost_of_goods_sold
+
+    # Row spec: (label, val_t1, val_t, is_cost)
+    # is_cost=True  → value stored positive in FinancialData but displayed negative (expense)
+    _rows: list[tuple] = [
+        # ── DRE ──────────────────────────────────────────────────────────
+        ("DRE",                     None,  None,  False),
+        ("Receita Líquida",         fd_t1.revenues,                     fd_t.revenues,                    False),
+        ("CPV",                     fd_t1.cost_of_goods_sold,            fd_t.cost_of_goods_sold,           True),
+        ("Lucro Bruto",             gp_t1,                               gp_t,                             False),
+        ("SG&A",                    fd_t1.sales_general_admin_expenses,  fd_t.sales_general_admin_expenses, True),
+        ("Lucro Líquido",           fd_t1.net_income,                    fd_t.net_income,                  False),
+        ("FCO",                     fd_t1.cash_from_operations,          fd_t.cash_from_operations,        False),
+        ("D&A (add-back)",          fd_t1.depreciation,                  fd_t.depreciation,                False),
+        # ── ATIVO ─────────────────────────────────────────────────────────
+        ("BALANÇO — ATIVO",         None,  None,  False),
+        ("Ativo Total",             fd_t1.total_assets,                  fd_t.total_assets,                False),
+        ("Ativo Circulante",        fd_t1.current_assets,                fd_t.current_assets,              False),
+        ("Contas a Receber (líq.)", fd_t1.receivables,                   fd_t.receivables,                 False),
+        ("Imobilizado (PP&E)",      fd_t1.pp_and_e,                      fd_t.pp_and_e,                    False),
+        ("Aplicações Financeiras",  fd_t1.securities,                    fd_t.securities,                  False),
+        # ── PASSIVO ───────────────────────────────────────────────────────
+        ("BALANÇO — PASSIVO",       None,  None,  False),
+        ("Passivo Circulante",      fd_t1.current_liabilities,           fd_t.current_liabilities,         False),
+        ("Dívida LP",               fd_t1.total_long_term_debt,          fd_t.total_long_term_debt,        False),
+    ]
+
+    _th   = {"color": _B["muted"], "fontFamily": _B["mono"], "fontSize": "0.72rem",
+             "fontWeight": "700", "padding": "5px 12px",
+             "borderBottom": f"1px solid {_B['border']}",
+             "letterSpacing": "0.08em", "textAlign": "right", "whiteSpace": "nowrap"}
+    _th_l = {**_th, "textAlign": "left"}
+    _td   = {"color": _B["text"], "fontFamily": _B["mono"], "fontSize": "0.80rem",
+             "padding": "4px 12px", "textAlign": "right", "whiteSpace": "nowrap"}
+    _td_l = {**_td, "textAlign": "left"}
+    _td_grp = {"color": _B["orange"], "fontFamily": _B["mono"], "fontSize": "0.69rem",
+               "fontWeight": "700", "padding": "8px 12px 2px", "textAlign": "left",
+               "letterSpacing": "0.1em", "borderTop": f"1px solid {_B['border']}"}
+
+    rows_html = []
+    data_row_idx = 0
+    for label, v1, v0, is_cost in _rows:
+        if v1 is None:
+            rows_html.append(html.Tr([html.Td(label, colSpan=4, style=_td_grp)]))
+            continue
+
+        display_v1 = _brl(-v1 if is_cost else v1)
+        display_v0 = _brl(-v0 if is_cost else v0)
+        pct_str, pct_color = _delta(v1, v0)
+        row_bg = _B["card"] if data_row_idx % 2 == 0 else _B["bg"]
+        data_row_idx += 1
+
+        rows_html.append(html.Tr([
+            html.Td(label,       style={**_td_l, "background": row_bg}),
+            html.Td(display_v1,  style={**_td,   "background": row_bg, "color": _B["muted"]}),
+            html.Td(display_v0,  style={**_td,   "background": row_bg}),
+            html.Td(pct_str,     style={**_td,   "background": row_bg, "color": pct_color,
+                                        "fontWeight": "700"}),
+        ], style={"borderBottom": f"1px solid {_B['border']}22"}))
+
+    table = html.Table([
+        html.Thead(html.Tr([
+            html.Th("Métrica Contábil", style=_th_l),
+            html.Th(f"Ano {yr1}",       style=_th),
+            html.Th(f"Ano {yr0}",       style=_th),
+            html.Th("Δ%",              style={**_th, "color": _B["orange"]}),
+        ])),
+        html.Tbody(rows_html),
+    ], style={"width": "100%", "borderCollapse": "collapse",
+              "border": f"1px solid {_B['border']}", "borderRadius": "4px"})
+
+    return html.Details([
+        html.Summary("▶ Auditoria de Dados — Entradas do Modelo (YoY)",
+                     style={"fontFamily": _B["mono"], "fontSize": "0.82rem",
+                            "fontWeight": "700", "color": _B["orange"],
+                            "cursor": "pointer", "padding": "8px 4px",
+                            "listStyle": "none", "userSelect": "none"}),
+        html.Div(table, style={"marginTop": "8px", "overflowX": "auto"}),
+    ], style={"marginTop": "12px", "padding": "4px 0"})
+
 def _sector_bar(df: pd.DataFrame) -> go.Figure:
     g = df.groupby("Setor")["M-Score"].mean().dropna().sort_values()
     clrs = [_B["red"] if v > -1.78 else _B["green"] for v in g.values]
@@ -549,7 +668,8 @@ def _layout_analise():
     ])
 
 
-def _render_result_layout(ticker, sector, sr: SectorRiskResult, year_t) -> html.Div:
+def _render_result_layout(ticker, sector, sr: SectorRiskResult, year_t,
+                          fd_t=None, fd_t1=None) -> html.Div:
     """Renderiza o painel de resultado para qualquer tipo de scorer."""
     stype = sr.scorer_type
     ms    = sr.mscore_result
@@ -611,6 +731,7 @@ def _render_result_layout(ticker, sector, sr: SectorRiskResult, year_t) -> html.
         _divider(), charts, _divider(),
         _lbl("🚩 Red Flags Detectados"),
         html.Div(flag_items),
+        _audit_table(fd_t, fd_t1, year_t) if (fd_t is not None and fd_t1 is not None) else html.Div(),
     ])
 
 
@@ -660,7 +781,7 @@ def _run_analysis(n, ticker_sel, cnpj, year_t, cache):
                      "flags": sr.red_flags,
                      "alert": sr.alert_level.value}
 
-        result_panel = _render_result_layout(query, sector, sr, year_t)
+        result_panel = _render_result_layout(query, sector, sr, year_t, fd_t=fd_t, fd_t1=fd_t1)
         ai_section   = _build_ai_section(query, year_t)
         return result_panel, ai_section, new_cache
     except Exception as exc:
