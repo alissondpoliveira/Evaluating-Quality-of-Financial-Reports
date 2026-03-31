@@ -612,7 +612,10 @@ class CVMRegistry:
             keyword = base.get("denom_social", query)
             words   = _normalise(keyword).split()[:3]          # use first 3 words
             if words:
-                mask = self.df["_DENOM_NORM"].apply(lambda x: all(w in x for w in words))
+                # Use whole-word matching to avoid "TIM" matching "investimento"
+                mask = self.df["_DENOM_NORM"].apply(
+                    lambda x: all(w in x.split() for w in words)
+                )
                 hits = self.df[mask]
                 if not hits.empty:
                     row = hits.iloc[0]
