@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import textwrap
 from pathlib import Path
 from typing import Generator, Iterator, List, Optional
@@ -467,7 +468,9 @@ class GeminiAnalyst:
         cfq_result: Optional[CashFlowQualityResult],
     ) -> Path:
         h = self._sig_hash(ticker, year, mscore_result, cfq_result)
-        return self.cache_dir / f"{ticker}_{year}_{h}.md"
+        # Sanitise: CNPJs contain '/' and '.' which would create subdirectories
+        safe = re.sub(r"[^A-Za-z0-9_\-]", "_", ticker)
+        return self.cache_dir / f"{safe}_{year}_{h}.md"
 
     def _load_cache(
         self,
