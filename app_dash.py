@@ -22,7 +22,7 @@ import pandas as pd
 import plotly.graph_objects as go
 
 import dash
-from dash import dcc, html, Input, Output, State, callback, dash_table, no_update, ctx
+from dash import dcc, html, Input, Output, State, callback, dash_table, no_update, ctx, ALL
 from dash.exceptions import PreventUpdate
 
 from advisor_brain_fsa.mda_analyst import GeminiAnalyst, compute_grade
@@ -565,6 +565,12 @@ def _load_home(_ni, _nb, year_t):
             )
 
     ok = df[df["Score de Risco"].notna()].copy()
+
+    # Exclude financial sectors — M-Score is not applicable for them
+    _FIN = _FINANCIAL_SECTORS | {"Financeiro", "BDR", "Bancos", "Seguros"}
+    if "Setor" in ok.columns:
+        ok = ok[~ok["Setor"].isin(_FIN)].copy()
+
     if ok.empty:
         return html.Div("Nenhum dado disponível.", style={"color":_B["muted"]})
 
@@ -574,18 +580,25 @@ def _load_home(_ni, _nb, year_t):
         top = subset.nlargest(n, "Score de Risco") if not subset.empty else subset
         rows = []
         for _, row in top.iterrows():
-            t     = row.get("Ticker", row.get("Nome", "—"))
+            t     = str(row.get("Ticker", row.get("Nome", "—")))
             alert = row.get("Nível de Alerta", "—")
             score = f"{row.get('M-Score', float('nan')):+.3f}"
             setor = row.get("Setor", "")
-            rows.append(html.Div([
+            # Each row is a clickable button that navigates to Análise Individual
+            rows.append(html.Button([
                 html.Span(f"{_icon.get(alert,'⚪')} ", style={"marginRight":"4px"}),
                 html.Span(t, style={"color":_B["orange"],"fontWeight":"700","marginRight":"8px"}),
-                html.Span(f"`{score}`", style={"color":_B["text"],"fontSize":"0.8rem"}),
+                html.Span(f"{score}", style={"color":_B["text"],"fontSize":"0.8rem"}),
                 html.Span(f" · {setor}", style={"color":_B["muted"],"fontSize":"0.75rem"}),
-            ], style={"padding":"7px 14px","background":_B["bg"],
+            ], id={"type":"home-ticker-btn","index":t},
+               n_clicks=0,
+               style={"display":"block","width":"100%","textAlign":"left",
+                      "padding":"7px 14px","background":_B["bg"],
                       "border":f"1px solid {_B['border']}","borderTop":"none",
-                      "fontFamily":_B["mono"],"fontSize":"0.83rem"}))
+                      "fontFamily":_B["mono"],"fontSize":"0.83rem",
+                      "cursor":"pointer","color":"inherit",
+                      "transition":"background 0.15s"},
+               title=f"Analisar {t}"))
         return html.Div([
             html.Div([
                 html.Span(f"{icon} {title}",
@@ -629,8 +642,10 @@ def _load_home(_ni, _nb, year_t):
 
 def _layout_analise():
     return html.Div([
-        # Trigger that fires once after render to load full CVM ticker list
+        # Fires once to load full CVM ticker list from registry
         dcc.Interval(id="cvm-opts-trigger", interval=800, max_intervals=1),
+        # Fires once to pick up any ticker navigated from the Home tab
+        dcc.Interval(id="home-nav-trigger", interval=300, max_intervals=1),
         html.Div([
             html.Span("Análise Individual",
                       style={"fontSize":"1.15rem","fontWeight":"700","color":_B["text"]}),
@@ -830,6 +845,53 @@ def _build_ai_section(ticker, year_t):
 def _load_cvm_opts(_n):
     """Fires once after page render; replaces static ticker list with full CVM universe."""
     return _build_tick_opts()
+
+
+# ── Home → Análise Individual navigation ─────────────────────────────────────
+
+@callback(
+    Output("tabs",           "value"),
+    Output("home-sel-store", "data"),
+    Input({"type": "home-ticker-btn", "index": ALL}, "n_clicks"),
+    prevent_initial_call=True,
+)
+def _home_ticker_click(n_clicks_list):
+    """Switch to Análise tab and store the chosen ticker when a home row is clicked."""
+    if not any(n_clicks_list):
+        raise PreventUpdate
+    # Find which button was clicked
+    triggered = ctx.triggered_id
+    if not triggered or not isinstance(triggered, dict):
+        raise PreventUpdate
+    ticker = triggered.get("index", "")
+    if not ticker:
+        raise PreventUpdate
+    return "analise", {"ticker": ticker, "nav_ts": _CY}  # nav_ts ensures store changes
+
+
+@callback(
+    Output("analise-dd",   "value"),
+    Output("analise-cnpj", "value"),
+    Output("analise-btn",  "n_clicks"),
+    Input("home-nav-trigger",  "n_intervals"),
+    State("home-sel-store",    "data"),
+    State("analise-btn",       "n_clicks"),
+    prevent_initial_call=True,
+)
+def _apply_home_nav(_n, store, current_clicks):
+    """Pre-fill query and auto-trigger analysis when landing from Home tab."""
+    if not store:
+        raise PreventUpdate
+    ticker = store.get("ticker", "")
+    if not ticker:
+        raise PreventUpdate
+    # Route: known B3 ticker → dropdown; CNPJ / unknown → free-text input
+    is_known_ticker = ticker.upper() in TICKER_TO_KEYWORD and \
+                      TICKER_SECTOR.get(ticker.upper()) not in _FINANCIAL_SECTORS
+    dd_val   = ticker if is_known_ticker else no_update
+    cnpj_val = ticker if not is_known_ticker else ""
+    n_new    = (current_clicks or 0) + 1
+    return dd_val, cnpj_val, n_new
 
 
 @callback(
