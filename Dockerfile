@@ -41,25 +41,14 @@ RUN mkdir -p /app/data/cache \
 
 # ── Usuário não-root ──────────────────────────────────────────────────────────
 RUN useradd --create-home --shell /bin/bash appuser \
-    && chown -R appuser:appuser /app
+    && chown -R appuser:appuser /app \
+    && chmod +x /app/entrypoint.sh
 
-# Tarefa 1: USER appuser antes do CMD (permissão garantida)
 USER appuser
 
 # ── Porta ─────────────────────────────────────────────────────────────────────
 EXPOSE 8080
 
-# Tarefa 1: CMD em shell form — /bin/sh expande ${PORT:-8080} corretamente.
-# NÃO usar exec form JSON array ["gunicorn",...] pois não expande variáveis.
-# NÃO prefixar com "exec" — Railway não wrapa startCommand em shell e
-# tentaria executar "exec" como binário ("executable not found").
-# --worker-class gthread necessário para --threads funcionar (sync ignora).
-CMD gunicorn --bind 0.0.0.0:${PORT:-8080} \
-             --workers 2 \
-             --worker-class gthread \
-             --threads 4 \
-             --timeout 120 \
-             --log-level info \
-             --access-logfile - \
-             --error-logfile - \
-             app_dash:server
+# entrypoint.sh builds the market ranking cache in the background (so gunicorn
+# starts immediately and the Railway health check passes), then execs gunicorn.
+CMD ["/app/entrypoint.sh"]
