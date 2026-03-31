@@ -408,9 +408,10 @@ def _metric_card(label, value, delta="", status="ok"):
 
 app.layout = html.Div([
     # Stores de sessão (persistem entre callbacks, resolvem o problema do Gemini)
-    dcc.Store(id="analyze-store",  storage_type="session"),
-    dcc.Store(id="ranking-store",  storage_type="session"),
-    dcc.Store(id="home-sel-store", storage_type="session"),
+    dcc.Store(id="analyze-store",          storage_type="session"),
+    dcc.Store(id="ranking-store",          storage_type="session"),
+    dcc.Store(id="home-sel-store",         storage_type="session"),
+    dcc.Store(id="company-profile-store",  storage_type="session"),
 
     # ── Topbar ───────────────────────────────────────────────────────────────
     html.Div([
@@ -660,6 +661,8 @@ def _layout_analise():
                            "fontWeight":"700","cursor":"pointer","borderRadius":"3px"}),
             ], style={"flex":"1","minWidth":"80px"}),
         ], style={"display":"flex","gap":"10px","marginBottom":"14px"}),
+        # ── Company summary (AI, auto-generated) ────────────────────────────
+        html.Div(id="company-summary-section"),
         # ── Loading + resultado ──────────────────────────────────────────────
         dcc.Loading(type="circle", color=_B["orange"],
             children=html.Div(id="analise-result")),
@@ -736,14 +739,15 @@ def _render_result_layout(ticker, sector, sr: SectorRiskResult, year_t,
 
 
 @callback(
-    Output("analise-result",      "children"),
-    Output("analise-ai-section",  "children"),
-    Output("analyze-store",       "data"),
-    Input("analise-btn",          "n_clicks"),
-    State("analise-dd",           "value"),
-    State("analise-cnpj",         "value"),
-    State("year-dd",              "value"),
-    State("analyze-store",        "data"),
+    Output("analise-result",         "children"),
+    Output("analise-ai-section",     "children"),
+    Output("analyze-store",          "data"),
+    Output("company-profile-store",  "data"),
+    Input("analise-btn",             "n_clicks"),
+    State("analise-dd",              "value"),
+    State("analise-cnpj",            "value"),
+    State("year-dd",                 "value"),
+    State("analyze-store",           "data"),
     prevent_initial_call=True,
 )
 def _run_analysis(n, ticker_sel, cnpj, year_t, cache):
@@ -757,6 +761,14 @@ def _run_analysis(n, ticker_sel, cnpj, year_t, cache):
                 no_update, no_update)
     from advisor_brain_fsa.data_fetcher import CVMDataFetcher
     from advisor_brain_fsa.sector_scorer import get_scorer
+    from advisor_brain_fsa.cvm_registry import CVMRegistry
+
+    # Fetch CVM company profile (best-effort, does not block analysis)
+    try:
+        profile = CVMRegistry.get_instance().get_company_profile(query)
+    except Exception:
+        profile = None
+
     try:
         fetcher = CVMDataFetcher()
         fd_t, fd_t1 = fetcher.get_financial_data(query, year_t=year_t, year_t1=year_t-1)
@@ -765,7 +777,7 @@ def _run_analysis(n, ticker_sel, cnpj, year_t, cache):
                     html.Span("Erro ao buscar dados: ", style={"color":_B["red"],"fontWeight":"700"}),
                     html.Span(str(exc), style={"color":_B["text"]}),
                 ], style={"fontFamily":_B["mono"],"fontSize":"0.83rem"}),
-                no_update, no_update)
+                no_update, no_update, no_update)
     try:
         sector = get_sector(query)
         sr     = get_scorer(sector).score(fd_t, fd_t1)
@@ -783,7 +795,7 @@ def _run_analysis(n, ticker_sel, cnpj, year_t, cache):
 
         result_panel = _render_result_layout(query, sector, sr, year_t, fd_t=fd_t, fd_t1=fd_t1)
         ai_section   = _build_ai_section(query, year_t)
-        return result_panel, ai_section, new_cache
+        return result_panel, ai_section, new_cache, profile
     except Exception as exc:
         import traceback
         detail = traceback.format_exc()
@@ -793,7 +805,7 @@ def _run_analysis(n, ticker_sel, cnpj, year_t, cache):
                     html.Pre(detail, style={"color":_B["muted"],"fontSize":"0.72rem",
                                            "marginTop":"8px","whiteSpace":"pre-wrap"}),
                 ], style={"fontFamily":_B["mono"],"fontSize":"0.83rem"}),
-                no_update, no_update)
+                no_update, no_update, no_update)
 
 
 def _build_ai_section(ticker, year_t):
@@ -878,6 +890,112 @@ def _run_gemini(n, cache, year_t):
                       "textDecoration":"none","border":f"1px solid {_B['orange']}",
                       "padding":"5px 14px","borderRadius":"3px"}),
     ])
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COMPANY SUMMARY — profile card + auto Gemini description
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _profile_card(profile: dict) -> html.Div:
+    """Renders a Bloomberg-style company identity card from CVM registry data."""
+    denom_s  = profile.get("denom_social", "")
+    denom_c  = profile.get("denom_comerc", "")
+    cnpj_fmt = profile.get("cnpj_fmt", "")
+    setor    = profile.get("setor_ativ", "")
+    sector_l = profile.get("sector_label", "")
+    sit_reg  = profile.get("sit_reg", "")
+    tp_merc  = profile.get("tp_merc", "")
+
+    name_main = denom_c or denom_s or "—"
+    name_sub  = denom_s if denom_c else ""
+
+    def _kv(key, val, val_color=None):
+        if not val:
+            return html.Span()
+        return html.Div([
+            html.Span(f"{key}: ",
+                      style={"color": _B["muted"], "fontSize": "0.72rem",
+                             "fontFamily": _B["mono"], "marginRight": "4px"}),
+            html.Span(val,
+                      style={"color": val_color or _B["text"], "fontSize": "0.78rem",
+                             "fontFamily": _B["mono"], "fontWeight": "600"}),
+        ], style={"display": "inline-block", "marginRight": "20px", "marginBottom": "3px"})
+
+    return html.Div([
+        html.Div([
+            html.Span(name_main,
+                      style={"color": _B["text"], "fontFamily": _B["mono"],
+                             "fontSize": "1.05rem", "fontWeight": "700"}),
+            html.Span(f"  {name_sub}",
+                      style={"color": _B["muted"], "fontFamily": _B["mono"],
+                             "fontSize": "0.78rem"}) if name_sub else html.Span(),
+        ], style={"marginBottom": "6px"}),
+        html.Div([
+            _kv("CNPJ",    cnpj_fmt),
+            _kv("Setor CVM", setor),
+            _kv("Classificação", sector_l, _B["orange"]),
+            _kv("Mercado", tp_merc),
+            _kv("Status",  sit_reg, _B["green"] if sit_reg.upper() == "ATIVO" else _B["red"]),
+        ]),
+    ], style={"background": _B["card"], "border": f"1px solid {_B['border']}",
+              "borderRadius": "6px", "padding": "10px 16px", "marginBottom": "10px"})
+
+
+@callback(
+    Output("company-summary-section", "children"),
+    Input("company-profile-store",    "data"),
+    prevent_initial_call=True,
+)
+def _render_company_summary(profile):
+    if not profile:
+        raise PreventUpdate
+
+    card = _profile_card(profile)
+    key  = _api_key()
+
+    # Without Gemini key: show only the CVM metadata card
+    if not key:
+        return card
+
+    # With Gemini: auto-generate a brief company description
+    company_name = profile.get("denom_comerc") or profile.get("denom_social") or "a empresa"
+    setor        = profile.get("setor_ativ") or profile.get("sector_label") or ""
+
+    prompt = (
+        f"Você é um analista de mercado brasileiro especializado em contabilidade forense. "
+        f"Em exatamente 3 frases curtas e objetivas, descreva '{company_name}': "
+        f"(1) o que ela faz e em qual segmento atua; "
+        f"(2) sua relevância/porte no mercado brasileiro; "
+        f"(3) seu principal modelo de geração de receita. "
+        f"Contexto adicional — setor CVM: {setor}. "
+        f"Não mencione preço de ação, não use disclaimers."
+    )
+
+    try:
+        import google.generativeai as genai  # type: ignore
+        genai.configure(api_key=key)
+        model    = genai.GenerativeModel("gemini-2.0-flash")
+        response = model.generate_content(prompt)
+        desc_text = response.text.strip()
+    except Exception as exc:
+        desc_text = None
+
+    if not desc_text:
+        return card
+
+    desc_block = html.Div([
+        html.Div("Perfil da Empresa",
+                 style={"color": _B["muted"], "fontFamily": _B["mono"],
+                        "fontSize": "0.70rem", "fontWeight": "700",
+                        "letterSpacing": "0.1em", "marginBottom": "5px"}),
+        html.Div(desc_text,
+                 style={"color": _B["text"], "fontFamily": _B["mono"],
+                        "fontSize": "0.83rem", "lineHeight": "1.55",
+                        "borderLeft": f"3px solid {_B['orange']}",
+                        "paddingLeft": "10px"}),
+    ], style={"marginTop": "8px"})
+
+    return html.Div([card, desc_block])
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # TAB RANKING

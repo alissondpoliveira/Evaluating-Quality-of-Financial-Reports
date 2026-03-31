@@ -581,6 +581,70 @@ class CVMRegistry:
         """Return BeneishSectorScorer (single scorer for all non-financial companies)."""
         return BeneishSectorScorer()
 
+    def get_company_profile(self, query: str) -> Optional[Dict]:
+        """
+        Return an enriched company profile for display in the UI.
+
+        Extends ``resolve_query()`` with additional fields taken directly
+        from the registry DataFrame row: ``denom_comerc``, ``cnpj_fmt``,
+        ``tp_merc``, ``sit_reg``.
+
+        Returns ``None`` when the company cannot be resolved.
+        """
+        base = self.resolve_query(query)
+        if base is None:
+            return None
+
+        # If resolved via static ticker map we may not have a CNPJ yet;
+        # try a name-based lookup to enrich the row.
+        cnpj_raw = base.get("cnpj_digits") or base.get("cnpj") or ""
+        row = None
+
+        if cnpj_raw and "_CNPJ_DIGITS" in self.df.columns:
+            digits = "".join(c for c in str(cnpj_raw) if c.isdigit())
+            if digits:
+                mask = self.df["_CNPJ_DIGITS"] == digits[:14]
+                hits = self.df[mask]
+                if not hits.empty:
+                    row = hits.iloc[0]
+
+        if row is None and "_DENOM_NORM" in self.df.columns:
+            keyword = base.get("denom_social", query)
+            words   = _normalise(keyword).split()[:3]          # use first 3 words
+            if words:
+                mask = self.df["_DENOM_NORM"].apply(lambda x: all(w in x for w in words))
+                hits = self.df[mask]
+                if not hits.empty:
+                    row = hits.iloc[0]
+
+        # Build profile dict
+        profile: Dict = {
+            "denom_social": base.get("denom_social", ""),
+            "denom_comerc": "",
+            "cnpj_fmt":     "",
+            "setor_ativ":   base.get("setor_ativ", ""),
+            "sector_label": base.get("sector", "Outros"),
+            "sit_reg":      "ATIVO",
+            "tp_merc":      "BOLSA",
+            "source":       base.get("source", ""),
+        }
+
+        if row is not None:
+            profile["denom_social"] = str(row.get("DENOM_SOCIAL") or profile["denom_social"])
+            comerc = str(row.get("DENOM_COMERC") or "").strip()
+            profile["denom_comerc"] = comerc if comerc and comerc != profile["denom_social"] else ""
+            profile["setor_ativ"]   = str(row.get("SETOR_ATIV")   or profile["setor_ativ"])
+            profile["sit_reg"]      = str(row.get("SIT_REG") or row.get("SIT") or "").strip()
+            profile["tp_merc"]      = str(row.get("TP_MERC")       or "").strip()
+
+            # Format CNPJ as XX.XXX.XXX/XXXX-XX
+            d = str(row.get("_CNPJ_DIGITS") or "").strip()
+            if len(d) == 14:
+                profile["cnpj_fmt"] = f"{d[:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:14]}"
+
+        return profile
+
+
     # ------------------------------------------------------------------
     # Tarefa 2 — Dynamic non-financial company universe
     # ------------------------------------------------------------------
