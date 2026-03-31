@@ -78,7 +78,7 @@ def _read_version() -> str:
 _APP_VERSION = _read_version()
 
 _CY = date.today().year
-_YEAR_OPTS  = [{"label": str(y), "value": y} for y in range(_CY - 1, _CY - 6, -1)]
+_YEAR_OPTS  = [{"label": str(y), "value": y} for y in range(_CY - 1, _CY - 12, -1)]
 _FINANCIAL_SECTORS = {"Bancos", "Seguros", "Financeiro", "BDR"}
 
 # Static opts (non-financial tickers from map) — initial fast list shown immediately
