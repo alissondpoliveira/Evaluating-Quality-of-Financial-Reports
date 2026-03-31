@@ -391,6 +391,14 @@ class CVMDataFetcher:
         Try each code in spec.codes in order.  Returns the first match,
         applying the sign correction defined in the spec.
         Falls back to NaN if nothing matches.
+
+        Sign convention
+        ---------------
+        ``spec.sign == -1`` means the field must always be a **positive absolute
+        value** regardless of how the CVM file stores it.  CVM DRE/DFC files are
+        inconsistent: some companies store COGS / D&A as negative (expense
+        convention), others as positive (add-back convention in DFC indirect
+        method).  Using ``abs()`` instead of ``value * -1`` handles both cases.
         """
         for code in spec.codes:
             rows = filtered_df[filtered_df["CD_CONTA"] == code]
@@ -398,12 +406,14 @@ class CVMDataFetcher:
                 value = rows["VL_CONTA"].iloc[0]
                 if pd.isna(value):
                     continue
-                # Apply sign correction: CVM stores expenses as negative;
-                # FinancialData expects positive absolute values.
-                corrected = float(value) * spec.sign
+                raw = float(value)
+                # For expense/cost fields (sign=-1) always take the absolute value
+                # so the FinancialData contract (positive values) is guaranteed
+                # regardless of CVM sign convention.
+                corrected = abs(raw) if spec.sign == -1 else raw
                 logger.debug(
                     "  %-35s code=%-12s raw=%14.2f  corrected=%14.2f",
-                    spec.field_name, code, float(value), corrected,
+                    spec.field_name, code, raw, corrected,
                 )
                 return corrected
 

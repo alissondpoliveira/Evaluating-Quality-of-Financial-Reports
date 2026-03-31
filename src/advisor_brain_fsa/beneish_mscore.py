@@ -12,10 +12,13 @@ Threshold: M-Score > -1.78 → Potential Manipulator
 
 from __future__ import annotations
 
+import logging
 import numpy as np
 import pandas as pd
 from dataclasses import dataclass, field
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -45,18 +48,36 @@ class FinancialData:
     net_income: float
     cash_from_operations: float
 
+    # Fields that represent costs/expenses and must always be stored as
+    # positive absolute values for the Beneish formulas to be valid.
+    _MUST_BE_POSITIVE = frozenset({
+        "cost_of_goods_sold",
+        "sales_general_admin_expenses",
+        "depreciation",
+    })
+
     def __post_init__(self) -> None:
-        fields = [
+        all_fields = [
             "revenues", "cost_of_goods_sold", "sales_general_admin_expenses",
             "receivables", "total_assets", "current_assets", "pp_and_e",
             "securities", "total_long_term_debt", "current_liabilities",
             "depreciation", "net_income", "cash_from_operations",
         ]
-        for f in fields:
+        for f in all_fields:
             v = getattr(self, f)
             if v is None or (isinstance(v, float) and np.isnan(v)):
                 raise ValueError(f"Field '{f}' must not be None or NaN.")
-            setattr(self, f, float(v))
+            v = float(v)
+            # Defensive abs() for cost/expense fields — guards against
+            # upstream sign inconsistencies in CVM DRE/DFC files.
+            if f in self._MUST_BE_POSITIVE and v < 0:
+                logger.warning(
+                    "FinancialData: field '%s' arrived as negative (%.4f); "
+                    "taking abs() — check data_fetcher sign correction.",
+                    f, v,
+                )
+                v = abs(v)
+            setattr(self, f, v)
 
 
 @dataclass
@@ -142,10 +163,29 @@ _MANIPULATION_THRESHOLD = -1.78
 
 
 def _safe_div(numerator: float, denominator: float, fallback: float = 1.0) -> float:
-    """Division with zero/NaN guard. Returns *fallback* when denominator is zero."""
-    if denominator == 0.0 or np.isnan(denominator) or np.isnan(numerator):
+    """Division with zero/NaN guard. Returns *fallback* when denominator is near-zero."""
+    if abs(denominator) < 1e-6 or np.isnan(denominator) or np.isnan(numerator):
         return fallback
     return numerator / denominator
+
+
+def _positive_index(name: str, value: float, fallback: float = 1.0) -> float:
+    """
+    Validate that a Beneish ratio index is positive.
+
+    DSRI, GMI, AQI, SGI, DEPI, SGAI and LVGI are ratios of proportions
+    and must be positive for the M-Score formula to be valid.  A negative
+    value indicates a sign anomaly in the upstream financial data.
+    Log a WARNING and return *fallback* (neutral = 1.0) in that case.
+    """
+    if value < 0:
+        logger.warning(
+            "Beneish index %s = %.6f is negative — sign anomaly in input data. "
+            "Substituting neutral fallback %.1f to prevent M-Score corruption.",
+            name, value, fallback,
+        )
+        return fallback
+    return value
 
 
 class BeneishMScore:
@@ -216,10 +256,11 @@ class BeneishMScore:
         DSRI = (Receivables_T / Revenues_T) / (Receivables_T1 / Revenues_T1)
 
         A large increase suggests revenue inflation or channel stuffing.
+        Must be positive; negative result indicates upstream data sign error.
         """
-        ratio_t = _safe_div(t.receivables, t.revenues)
+        ratio_t  = _safe_div(t.receivables,  t.revenues)
         ratio_t1 = _safe_div(t1.receivables, t1.revenues)
-        return _safe_div(ratio_t, ratio_t1)
+        return _positive_index("DSRI", _safe_div(ratio_t, ratio_t1))
 
     @staticmethod
     def _gmi(t: FinancialData, t1: FinancialData) -> float:
@@ -229,10 +270,12 @@ class BeneishMScore:
               [(Revenues_T  - COGS_T)  / Revenues_T ]
 
         GMI > 1 indicates deteriorating gross margins, a red flag.
+        Must be positive; negative result means gross margin flipped sign
+        (e.g. COGS > Revenue in one period), which is treated as anomalous.
         """
-        gm_t = _safe_div(t.revenues - t.cost_of_goods_sold, t.revenues)
+        gm_t  = _safe_div(t.revenues  - t.cost_of_goods_sold,  t.revenues)
         gm_t1 = _safe_div(t1.revenues - t1.cost_of_goods_sold, t1.revenues)
-        return _safe_div(gm_t1, gm_t)
+        return _positive_index("GMI", _safe_div(gm_t1, gm_t))
 
     @staticmethod
     def _aqi(t: FinancialData, t1: FinancialData) -> float:
@@ -243,10 +286,12 @@ class BeneishMScore:
 
         Measures the proportion of non-current, non-PP&E assets
         (i.e., assets more susceptible to manipulation).
+        Must be positive; negative result (current + PP&E > total assets)
+        indicates a data integrity issue.
         """
-        quality_t = 1.0 - _safe_div(t.current_assets + t.pp_and_e, t.total_assets)
+        quality_t  = 1.0 - _safe_div(t.current_assets  + t.pp_and_e,  t.total_assets)
         quality_t1 = 1.0 - _safe_div(t1.current_assets + t1.pp_and_e, t1.total_assets)
-        return _safe_div(quality_t, quality_t1)
+        return _positive_index("AQI", _safe_div(quality_t, quality_t1))
 
     @staticmethod
     def _sgi(t: FinancialData, t1: FinancialData) -> float:
@@ -255,8 +300,9 @@ class BeneishMScore:
         SGI = Revenues_T / Revenues_T1
 
         High growth firms face greater incentives to manipulate.
+        Must be positive; both revenue figures must be positive.
         """
-        return _safe_div(t.revenues, t1.revenues)
+        return _positive_index("SGI", _safe_div(t.revenues, t1.revenues))
 
     @staticmethod
     def _depi(t: FinancialData, t1: FinancialData) -> float:
@@ -266,10 +312,12 @@ class BeneishMScore:
                [Depreciation_T  / (PP&E_T  + Depreciation_T )]
 
         DEPI > 1 may signal assets being depreciated more slowly.
+        Must be positive; a negative value (the root cause of the CVCB3/2019
+        bug) means D&A arrived with the wrong sign — caught here as last resort.
         """
-        rate_t = _safe_div(t.depreciation, t.pp_and_e + t.depreciation)
+        rate_t  = _safe_div(t.depreciation,  t.pp_and_e  + t.depreciation)
         rate_t1 = _safe_div(t1.depreciation, t1.pp_and_e + t1.depreciation)
-        return _safe_div(rate_t1, rate_t)
+        return _positive_index("DEPI", _safe_div(rate_t1, rate_t))
 
     @staticmethod
     def _sgai(t: FinancialData, t1: FinancialData) -> float:
@@ -278,10 +326,11 @@ class BeneishMScore:
         SGAI = (SGA_T / Revenues_T) / (SGA_T1 / Revenues_T1)
 
         Disproportionate SGA growth may indicate future problems.
+        Must be positive; SGA and revenues should both be positive.
         """
-        ratio_t = _safe_div(t.sales_general_admin_expenses, t.revenues)
+        ratio_t  = _safe_div(t.sales_general_admin_expenses,  t.revenues)
         ratio_t1 = _safe_div(t1.sales_general_admin_expenses, t1.revenues)
-        return _safe_div(ratio_t, ratio_t1)
+        return _positive_index("SGAI", _safe_div(ratio_t, ratio_t1))
 
     @staticmethod
     def _lvgi(t: FinancialData, t1: FinancialData) -> float:
@@ -291,10 +340,11 @@ class BeneishMScore:
                [(LongTermDebt_T1 + CurrentLiabilities_T1) / TotalAssets_T1]
 
         Increased leverage creates incentive to manipulate earnings.
+        Must be positive; all balance sheet items should be non-negative.
         """
-        lev_t = _safe_div(t.total_long_term_debt + t.current_liabilities, t.total_assets)
+        lev_t  = _safe_div(t.total_long_term_debt  + t.current_liabilities,  t.total_assets)
         lev_t1 = _safe_div(t1.total_long_term_debt + t1.current_liabilities, t1.total_assets)
-        return _safe_div(lev_t, lev_t1)
+        return _positive_index("LVGI", _safe_div(lev_t, lev_t1))
 
     @staticmethod
     def _tata(t: FinancialData) -> float:
