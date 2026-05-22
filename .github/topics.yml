@@ -1,0 +1,22 @@
+# Suggested GitHub repository topics.
+#
+# GitHub topics cannot be set via a file in the repository — they must be
+# configured through the repository Settings page (About section → Topics)
+# or via the GitHub API:
+#
+#   PUT /repos/{owner}/{repo}/topics
+#   { "names": ["financial-analysis", "beneish-mscore", ...] }
+#
+# Topics to apply to this repository:
+
+topics:
+  - financial-analysis
+  - beneish-mscore
+  - earnings-quality
+  - python
+  - cfa
+  - quantitative-finance
+  - financial-statements
+  - forensic-accounting
+  - dash
+  - b3

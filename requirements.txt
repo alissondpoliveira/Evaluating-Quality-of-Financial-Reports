@@ -1,24 +1,23 @@
-# ── Análise de dados ──────────────────────────────────────────────────────────
-numpy>=1.24.0
-pandas>=2.0.0
-requests>=2.31.0
+# ── Data analysis ─────────────────────────────────────────────────────────────
+numpy==1.26.4
+pandas==2.2.2
+requests==2.32.3
 
-# ── IA / APIs ─────────────────────────────────────────────────────────────────
-google-generativeai>=0.8    # Gemini 2.5 Flash — Tese de Risco
-anthropic>=0.86.0           # Claude API (MDAnalyst legado)
-yfinance>=0.2.36            # P1.5 — resolução dinâmica de tickers não mapeados
+# ── AI / APIs ─────────────────────────────────────────────────────────────────
+google-generativeai==0.8.3      # Gemini 2.5 Flash — risk narrative
+anthropic==0.49.0               # Claude API (MDA analyst)
+yfinance==0.2.51                # P1.5 — dynamic ticker resolution
 
-# ── Visualização ──────────────────────────────────────────────────────────────
-plotly>=5.0.0
+# ── Visualisation ─────────────────────────────────────────────────────────────
+plotly==5.22.0
 
-# ── Dash — app principal (app_dash.py) ───────────────────────────────────────
-# NOTA: em dash>=2.0 o dash_table já está incluso no pacote dash.
-# NÃO adicionar dash-table separadamente — causa conflito de versão.
-dash>=2.14.0
-dash-bootstrap-components>=1.5.0   # layout responsivo (Grid, Row, Col)
+# ── Dash — main application (app_dash.py) ────────────────────────────────────
+# NOTE: dash>=2.0 bundles dash_table — do NOT add dash-table separately.
+dash==2.17.1
+dash-bootstrap-components==1.6.0
 
-# ── Servidor de produção ──────────────────────────────────────────────────────
-gunicorn>=21.2.0            # WSGI: gunicorn --bind 0.0.0.0:$PORT app_dash:server
+# ── Production server ─────────────────────────────────────────────────────────
+gunicorn==22.0.0
 
-# ── Testes ────────────────────────────────────────────────────────────────────
-pytest>=7.4.0
+# ── Tests ─────────────────────────────────────────────────────────────────────
+pytest==8.2.2
