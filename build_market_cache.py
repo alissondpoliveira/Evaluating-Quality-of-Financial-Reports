@@ -321,17 +321,32 @@ def build(
         sum(1 for r in results if r.get("Erro")),
     )
 
-    # ── Step 4: sort and write JSON ───────────────────────────────────────
+    # ── Step 4: sort and write JSON (atomic via temp file) ───────────────
     def _sort_key(r: dict):
         score = r.get("Score de Risco")
         return (0 if score is None else -score)  # descending risk score, errors last
 
     results.sort(key=_sort_key)
 
-    with open(out, "w", encoding="utf-8") as fh:
+    # Write to a temp file alongside the output and rename atomically so
+    # gunicorn never reads a partially-written file.
+    tmp = out.with_suffix(".tmp.json")
+    with open(tmp, "w", encoding="utf-8") as fh:
         json.dump(results, fh, ensure_ascii=False, indent=2, default=str)
+    tmp.replace(out)  # atomic on POSIX; os.replace() fallback on Windows
 
-    logger.info("=== build_market_cache DONE → %s (%d records) ===", out, len(results))
+    n_ok  = sum(1 for r in results if not r.get("Erro"))
+    n_err = sum(1 for r in results if r.get("Erro"))
+    logger.info(
+        "=== build_market_cache DONE → %s  |  %d scored  |  %d errors ===",
+        out, n_ok, n_err,
+    )
+    if n_err:
+        logger.warning(
+            "%d companies could not be scored (missing CVM data or parsing errors). "
+            "Run with --log-level DEBUG to see details.",
+            n_err,
+        )
     return out
 
 

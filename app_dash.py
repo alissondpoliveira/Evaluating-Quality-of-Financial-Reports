@@ -577,7 +577,7 @@ def _load_home(_ni, _nb, year_t):
     _icon = {"Crítico":"🔴","Alto Risco":"🟠","Atenção":"🟡","Normal":"🟢"}
 
     def _top_col(title, icon, border, subset, n=10):
-        top = subset.nlargest(n, "Score de Risco") if not subset.empty else subset
+        top = subset.head(n) if not subset.empty else subset
         rows = []
         for _, row in top.iterrows():
             t     = str(row.get("Ticker", row.get("Nome", "—")))
@@ -611,14 +611,17 @@ def _load_home(_ni, _nb, year_t):
             *rows,
         ])
 
-    # Split into risk bands for the three columns
-    crit_hi  = ok[ok["Nível de Alerta"].isin(["Crítico", "Alto Risco"])]
-    watch    = ok[ok["Nível de Alerta"] == "Atenção"]
-    normal   = ok[ok["Nível de Alerta"] == "Normal"]
-
-    col_crit   = _top_col("Crítico / Alto Risco", "🔴", "#ef4444", crit_hi,  n=10)
-    col_watch  = _top_col("Atenção", "🟡", "#f59e0b", watch,   n=10)
-    col_normal = _top_col("Normal", "🟢", "#10b981", normal,  n=10)
+    # Two columns: 10 worst (highest M-Score) + 10 best (lowest M-Score)
+    col_worst = _top_col(
+        "10 Maiores Riscos", "🔴", "#ef4444",
+        ok.nlargest(10, "M-Score"),
+        n=10,
+    )
+    col_best = _top_col(
+        "10 Menores Riscos", "🟢", "#10b981",
+        ok.nsmallest(10, "M-Score"),
+        n=10,
+    )
 
     charts = []
     if len(ok) > 1:
@@ -627,11 +630,19 @@ def _load_home(_ni, _nb, year_t):
                            style={"fontSize":"0.7rem","fontWeight":"700","textTransform":"uppercase",
                                   "letterSpacing":"0.08em","color":_B["muted"],"fontFamily":_B["mono"]}),
                   dcc.Graph(figure=_sector_bar(ok), config={"displayModeBar":False})]
+
+    n_total = len(ok)
+    n_risk  = int((ok["Nível de Alerta"].isin(["Crítico","Alto Risco"])).sum())
+    summary_bar = html.Div(
+        f"📊 {n_total} empresas avaliadas · {n_risk} em risco elevado (M-Score > −1.78)",
+        style={"fontFamily":_B["mono"],"fontSize":"0.72rem","color":_B["muted"],
+               "marginBottom":"10px","letterSpacing":"0.04em"},
+    )
     return html.Div([
+        summary_bar,
         html.Div([
-            html.Div(col_crit,   style={"flex":"1","minWidth":"0"}),
-            html.Div(col_watch,  style={"flex":"1","minWidth":"0"}),
-            html.Div(col_normal, style={"flex":"1","minWidth":"0"}),
+            html.Div(col_worst, style={"flex":"1","minWidth":"0"}),
+            html.Div(col_best,  style={"flex":"1","minWidth":"0"}),
         ], style={"display":"flex","gap":"12px"}),
         *charts,
     ])
