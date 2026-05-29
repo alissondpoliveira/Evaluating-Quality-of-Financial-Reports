@@ -2,6 +2,14 @@
 Advisor-Brain-FSA — Streamlit App
 Bloomberg Terminal theme · Deploy no Streamlit Community Cloud
 Run: streamlit run app.py
+
+Performance design:
+  - Only stdlib + streamlit + ticker_map imported at module level (fast path)
+  - All heavy advisor_brain_fsa modules loaded lazily via @st.cache_resource
+  - plotly.graph_objects loaded lazily on first chart render
+  - market cache JSON read once per 5 min via @st.cache_data(ttl=300)
+  - CSS pre-generated as a module-level constant (no f-string on every rerun)
+  - Dropdown options split: static (instant) + full CVM (lazy, on demand)
 """
 from __future__ import annotations
 
@@ -14,9 +22,9 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-import pandas as pd
-import plotly.graph_objects as go
+# ── Only lightweight imports at module level ──────────────────────────────────
 import streamlit as st
+from advisor_brain_fsa.ticker_map import TICKER_TO_KEYWORD, TICKER_SECTOR, get_sector
 
 # ── Page config — must be the FIRST st call ───────────────────────────────────
 st.set_page_config(
@@ -24,17 +32,6 @@ st.set_page_config(
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="collapsed",
-)
-
-# ── Business layer imports ────────────────────────────────────────────────────
-from advisor_brain_fsa.mda_analyst import GeminiAnalyst, compute_grade
-from advisor_brain_fsa.rank_market import (
-    DEFAULT_WATCHLIST, CompanyResult, _apply_sector_stats, _to_dataframe,
-    get_home_dashboard_data, read_market_cache,
-)
-from advisor_brain_fsa.sector_scorer import SectorRiskResult, get_scorer
-from advisor_brain_fsa.ticker_map import (
-    TICKER_TO_KEYWORD, TICKER_SECTOR, get_sector,
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -46,10 +43,10 @@ _B = {
     "orange": "#FFA500", "yellow": "#FFD700", "muted":  "#888888",
     "mono":   "'JetBrains Mono','Roboto Mono','Fira Code','Consolas',monospace",
 }
-_CY               = date.today().year
-_YEAR_OPTS        = list(range(_CY - 1, _CY - 12, -1))
+_CY                = date.today().year
+_YEAR_OPTS         = list(range(_CY - 1, _CY - 12, -1))
 _FINANCIAL_SECTORS = {"Bancos", "Seguros", "Financeiro", "BDR"}
-_FIN_ALL          = _FINANCIAL_SECTORS | {"Financeiro", "BDR", "Bancos", "Seguros"}
+_FIN_ALL           = _FINANCIAL_SECTORS | {"Financeiro", "BDR", "Bancos", "Seguros"}
 
 
 def _read_version() -> str:
@@ -58,13 +55,13 @@ def _read_version() -> str:
     except Exception:
         return "v?"
 
+
 _APP_VERSION = _read_version()
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CSS — Bloomberg Terminal theme injected once
+# CSS — pre-generated once at import time (no f-string rebuild on every rerun)
 # ─────────────────────────────────────────────────────────────────────────────
-def _inject_css() -> None:
-    st.markdown(f"""
+_CSS = f"""
 <style>
 html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"],
 [data-testid="block-container"] {{
@@ -72,10 +69,8 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"],
     color: {_B['text']} !important;
     font-family: {_B['mono']} !important;
 }}
-/* Hide Streamlit chrome */
 #MainMenu, footer, header {{ visibility: hidden; }}
 [data-testid="stDecoration"], [data-testid="stSidebarNav"] {{ display: none; }}
-/* Tabs */
 [data-testid="stTabs"] [data-baseweb="tab-list"] {{
     background: {_B['bg']} !important;
     border-bottom: 1px solid {_B['border']} !important;
@@ -94,16 +89,13 @@ html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"],
     color: {_B['orange']} !important;
     border-bottom: 2px solid {_B['orange']} !important;
 }}
-/* Inputs */
-[data-testid="stTextInput"] input,
-[data-testid="stNumberInput"] input {{
+[data-testid="stTextInput"] input, [data-testid="stNumberInput"] input {{
     background-color: {_B['card']} !important;
     color: {_B['text']} !important;
     border: 1px solid {_B['border']} !important;
     font-family: {_B['mono']} !important;
     font-size: 0.82rem !important;
 }}
-/* Selectbox */
 div[data-baseweb="select"] > div {{
     background-color: {_B['card']} !important;
     border: 1px solid {_B['border']} !important;
@@ -117,12 +109,10 @@ div[data-baseweb="popover"] * {{
     font-family: {_B['mono']} !important;
     font-size: 0.82rem !important;
 }}
-/* Multiselect tags */
 [data-baseweb="tag"] {{
     background-color: #2a1a00 !important;
     color: {_B['orange']} !important;
 }}
-/* Buttons */
 [data-testid="stButton"] > button {{
     background-color: {_B['card']} !important;
     color: {_B['orange']} !important;
@@ -135,9 +125,7 @@ div[data-baseweb="popover"] * {{
 }}
 [data-testid="stButton"] > button:hover {{
     background-color: #2a1a00 !important;
-    border-color: {_B['orange']} !important;
 }}
-/* Download button */
 [data-testid="stDownloadButton"] > button {{
     background-color: {_B['card']} !important;
     color: {_B['orange']} !important;
@@ -145,7 +133,6 @@ div[data-baseweb="popover"] * {{
     font-family: {_B['mono']} !important;
     font-size: 0.78rem !important;
 }}
-/* Expander */
 [data-testid="stExpander"] {{
     background-color: {_B['card']} !important;
     border: 1px solid {_B['border']} !important;
@@ -157,7 +144,6 @@ div[data-baseweb="popover"] * {{
     font-size: 0.82rem !important;
     font-weight: 700 !important;
 }}
-/* Metrics */
 [data-testid="stMetric"] label {{
     font-family: {_B['mono']} !important;
     font-size: 0.65rem !important;
@@ -165,36 +151,21 @@ div[data-baseweb="popover"] * {{
     text-transform: uppercase !important;
     letter-spacing: 0.08em !important;
 }}
-[data-testid="stMetricValue"] {{
-    font-family: {_B['mono']} !important;
-    font-size: 1.4rem !important;
-}}
-/* Caption */
+[data-testid="stMetricValue"] {{ font-family: {_B['mono']} !important; font-size: 1.4rem !important; }}
 [data-testid="stCaptionContainer"] p {{
     color: {_B['muted']} !important;
     font-family: {_B['mono']} !important;
     font-size: 0.72rem !important;
 }}
-/* Info / warning / error */
 [data-testid="stAlert"] {{
     background-color: {_B['card']} !important;
     border: 1px solid {_B['border']} !important;
     font-family: {_B['mono']} !important;
     font-size: 0.82rem !important;
 }}
-/* Progress bar */
-[data-testid="stProgressBar"] > div > div {{
-    background-color: {_B['orange']} !important;
-}}
-/* Spinner */
+[data-testid="stProgressBar"] > div > div {{ background-color: {_B['orange']} !important; }}
 [data-testid="stSpinner"] > div {{ color: {_B['orange']} !important; }}
-/* Divider */
 hr {{ border-color: {_B['border']} !important; margin: 10px 0 !important; }}
-/* Dataframe */
-[data-testid="stDataFrame"] iframe {{
-    background: {_B['bg']} !important;
-}}
-/* BBG card helper class */
 .bbg-card {{
     background: {_B['card']};
     border: 1px solid {_B['border']};
@@ -215,7 +186,53 @@ hr {{ border-color: {_B['border']} !important; margin: 10px 0 !important; }}
     border-radius: 2px;
 }}
 </style>
-""", unsafe_allow_html=True)
+"""
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Lazy module loaders — imported ONCE on first use, then cached in memory
+# Keeps cold-start fast: advisor_brain_fsa modules only load when needed
+# ─────────────────────────────────────────────────────────────────────────────
+
+@st.cache_resource(show_spinner=False)
+def _go():
+    """plotly.graph_objects — lazy so cold start doesn't pay the ~400ms import."""
+    import plotly.graph_objects as go
+    return go
+
+
+@st.cache_resource(show_spinner=False)
+def _rank_market():
+    """rank_market module objects — loads numpy/pandas/data_fetcher stack once."""
+    from advisor_brain_fsa.rank_market import (
+        CompanyResult, _apply_sector_stats, _to_dataframe,
+        get_home_dashboard_data, read_market_cache,
+    )
+    return CompanyResult, _apply_sector_stats, _to_dataframe, \
+           get_home_dashboard_data, read_market_cache
+
+
+@st.cache_resource(show_spinner=False)
+def _scorer_mod():
+    from advisor_brain_fsa.sector_scorer import get_scorer
+    return get_scorer
+
+
+@st.cache_resource(show_spinner=False)
+def _mda_mod():
+    from advisor_brain_fsa.mda_analyst import GeminiAnalyst, compute_grade
+    return GeminiAnalyst, compute_grade
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Market cache — read JSON at most once per 5 minutes
+# ─────────────────────────────────────────────────────────────────────────────
+
+@st.cache_data(ttl=300, show_spinner=False)
+def _market_df():
+    _, _, _, _, read_mc = _rank_market()
+    df = read_mc()
+    return df if (df is not None and not df.empty) else None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -229,7 +246,7 @@ def _api_key() -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Plotly — Bloomberg layout
+# Plotly chart builders — use lazy _go() so first chart doesn't block startup
 # ─────────────────────────────────────────────────────────────────────────────
 _BBG_LAYOUT = dict(
     paper_bgcolor=_B["bg"], plot_bgcolor=_B["bg"],
@@ -238,9 +255,10 @@ _BBG_LAYOUT = dict(
 )
 
 
-def _gauge(m_score: float) -> go.Figure:
-    clr = _B["red"] if m_score > -1.78 else _B["green"]
-    fig = go.Figure(go.Bar(
+def _gauge(m_score: float):
+    go   = _go()
+    clr  = _B["red"] if m_score > -1.78 else _B["green"]
+    fig  = go.Figure(go.Bar(
         x=[m_score], y=["M-Score"], orientation="h", marker_color=clr,
         text=[f"{m_score:+.4f}"], textposition="outside",
         textfont=dict(family=_B["mono"], color=clr, size=13),
@@ -254,7 +272,8 @@ def _gauge(m_score: float) -> go.Figure:
     return fig
 
 
-def _radar(ms) -> go.Figure:
+def _radar(ms):
+    go   = _go()
     cats = ["DSRI", "GMI", "AQI", "SGI", "DEPI", "SGAI", "LVGI", "TATA"]
     vals = [ms.dsri, ms.gmi, ms.aqi, ms.sgi, ms.depi, ms.sgai, ms.lvgi,
             max(0, ms.tata * 10 + 1)]
@@ -277,7 +296,9 @@ def _radar(ms) -> go.Figure:
     return fig
 
 
-def _sector_bar(df: pd.DataFrame) -> go.Figure:
+def _sector_bar(df):
+    import pandas as pd
+    go   = _go()
     g    = df.groupby("Setor")["M-Score"].mean().dropna().sort_values()
     clrs = [_B["red"] if v > -1.78 else _B["green"] for v in g.values]
     fig  = go.Figure(go.Bar(
@@ -307,7 +328,7 @@ def _brl(v: float) -> str:
     return f"R$ {v:.0f}"
 
 
-def _delta_pct(t1: float, t: float) -> tuple[str, str]:
+def _delta_pct(t1: float, t: float) -> tuple:
     if abs(t1) < 1e-6:
         return "—", _B["muted"]
     pct = (t - t1) / abs(t1) * 100
@@ -315,7 +336,7 @@ def _delta_pct(t1: float, t: float) -> tuple[str, str]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# HTML helpers (rendered via st.markdown unsafe_allow_html)
+# HTML helpers
 # ─────────────────────────────────────────────────────────────────────────────
 def _pill_html(alert: str) -> str:
     m = {"Crítico": (_B["red"], "#2a0000"), "Alto Risco": (_B["orange"], "#2a1a00"),
@@ -323,8 +344,7 @@ def _pill_html(alert: str) -> str:
     c, bg = m.get(alert, (_B["muted"], "#111111"))
     return (f'<span style="display:inline-block;padding:2px 10px;border-radius:3px;'
             f'border:1px solid {c};color:{c};background:{bg};font-weight:700;'
-            f'font-size:0.76rem;letter-spacing:0.04em;'
-            f'font-family:{_B["mono"]}">{alert}</span>')
+            f'font-size:0.76rem;letter-spacing:0.04em;font-family:{_B["mono"]}">{alert}</span>')
 
 
 def _grade_badge_html(grade: str) -> str:
@@ -336,13 +356,13 @@ def _grade_badge_html(grade: str) -> str:
 
 
 def _profile_card_html(profile: dict) -> str:
-    denom_s  = profile.get("denom_social", "")
-    denom_c  = profile.get("denom_comerc", "")
-    cnpj_fmt = profile.get("cnpj_fmt", "")
-    setor    = profile.get("setor_ativ", "")
-    sector_l = profile.get("sector_label", "")
-    sit_reg  = profile.get("sit_reg", "")
-    tp_merc  = profile.get("tp_merc", "")
+    denom_s   = profile.get("denom_social", "")
+    denom_c   = profile.get("denom_comerc", "")
+    cnpj_fmt  = profile.get("cnpj_fmt", "")
+    setor     = profile.get("setor_ativ", "")
+    sector_l  = profile.get("sector_label", "")
+    sit_reg   = profile.get("sit_reg", "")
+    tp_merc   = profile.get("tp_merc", "")
     name_main = denom_c or denom_s or "—"
     name_sub  = denom_s if denom_c else ""
     sit_color = _B["green"] if sit_reg.upper() == "ATIVO" else _B["red"]
@@ -374,7 +394,7 @@ def _audit_table_html(fd_t, fd_t1, year_t: int) -> str:
     gp_t  = fd_t.revenues  - fd_t.cost_of_goods_sold
     gp_t1 = fd_t1.revenues - fd_t1.cost_of_goods_sold
 
-    rows_spec: list[tuple] = [
+    rows_spec = [
         ("DRE",                     None, None, False),
         ("Receita Líquida",         fd_t1.revenues,                    fd_t.revenues,                    False),
         ("CPV",                     fd_t1.cost_of_goods_sold,           fd_t.cost_of_goods_sold,           True),
@@ -394,9 +414,9 @@ def _audit_table_html(fd_t, fd_t1, year_t: int) -> str:
         ("Dívida LP",               fd_t1.total_long_term_debt,         fd_t.total_long_term_debt,        False),
     ]
 
-    TH  = (f'style="color:{_B["muted"]};font-family:{_B["mono"]};font-size:0.72rem;'
-           f'font-weight:700;padding:5px 12px;border-bottom:1px solid {_B["border"]};'
-           f'letter-spacing:0.08em;text-align:right;white-space:nowrap;background:{_B["card"]}"')
+    TH  = (f'style="color:{_B["muted"]};font-family:{_B["mono"]};font-size:0.72rem;font-weight:700;'
+           f'padding:5px 12px;border-bottom:1px solid {_B["border"]};letter-spacing:0.08em;'
+           f'text-align:right;white-space:nowrap;background:{_B["card"]}"')
     THL = TH.replace("text-align:right", "text-align:left")
     TD  = (f'style="color:{_B["text"]};font-family:{_B["mono"]};font-size:0.80rem;'
            f'padding:4px 12px;text-align:right;white-space:nowrap"')
@@ -406,11 +426,9 @@ def _audit_table_html(fd_t, fd_t1, year_t: int) -> str:
            f'border-top:1px solid {_B["border"]}"')
 
     head = (f'<tr><th {THL}>Métrica Contábil</th>'
-            f'<th {TH}>Ano {yr1}</th>'
-            f'<th {TH}>Ano {yr0}</th>'
+            f'<th {TH}>Ano {yr1}</th><th {TH}>Ano {yr0}</th>'
             f'<th {TH} style="color:{_B["orange"]}">Δ%</th></tr>')
-    body = ""
-    i = 0
+    body, i = "", 0
     for label, v1, v0, is_cost in rows_spec:
         if v1 is None:
             body += f'<tr><td {TDG} colspan="4">{label}</td></tr>'
@@ -433,17 +451,27 @@ def _audit_table_html(fd_t, fd_t1, year_t: int) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Ticker option lists — cached (avoids CVM registry reload on every rerun)
+# Ticker option lists
+# Static list: instant (ticker_map already imported at module level)
+# Full list:   lazy, loaded only when user clicks "Carregar todas as empresas"
 # ─────────────────────────────────────────────────────────────────────────────
+
 @st.cache_resource(show_spinner=False)
-def _get_analise_opts() -> tuple[list[str], list[str], dict[str, str]]:
-    """Returns (labels, values, label→value) for the Análise Individual dropdown."""
+def _static_opts() -> tuple:
+    """Fast path — builds option list from ticker_map only (already in memory)."""
     labels, values = [], []
     for t in sorted(TICKER_TO_KEYWORD.keys()):
         if TICKER_SECTOR.get(t) not in _FINANCIAL_SECTORS:
             labels.append(f"{t} — {TICKER_TO_KEYWORD[t]}")
             values.append(t)
+    return labels, values, dict(zip(labels, values))
 
+
+@st.cache_resource(show_spinner=False)
+def _full_opts() -> tuple:
+    """Slow path — merges static list with full CVM non-financial universe."""
+    labels, values, lbl2val = _static_opts()
+    labels, values = list(labels), list(values)
     try:
         from advisor_brain_fsa.cvm_registry import CVMRegistry
         non_fin_kws = {
@@ -452,7 +480,7 @@ def _get_analise_opts() -> tuple[list[str], list[str], dict[str, str]]:
             if TICKER_SECTOR.get(t) not in _FINANCIAL_SECTORS
         }
         nf_df = CVMRegistry.get_instance().get_non_financial_df()
-        extras: list[tuple[str, str]] = []
+        extras: list[tuple] = []
         for _, row in nf_df.iterrows():
             denom = str(row.get("DENOM_COMERC") or row.get("DENOM_SOCIAL") or "").strip()
             cnpj  = str(row.get("CNPJ_CIA") or row.get("CNPJ") or "").strip()
@@ -468,38 +496,37 @@ def _get_analise_opts() -> tuple[list[str], list[str], dict[str, str]]:
             values.append(val)
     except Exception:
         pass
-
     return labels, values, dict(zip(labels, values))
 
 
 @st.cache_resource(show_spinner=False)
-def _get_ranking_opts() -> tuple[list[str], dict[str, str]]:
-    """Returns (labels, label→ticker) for the Ranking multiselect (tickers only)."""
+def _ranking_opts() -> tuple:
     labels = [f"{t} — {TICKER_TO_KEYWORD.get(t, t)}" for t in sorted(TICKER_TO_KEYWORD.keys())]
     return labels, dict(zip(labels, sorted(TICKER_TO_KEYWORD.keys())))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Session state initialisation
+# Session state
 # ─────────────────────────────────────────────────────────────────────────────
 def _init_state() -> None:
-    defaults: dict = {
-        "analyze_result": None,   # serialisable cache dict for Gemini
-        "last_result":    None,   # {sr, fd_t, fd_t1, query, sector, year_t}
-        "selected_ticker": "",    # ticker pre-selected from Dashboard
-        "gemini_report":  None,   # (report_str, query, year_t)
-        "ranking_df":     None,   # last ranking DataFrame
-    }
-    for k, v in defaults.items():
+    for k, v in {
+        "analyze_result": None,
+        "last_result":    None,
+        "selected_ticker": "",
+        "gemini_report":  None,
+        "ranking_df":     None,
+        "use_full_opts":  False,   # whether Análise tab loaded full CVM list
+    }.items():
         if k not in st.session_state:
             st.session_state[k] = v
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Result renderer (pure display — no data fetching)
+# Result renderer
 # ─────────────────────────────────────────────────────────────────────────────
-def _render_result(ticker: str, sector: str, sr: SectorRiskResult,
-                   year_t: int, fd_t=None, fd_t1=None) -> None:
+def _render_result(ticker: str, sector: str, sr, year_t: int,
+                   fd_t=None, fd_t1=None) -> None:
+    _, compute_grade = _mda_mod()
     ms    = sr.mscore_result
     cfq   = sr.cfq_result
     alert = sr.alert_level.value
@@ -508,22 +535,19 @@ def _render_result(ticker: str, sector: str, sr: SectorRiskResult,
     grade, g_label = (compute_grade(ms.m_score, cfq.accrual_ratio)
                       if ms and cfq else ("N/D", "Dados insuficientes para análise"))
 
-    m_color  = _B["red"] if (ms and ms.m_score > -1.78) else _B["green"]
-    ms_val   = f"{ms.m_score:+.4f}" if ms else "N/D"
-    cfq_val  = f"{cfq.accrual_ratio:+.4f}" if cfq else "N/D"
-    classif  = ms.classification if ms else "—"
+    m_color = _B["red"] if (ms and ms.m_score > -1.78) else _B["green"]
+    ms_val  = f"{ms.m_score:+.4f}" if ms else "N/D"
+    cfq_val = f"{cfq.accrual_ratio:+.4f}" if cfq else "N/D"
+    classif = ms.classification if ms else "—"
 
-    # Ticker / sector / year header
     st.markdown(
         f'<div class="bbg-card">'
         f'<span style="color:{_B["orange"]};font-weight:700;font-size:1rem">{ticker}</span>'
         f'<span style="color:{_B["muted"]};font-size:0.78rem"> · {sector} · {year_t}</span>'
         f'<div style="font-size:0.72rem;color:{_B["muted"]};margin-top:2px">{g_label}</div>'
-        f'</div>',
-        unsafe_allow_html=True,
+        f'</div>', unsafe_allow_html=True,
     )
 
-    # Grade badge + key metrics + alert pill
     col_g, col_m, col_pill = st.columns([1, 4, 1])
     with col_g:
         st.markdown(_grade_badge_html(grade), unsafe_allow_html=True)
@@ -536,15 +560,13 @@ def _render_result(ticker: str, sector: str, sr: SectorRiskResult,
             f'<span style="color:{_B["orange"]};font-size:0.75rem;font-weight:700">{classif}</span><br>'
             f'<span style="color:{_B["muted"]};font-size:0.75rem">Accrual Ratio: </span>'
             f'<span style="color:{_B["text"]};font-size:0.75rem">{cfq_val}</span>'
-            f'</div>',
-            unsafe_allow_html=True,
+            f'</div>', unsafe_allow_html=True,
         )
     with col_pill:
         st.markdown(_pill_html(alert), unsafe_allow_html=True)
 
     st.divider()
 
-    # Gauge + Radar
     if ms:
         c1, c2 = st.columns(2)
         with c1:
@@ -556,7 +578,6 @@ def _render_result(ticker: str, sector: str, sr: SectorRiskResult,
 
     st.divider()
 
-    # Red flags
     st.markdown(
         f'<div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;'
         f'letter-spacing:0.12em;color:{_B["muted"]};font-family:{_B["mono"]};'
@@ -574,7 +595,6 @@ def _render_result(ticker: str, sector: str, sr: SectorRiskResult,
             unsafe_allow_html=True,
         )
 
-    # YoY audit table
     if fd_t is not None and fd_t1 is not None:
         with st.expander("▶ Auditoria de Dados — Entradas do Modelo (YoY)", expanded=False):
             st.markdown(_audit_table_html(fd_t, fd_t1, year_t), unsafe_allow_html=True)
@@ -592,24 +612,22 @@ def _tab_dashboard(year_t: int) -> None:
     with col_refresh:
         force_refresh = st.button("↺ Atualizar", key="home_refresh")
 
-    df = None
-    if not force_refresh:
-        df = read_market_cache()
-        if df is not None and df.empty:
-            df = None
+    if force_refresh:
+        _market_df.clear()       # invalidate TTL cache
+        st.rerun()
 
-    if df is None and force_refresh:
-        st.warning("Cache não encontrado. Execute: `python build_market_cache.py`")
-        return
+    df = _market_df()
 
     if df is None:
         with st.spinner("Carregando dados ao vivo..."):
             try:
-                df = get_home_dashboard_data(year_t=year_t, force=False, quick=True)
+                _, _, _, get_home, _ = _rank_market()
+                df = get_home(year_t=year_t, force=False, quick=True)
             except Exception as exc:
                 st.error(f"Erro ao carregar dados: {exc}")
                 return
 
+    import pandas as pd
     ok = df[df["Score de Risco"].notna()].copy()
     if "Setor" in ok.columns:
         ok = ok[~ok["Setor"].isin(_FIN_ALL)].copy()
@@ -618,12 +636,11 @@ def _tab_dashboard(year_t: int) -> None:
         st.info("Nenhum dado disponível.")
         return
 
-    _icon = {"Crítico": "🔴", "Alto Risco": "🟠", "Atenção": "🟡", "Normal": "🟢"}
+    _icon   = {"Crítico": "🔴", "Alto Risco": "🟠", "Atenção": "🟡", "Normal": "🟢"}
     n_total = len(ok)
     n_risk  = int(ok["Nível de Alerta"].isin(["Crítico", "Alto Risco"]).sum())
     st.caption(f"📊 {n_total} empresas avaliadas · {n_risk} em risco elevado (M-Score > −1.78)")
 
-    # Navigation notice
     if st.session_state.get("selected_ticker"):
         nav = st.session_state["selected_ticker"]
         st.info(
@@ -637,7 +654,7 @@ def _tab_dashboard(year_t: int) -> None:
     def _col_header(title: str, border: str) -> None:
         st.markdown(
             f'<div style="background:{_B["card"]};border:1px solid {border};'
-            f'border-radius:6px 6px 0 0;padding:9px 14px;margin-bottom:0">'
+            f'border-radius:6px 6px 0 0;padding:9px 14px">'
             f'<span style="font-size:0.7rem;font-weight:700;text-transform:uppercase;'
             f'letter-spacing:0.1em;color:{border};font-family:{_B["mono"]}">{title}</span>'
             f'<span style="float:right;font-size:0.65rem;color:{_B["muted"]};'
@@ -654,8 +671,10 @@ def _tab_dashboard(year_t: int) -> None:
             alert = row.get("Nível de Alerta", "—")
             score = f"{row.get('M-Score', float('nan')):+.3f}"
             setor = row.get("Setor", "")
-            label = f"{_icon.get(alert, '⚪')} **{t}** `{score}` · {setor}"
-            if st.button(label, key=f"hw_{t}", use_container_width=True):
+            if st.button(
+                f"{_icon.get(alert,'⚪')} **{t}** `{score}` · {setor}",
+                key=f"hw_{t}", use_container_width=True,
+            ):
                 st.session_state["selected_ticker"] = t
                 st.session_state["gemini_report"]   = None
                 st.rerun()
@@ -667,8 +686,10 @@ def _tab_dashboard(year_t: int) -> None:
             alert = row.get("Nível de Alerta", "—")
             score = f"{row.get('M-Score', float('nan')):+.3f}"
             setor = row.get("Setor", "")
-            label = f"{_icon.get(alert, '⚪')} **{t}** `{score}` · {setor}"
-            if st.button(label, key=f"hb_{t}", use_container_width=True):
+            if st.button(
+                f"{_icon.get(alert,'⚪')} **{t}** `{score}` · {setor}",
+                key=f"hb_{t}", use_container_width=True,
+            ):
                 st.session_state["selected_ticker"] = t
                 st.session_state["gemini_report"]   = None
                 st.rerun()
@@ -685,15 +706,19 @@ def _tab_dashboard(year_t: int) -> None:
 def _tab_analise(year_t: int) -> None:
     st.caption("Dados reais do Portal CVM · M-Score + Accruals + Narrativa IA")
 
-    all_labels, all_values, lbl_to_val = _get_analise_opts()
-    nav_ticker = st.session_state.get("selected_ticker", "")
+    # Dropdown: start with fast static list; user can request full CVM universe
+    if st.session_state["use_full_opts"]:
+        with st.spinner("Carregando universo completo B3..."):
+            all_labels, all_values, lbl_to_val = _full_opts()
+    else:
+        all_labels, all_values, lbl_to_val = _static_opts()
 
-    # Find default index for pre-fill from Dashboard
+    nav_ticker  = st.session_state.get("selected_ticker", "")
     default_idx = 0
     if nav_ticker:
         for i, v in enumerate(all_values):
             if v.upper() == nav_ticker.upper():
-                default_idx = i + 1  # +1 for leading ""
+                default_idx = i + 1
                 break
 
     col_dd, col_cnpj, col_btn = st.columns([3, 2, 1])
@@ -715,7 +740,12 @@ def _tab_analise(year_t: int) -> None:
     with col_btn:
         calc_clicked = st.button("Calcular", use_container_width=True, key="analise_btn")
 
-    # Resolve the final query string (CNPJ takes priority, then dropdown)
+    # Lazy-load full CVM list on demand
+    if not st.session_state["use_full_opts"]:
+        if st.button("+ Carregar todas as empresas B3", key="load_full_opts"):
+            st.session_state["use_full_opts"] = True
+            st.rerun()
+
     ticker_val = lbl_to_val.get(selected_label, selected_label) if selected_label else ""
     query      = cnpj_input.strip() or ticker_val.strip()
 
@@ -724,7 +754,6 @@ def _tab_analise(year_t: int) -> None:
         from advisor_brain_fsa.data_fetcher import CVMDataFetcher
         from advisor_brain_fsa.cvm_registry import CVMRegistry
 
-        # Company profile card (non-blocking)
         try:
             profile = CVMRegistry.get_instance().get_company_profile(query)
         except Exception:
@@ -740,6 +769,7 @@ def _tab_analise(year_t: int) -> None:
             except Exception as exc:
                 st.error(f"Erro ao buscar dados: {exc}")
                 return
+            get_scorer = _scorer_mod()
             try:
                 sector = get_sector(query)
                 sr     = get_scorer(sector).score(fd_t, fd_t1)
@@ -748,7 +778,6 @@ def _tab_analise(year_t: int) -> None:
                 st.code(traceback.format_exc())
                 return
 
-        # Persist in session_state for subsequent reruns (Gemini button, etc.)
         st.session_state["last_result"] = {
             "sr": sr, "fd_t": fd_t, "fd_t1": fd_t1,
             "query": query, "sector": sector, "year_t": year_t,
@@ -759,13 +788,11 @@ def _tab_analise(year_t: int) -> None:
             "accrual":  sr.cfq_result.accrual_ratio if sr.cfq_result else None,
             "flags": sr.red_flags, "alert": sr.alert_level.value,
         }
-        st.session_state["gemini_report"] = None  # clear stale Gemini result
+        st.session_state["gemini_report"] = None
         _render_result(query, sector, sr, year_t, fd_t=fd_t, fd_t1=fd_t1)
 
     elif not calc_clicked and st.session_state.get("last_result"):
-        # Re-display cached result from previous calculation
         r = st.session_state["last_result"]
-        # Show profile card again if profile available
         try:
             from advisor_brain_fsa.cvm_registry import CVMRegistry
             profile = CVMRegistry.get_instance().get_company_profile(r["query"])
@@ -806,10 +833,9 @@ def _tab_analise(year_t: int) -> None:
             report, q, yt = st.session_state["gemini_report"]
             st.markdown(
                 f'<div style="background:{_B["bg"]};color:{_B["text"]};'
-                f'font-family:{_B["mono"]};font-size:0.83rem;'
-                f'padding:16px 20px;border:1px solid {_B["border"]};'
-                f'border-left:3px solid {_B["orange"]};border-radius:4px;line-height:1.7">'
-                f'{report}</div>',
+                f'font-family:{_B["mono"]};font-size:0.83rem;padding:16px 20px;'
+                f'border:1px solid {_B["border"]};border-left:3px solid {_B["orange"]};'
+                f'border-radius:4px;line-height:1.7">{report}</div>',
                 unsafe_allow_html=True,
             )
             st.download_button(
@@ -855,11 +881,12 @@ def _render_company_ai_desc(profile: dict) -> None:
 
 def _run_gemini(cache: dict, key: str) -> None:
     from advisor_brain_fsa.data_fetcher import CVMDataFetcher
-    q, yt, sec = cache["query"], cache["year_t"], cache["sector"]
+    GeminiAnalyst, _ = _mda_mod()
+    get_scorer       = _scorer_mod()
+    q, yt, sec       = cache["query"], cache["year_t"], cache["sector"]
     with st.spinner("Gerando narrativa Gemini..."):
         try:
-            fetcher     = CVMDataFetcher()
-            fd_t, fd_t1 = fetcher.get_financial_data(q, year_t=yt, year_t1=yt - 1)
+            fd_t, fd_t1 = CVMDataFetcher().get_financial_data(q, year_t=yt, year_t1=yt - 1)
             sr          = get_scorer(sec).score(fd_t, fd_t1)
             analyst     = GeminiAnalyst(api_key=key)
             report      = "".join(analyst.analyze_streaming(
@@ -879,10 +906,10 @@ def _run_gemini(cache: dict, key: str) -> None:
 def _tab_ranking(year_t: int) -> None:
     st.caption("Processa múltiplos tickers e ordena por nível de risco.")
 
-    rank_labels, lbl_to_ticker = _get_ranking_opts()
+    rank_labels, lbl_to_ticker = _ranking_opts()
     default_lbl = [
-        l for l in rank_labels
-        if any(l.startswith(t) for t in
+        lbl for lbl in rank_labels
+        if any(lbl.startswith(t) for t in
                ["PETR4", "VALE3", "ABEV3", "ELET3", "WEGE3", "RENT3", "MGLU3"])
     ]
 
@@ -890,15 +917,13 @@ def _tab_ranking(year_t: int) -> None:
         "Tickers", rank_labels, default=default_lbl,
         label_visibility="collapsed", key="rank_tickers",
     )
-
     run = st.button("Calcular Ranking", key="rank_btn")
 
     if run:
         if not selected:
             st.warning("Selecione ao menos um ticker.")
             return
-        tickers = [lbl_to_ticker[l] for l in selected if l in lbl_to_ticker]
-        _compute_ranking(tickers, year_t)
+        _compute_ranking([lbl_to_ticker[l] for l in selected if l in lbl_to_ticker], year_t)
 
     rdf = st.session_state.get("ranking_df")
     if rdf is not None and not run:
@@ -906,8 +931,11 @@ def _tab_ranking(year_t: int) -> None:
         _show_ranking(rdf)
 
 
-def _compute_ranking(tickers: list[str], year_t: int) -> None:
+def _compute_ranking(tickers: list, year_t: int) -> None:
     from advisor_brain_fsa.data_fetcher import CVMDataFetcher
+    CompanyResult, apply_stats, to_df, _, _ = _rank_market()
+    get_scorer = _scorer_mod()
+
     fetcher = CVMDataFetcher()
     results = []
     prog    = st.progress(0, text="Iniciando...")
@@ -925,13 +953,13 @@ def _compute_ranking(tickers: list[str], year_t: int) -> None:
         time.sleep(0.05)
     prog.empty()
 
-    _apply_sector_stats(results)
-    df = _to_dataframe(results, top_flags=3)
+    apply_stats(results)
+    df = to_df(results, top_flags=3)
     st.session_state["ranking_df"] = df
     _show_ranking(df)
 
 
-def _show_ranking(df: pd.DataFrame) -> None:
+def _show_ranking(df) -> None:
     ok  = df[df["Nível de Alerta"] != "N/D"].copy()
     err = df[df["Nível de Alerta"] == "N/D"].copy()
 
@@ -942,7 +970,6 @@ def _show_ranking(df: pd.DataFrame) -> None:
         c2.metric("🟠 ALTO RISCO", str(counts.get("Alto Risco", 0)))
         c3.metric("🟡 ATENÇÃO",    str(counts.get("Atenção",    0)))
         c4.metric("🟢 NORMAL",     str(counts.get("Normal",     0)))
-
         st.divider()
 
         want     = ["Ticker", "Setor", "Score de Risco", "M-Score",
@@ -955,7 +982,6 @@ def _show_ranking(df: pd.DataFrame) -> None:
             idx_map = {c: i for i, c in enumerate(row.index)}
             alert   = row.get("Nível de Alerta", "")
             ms      = row.get("M-Score")
-
             if "M-Score" in idx_map and ms is not None:
                 try:
                     styles[idx_map["M-Score"]] = (
@@ -983,7 +1009,7 @@ def _show_ranking(df: pd.DataFrame) -> None:
         st.dataframe(styled, use_container_width=True,
                      height=min(600, len(display) * 38 + 60))
 
-        b_df = (ok[ok["Scorer"] == "beneish"] if "Scorer" in ok.columns else ok)
+        b_df = ok[ok["Scorer"] == "beneish"] if "Scorer" in ok.columns else ok
         if len(b_df) > 1:
             st.divider()
             st.plotly_chart(_sector_bar(b_df), use_container_width=True,
@@ -992,17 +1018,16 @@ def _show_ranking(df: pd.DataFrame) -> None:
     if not err.empty:
         with st.expander(f"⚠️ {len(err)} ticker(s) sem dados"):
             for _, r in err.iterrows():
-                st.caption(f"{r.get('Ticker', '?')} — {r.get('Erro', 'erro desconhecido')}")
+                st.caption(f"{r.get('Ticker','?')} — {r.get('Erro','erro desconhecido')}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
 def main() -> None:
-    _inject_css()
+    st.markdown(_CSS, unsafe_allow_html=True)   # pre-generated — no f-string overhead
     _init_state()
 
-    # ── Topbar ────────────────────────────────────────────────────────────────
     t_col, y_col, api_col, v_col = st.columns([5, 1, 1, 1])
     with t_col:
         st.markdown(
@@ -1027,10 +1052,9 @@ def main() -> None:
         )
     with v_col:
         st.markdown(
-            f'<span style="font-size:0.68rem;color:{_B["orange"]};'
-            f'font-family:{_B["mono"]};font-weight:700;'
-            f'border:1px solid {_B["border"]};padding:1px 7px;border-radius:3px">'
-            f'{_APP_VERSION}</span>',
+            f'<span style="font-size:0.68rem;color:{_B["orange"]};font-family:{_B["mono"]};'
+            f'font-weight:700;border:1px solid {_B["border"]};padding:1px 7px;'
+            f'border-radius:3px">{_APP_VERSION}</span>',
             unsafe_allow_html=True,
         )
 
@@ -1039,21 +1063,16 @@ def main() -> None:
         unsafe_allow_html=True,
     )
 
-    # ── Tabs ──────────────────────────────────────────────────────────────────
     tab_home, tab_analise, tab_ranking = st.tabs([
         "🏠 Dashboard", "🔍 Análise Individual", "📊 Ranking"
     ])
-
     with tab_home:
         _tab_dashboard(year_t)
-
     with tab_analise:
         _tab_analise(year_t)
-
     with tab_ranking:
         _tab_ranking(year_t)
 
-    # ── Footer ────────────────────────────────────────────────────────────────
     st.markdown(
         f'<hr style="border-top:1px solid {_B["border"]};margin:32px 0 8px 0">',
         unsafe_allow_html=True,
