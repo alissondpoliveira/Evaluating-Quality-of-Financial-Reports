@@ -4,7 +4,8 @@ Bloomberg Terminal theme · Deploy no Streamlit Community Cloud
 Run: streamlit run app.py
 
 Performance design:
-  - Only stdlib + streamlit + ticker_map imported at module level (fast path)
+  - Only stdlib + streamlit imported before set_page_config (required by Streamlit)
+  - ticker_map imported after set_page_config; all other advisor modules lazy
   - All heavy advisor_brain_fsa modules loaded lazily via @st.cache_resource
   - plotly.graph_objects loaded lazily on first chart render
   - market cache JSON read once per 5 min via @st.cache_data(ttl=300)
@@ -22,9 +23,8 @@ from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 
-# ── Only lightweight imports at module level ──────────────────────────────────
+# ── Only streamlit at module level (before set_page_config) ──────────────────
 import streamlit as st
-from advisor_brain_fsa.ticker_map import TICKER_TO_KEYWORD, TICKER_SECTOR, get_sector
 
 # ── Page config — must be the FIRST st call ───────────────────────────────────
 st.set_page_config(
@@ -33,6 +33,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+
+# ── Advisor imports — after set_page_config, same order as original ───────────
+from advisor_brain_fsa.ticker_map import TICKER_TO_KEYWORD, TICKER_SECTOR, get_sector
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
