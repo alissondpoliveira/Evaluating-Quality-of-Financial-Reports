@@ -11,13 +11,8 @@ yfinance==0.2.51                # P1.5 — dynamic ticker resolution
 # ── Visualisation ─────────────────────────────────────────────────────────────
 plotly==5.22.0
 
-# ── Dash — main application (app_dash.py) ────────────────────────────────────
-# NOTE: dash>=2.0 bundles dash_table — do NOT add dash-table separately.
-dash==2.17.1
-dash-bootstrap-components==1.6.0
-
-# ── Production server ─────────────────────────────────────────────────────────
-gunicorn==22.0.0
+# ── Streamlit — main application (app.py) ────────────────────────────────────
+streamlit==1.37.0
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
 pytest==8.2.2
