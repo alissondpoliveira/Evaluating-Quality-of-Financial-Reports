@@ -707,7 +707,7 @@ def _tab_analise(year_t: int) -> None:
     st.caption("Dados reais do Portal CVM · M-Score + Accruals + Narrativa IA")
 
     # Dropdown: start with fast static list; user can request full CVM universe
-    if st.session_state["use_full_opts"]:
+    if st.session_state.get("use_full_opts", False):
         with st.spinner("Carregando universo completo B3..."):
             all_labels, all_values, lbl_to_val = _full_opts()
     else:
@@ -741,7 +741,7 @@ def _tab_analise(year_t: int) -> None:
         calc_clicked = st.button("Calcular", use_container_width=True, key="analise_btn")
 
     # Lazy-load full CVM list on demand
-    if not st.session_state["use_full_opts"]:
+    if not st.session_state.get("use_full_opts", False):
         if st.button("+ Carregar todas as empresas B3", key="load_full_opts"):
             st.session_state["use_full_opts"] = True
             st.rerun()
@@ -1067,11 +1067,23 @@ def main() -> None:
         "🏠 Dashboard", "🔍 Análise Individual", "📊 Ranking"
     ])
     with tab_home:
-        _tab_dashboard(year_t)
+        try:
+            _tab_dashboard(year_t)
+        except Exception:
+            st.error("Dashboard error:")
+            st.code(traceback.format_exc())
     with tab_analise:
-        _tab_analise(year_t)
+        try:
+            _tab_analise(year_t)
+        except Exception:
+            st.error("Análise error:")
+            st.code(traceback.format_exc())
     with tab_ranking:
-        _tab_ranking(year_t)
+        try:
+            _tab_ranking(year_t)
+        except Exception:
+            st.error("Ranking error:")
+            st.code(traceback.format_exc())
 
     st.markdown(
         f'<hr style="border-top:1px solid {_B["border"]};margin:32px 0 8px 0">',
@@ -1084,4 +1096,8 @@ def main() -> None:
     )
 
 
-main()
+try:
+    main()
+except Exception:
+    st.error("Erro interno — veja o traceback abaixo:")
+    st.code(traceback.format_exc())
