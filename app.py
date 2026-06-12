@@ -34,8 +34,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# ── Advisor imports — after set_page_config, same order as original ───────────
-from advisor_brain_fsa.ticker_map import TICKER_TO_KEYWORD, TICKER_SECTOR, get_sector
+# ── No advisor imports at module level — all lazy via @st.cache_resource ──────
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants
@@ -225,6 +224,12 @@ def _scorer_mod():
 def _mda_mod():
     from advisor_brain_fsa.mda_analyst import GeminiAnalyst, compute_grade
     return GeminiAnalyst, compute_grade
+
+
+@st.cache_resource(show_spinner=False)
+def _ticker_map():
+    from advisor_brain_fsa.ticker_map import TICKER_TO_KEYWORD, TICKER_SECTOR, get_sector
+    return TICKER_TO_KEYWORD, TICKER_SECTOR, get_sector
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -461,7 +466,8 @@ def _audit_table_html(fd_t, fd_t1, year_t: int) -> str:
 
 @st.cache_resource(show_spinner=False)
 def _static_opts() -> tuple:
-    """Fast path — builds option list from ticker_map only (already in memory)."""
+    """Fast path — builds option list from ticker_map only."""
+    TICKER_TO_KEYWORD, TICKER_SECTOR, _ = _ticker_map()
     labels, values = [], []
     for t in sorted(TICKER_TO_KEYWORD.keys()):
         if TICKER_SECTOR.get(t) not in _FINANCIAL_SECTORS:
@@ -473,6 +479,7 @@ def _static_opts() -> tuple:
 @st.cache_resource(show_spinner=False)
 def _full_opts() -> tuple:
     """Slow path — merges static list with full CVM non-financial universe."""
+    TICKER_TO_KEYWORD, TICKER_SECTOR, _ = _ticker_map()
     labels, values, lbl2val = _static_opts()
     labels, values = list(labels), list(values)
     try:
@@ -504,6 +511,7 @@ def _full_opts() -> tuple:
 
 @st.cache_resource(show_spinner=False)
 def _ranking_opts() -> tuple:
+    TICKER_TO_KEYWORD, _, _ = _ticker_map()
     labels = [f"{t} — {TICKER_TO_KEYWORD.get(t, t)}" for t in sorted(TICKER_TO_KEYWORD.keys())]
     return labels, dict(zip(labels, sorted(TICKER_TO_KEYWORD.keys())))
 
@@ -773,6 +781,7 @@ def _tab_analise(year_t: int) -> None:
                 st.error(f"Erro ao buscar dados: {exc}")
                 return
             get_scorer = _scorer_mod()
+            _, _, get_sector = _ticker_map()
             try:
                 sector = get_sector(query)
                 sr     = get_scorer(sector).score(fd_t, fd_t1)
@@ -938,6 +947,7 @@ def _compute_ranking(tickers: list, year_t: int) -> None:
     from advisor_brain_fsa.data_fetcher import CVMDataFetcher
     CompanyResult, apply_stats, to_df, _, _ = _rank_market()
     get_scorer = _scorer_mod()
+    _, _, get_sector = _ticker_map()
 
     fetcher = CVMDataFetcher()
     results = []
