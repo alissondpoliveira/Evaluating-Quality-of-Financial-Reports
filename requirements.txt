@@ -12,7 +12,4 @@ yfinance==0.2.51                # P1.5 — dynamic ticker resolution
 plotly==5.22.0
 
 # ── Streamlit — main application (app.py) ────────────────────────────────────
-streamlit==1.37.0
-
-# ── Tests ─────────────────────────────────────────────────────────────────────
-pytest==8.2.2
+streamlit==1.45.1
