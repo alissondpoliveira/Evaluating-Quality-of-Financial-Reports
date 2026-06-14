@@ -512,8 +512,9 @@ def _full_opts() -> tuple:
 @st.cache_resource(show_spinner=False)
 def _ranking_opts() -> tuple:
     TICKER_TO_KEYWORD, _, _ = _ticker_map()
-    labels = [f"{t} — {TICKER_TO_KEYWORD.get(t, t)}" for t in sorted(TICKER_TO_KEYWORD.keys())]
-    return labels, dict(zip(labels, sorted(TICKER_TO_KEYWORD.keys())))
+    tickers = sorted(TICKER_TO_KEYWORD.keys())
+    labels  = [f"{t} — {TICKER_TO_KEYWORD.get(t, t)[:14]}" for t in tickers]
+    return labels, dict(zip(labels, tickers))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -615,10 +616,7 @@ def _render_result(ticker: str, sector: str, sr, year_t: int,
 # TAB 1 — Dashboard Setorial
 # ─────────────────────────────────────────────────────────────────────────────
 def _tab_dashboard(year_t: int) -> None:
-    st.caption(
-        "Empresas não-financeiras B3 · Beneish M-Score · "
-        "execute `build_market_cache.py` para dados completos"
-    )
+    st.caption("Empresas não-financeiras B3 · Beneish M-Score · dados via Portal CVM")
     col_refresh, _ = st.columns([1, 7])
     with col_refresh:
         force_refresh = st.button("↺ Atualizar", key="home_refresh")
@@ -644,7 +642,19 @@ def _tab_dashboard(year_t: int) -> None:
         ok = ok[~ok["Setor"].isin(_FIN_ALL)].copy()
 
     if ok.empty:
-        st.info("Nenhum dado disponível.")
+        st.markdown(
+            f'<div style="text-align:center;padding:48px 20px">'
+            f'<div style="font-size:2.5rem;margin-bottom:14px">📊</div>'
+            f'<div style="font-family:{_B["mono"]};color:{_B["text"]};font-size:0.92rem;'
+            f'font-weight:700;margin-bottom:10px">Cache de mercado ainda não disponível</div>'
+            f'<div style="font-family:{_B["mono"]};color:{_B["muted"]};font-size:0.80rem;'
+            f'line-height:1.7;margin-bottom:24px">'
+            f'O Dashboard exibe o ranking completo após o cache ser gerado.<br>'
+            f'Para analisar uma empresa agora, use a aba '
+            f'<strong style="color:{_B["orange"]}">🔍 Análise Individual</strong>.'
+            f'</div></div>',
+            unsafe_allow_html=True,
+        )
         return
 
     _icon   = {"Crítico": "🔴", "Alto Risco": "🟠", "Atenção": "🟡", "Normal": "🟢"}
@@ -735,27 +745,29 @@ def _tab_analise(year_t: int) -> None:
     col_dd, col_cnpj, col_btn = st.columns([3, 2, 1])
     with col_dd:
         selected_label = st.selectbox(
-            "Ticker", [""] + all_labels,
+            "Ticker B3", [""] + all_labels,
             index=default_idx,
-            label_visibility="collapsed",
             placeholder="Selecione um ticker B3...",
             key="analise_dd",
         )
     with col_cnpj:
         cnpj_input = st.text_input(
-            "CNPJ", value="",
-            placeholder="ou CNPJ / nome livre...",
-            label_visibility="collapsed",
+            "CNPJ / busca livre",
+            value="",
+            placeholder="ex: 33.000.167/0001-01",
             key="analise_cnpj",
         )
     with col_btn:
+        st.markdown("<br>", unsafe_allow_html=True)
         calc_clicked = st.button("Calcular", use_container_width=True, key="analise_btn")
 
-    # Lazy-load full CVM list on demand
+    # Lazy-load full CVM list on demand — ação secundária, menor destaque
     if not st.session_state.get("use_full_opts", False):
-        if st.button("+ Carregar todas as empresas B3", key="load_full_opts"):
-            st.session_state["use_full_opts"] = True
-            st.rerun()
+        _, col_load, _ = st.columns([3, 2, 3])
+        with col_load:
+            if st.button("⬇ Ampliar lista (universo CVM completo)", key="load_full_opts"):
+                st.session_state["use_full_opts"] = True
+                st.rerun()
 
     ticker_val = lbl_to_val.get(selected_label, selected_label) if selected_label else ""
     query      = cnpj_input.strip() or ticker_val.strip()
@@ -1051,16 +1063,23 @@ def main() -> None:
             unsafe_allow_html=True,
         )
     with y_col:
+        st.markdown(
+            f'<div style="font-family:{_B["mono"]};font-size:0.60rem;color:{_B["muted"]};'
+            f'text-transform:uppercase;letter-spacing:0.08em;margin-bottom:-14px">ANO</div>',
+            unsafe_allow_html=True,
+        )
         year_t = st.selectbox(
             "Ano", _YEAR_OPTS, index=0,
             label_visibility="collapsed", key="year_sel",
         )
     with api_col:
         ok_key = bool(_api_key())
+        label  = "■ Gemini: ativo" if ok_key else "■ Gemini: inativo"
+        color  = "#00FF00" if ok_key else "#FF3E3E"
+        tip    = "" if ok_key else ' title="Configure GOOGLE_API_KEY nos Secrets do Streamlit"'
         st.markdown(
-            f'<span style="color:{"#00FF00" if ok_key else "#FF3E3E"};'
-            f'font-family:{_B["mono"]};font-size:0.72rem">'
-            f'{"■ GEMINI OK" if ok_key else "■ SEM API KEY"}</span>',
+            f'<span{tip} style="color:{color};font-family:{_B["mono"]};font-size:0.72rem;'
+            f'cursor:{"default" if ok_key else "help"}">{label}</span>',
             unsafe_allow_html=True,
         )
     with v_col:
@@ -1102,10 +1121,14 @@ def main() -> None:
         f'<hr style="border-top:1px solid {_B["border"]};margin:32px 0 8px 0">',
         unsafe_allow_html=True,
     )
-    st.caption(
-        "CFA Institute: indicadores quantitativos são sinais de alerta, não prova de fraude. "
-        "IA: narrativas geradas por Gemini 2.5 Flash — uso educacional. "
-        "Não é recomendação de investimento."
+    st.markdown(
+        f'<div style="text-align:center;font-family:{_B["mono"]};font-size:0.65rem;'
+        f'color:{_B["muted"]};line-height:1.6;padding:4px 0 12px">'
+        f'CFA Institute: indicadores quantitativos são sinais de alerta, não prova de fraude. '
+        f'IA: narrativas geradas por Gemini 2.5 Flash — uso educacional. '
+        f'Não é recomendação de investimento.'
+        f'</div>',
+        unsafe_allow_html=True,
     )
 
 
