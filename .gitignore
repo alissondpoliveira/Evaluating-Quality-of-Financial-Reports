@@ -14,3 +14,11 @@ build/
 .venv/
 venv/
 .streamlit/secrets.toml
+
+# downloads da CVM e saídas temporárias do lote
+data/cache/*.zip
+data/cache/*.csv
+data/cache/*.json
+data/cache/*.lock
+data/cache/*.log
+site/public/*.tmp
