@@ -1,0 +1,202 @@
+{
+ "1": {
+  "evento": "outro",
+  "motivo": "Autuação da Receita Federal sobre IRPJ e CSLL contra a controlada: disputa tributária, sem suspeita de irregularidade contábil e fora dos órgãos da lista (CVM, PF, MP, CADE)."
+ },
+ "2": {
+  "evento": "reestruturacao_divida",
+  "motivo": "Companhia em recuperação judicial assina quitação parcial do acordo global com 11 bancos; renegociação por dificuldade financeira."
+ },
+ "3": {
+  "evento": "reestruturacao_divida",
+  "motivo": "Prorrogação do standstill extrajudicial: suspensão da exigibilidade das dívidas com os credores."
+ },
+ "4": {
+  "evento": "investigacao",
+  "motivo": "Processo administrativo do CADE por condutas anticoncorrenciais, com nota técnica recomendando condenação e multa de cerca de R$ 100 milhões."
+ },
+ "5": {
+  "evento": "outro",
+  "motivo": "Destituição de diretor sem designação específica; presidente e diretor financeiro e de RI continuam nos cargos."
+ },
+ "6": {
+  "evento": "saida_executivo",
+  "motivo": "Renúncia do diretor financeiro e de relações com investidores."
+ },
+ "7": {
+  "evento": "outro",
+  "motivo": "Renúncia da diretora jurídica; não é diretora financeira, de RI nem presidente."
+ },
+ "8": {
+  "evento": "outro",
+  "motivo": "Pagamento da remuneração do waiver já aprovado em assembleia; o documento trata da logística do pagamento, sem indicar dificuldade financeira. Caso de fronteira."
+ },
+ "9": {
+  "evento": "reestruturacao_divida",
+  "motivo": "Fim do standstill extrajudicial dentro do processo de renegociação; cita vencimento antecipado sanado e alongamento das dívidas."
+ },
+ "10": {
+  "evento": "auditoria",
+  "motivo": "Substituição do auditor independente (EY por KPMG), por rodízio obrigatório."
+ },
+ "11": {
+  "evento": "outro",
+  "motivo": "Renúncia de membro do conselho de administração; não é diretor financeiro, de RI nem presidente."
+ },
+ "12": {
+  "evento": "outro",
+  "motivo": "Leilão de frações de ações após a incorporação da BRF; operação societária."
+ },
+ "13": {
+  "evento": "outro",
+  "motivo": "Agenda de divulgação de resultados (documento em imagem; classificado pelo título)."
+ },
+ "14": {
+  "evento": "outro",
+  "motivo": "Repactuação do contrato de concessão rodoviária com a União via TCU; não é renegociação de dívida. Caso de fronteira."
+ },
+ "15": {
+  "evento": "saida_executivo",
+  "motivo": "Eleição de novo vice-presidente financeiro e de RI: substituição do diretor financeiro."
+ },
+ "16": {
+  "evento": "outro",
+  "motivo": "Troca de membro do comitê de auditoria estatutário; não é troca do auditor independente. Caso de fronteira."
+ },
+ "17": {
+  "evento": "reestruturacao_divida",
+  "motivo": "Homologação do plano de recuperação judicial, com cram down."
+ },
+ "18": {
+  "evento": "saida_executivo",
+  "motivo": "Saída do diretor financeiro (CFO), operacional e de RI, por comum acordo."
+ },
+ "19": {
+  "evento": "politica_contabil",
+  "motivo": "Revisão da metodologia de apropriação de créditos de PIS e COFINS, reconhecida a partir do 2º trimestre (cerca de R$ 253 milhões). Caso de fronteira: é mudança de estimativa com efeito tributário."
+ },
+ "20": {
+  "evento": "reestruturacao_divida",
+  "motivo": "Assembleia geral de credores no processo de recuperação judicial."
+ },
+ "21": {
+  "evento": "reestruturacao_divida",
+  "motivo": "Pedido de recuperação judicial da companhia e das subsidiárias."
+ },
+ "22": {
+  "evento": "outro",
+  "motivo": "Documento em imagem, sem texto; o título fala em auto de infração sem dizer o órgão. Pelo padrão dos demais casos, deve ser autuação fiscal. Caso de fronteira: conferir no original."
+ },
+ "23": {
+  "evento": "outro",
+  "motivo": "Inclusão das ações no índice IBrX 100."
+ },
+ "24": {
+  "evento": "investigacao",
+  "motivo": "Ministério Público Federal pede bloqueio de R$ 1 bilhão por suposto dano ambiental; ação do MP por suspeita de infração (não é tema contábil)."
+ },
+ "25": {
+  "evento": "reestruturacao_divida",
+  "motivo": "Acordo com credores para apresentar plano de recuperação extrajudicial de cerca de R$ 4,5 bilhões."
+ },
+ "26": {
+  "evento": "reestruturacao_divida",
+  "motivo": "Aditivo ao financiamento DIP na recuperação judicial, com quitação de R$ 850 milhões por dação em pagamento."
+ },
+ "27": {
+  "evento": "saida_executivo",
+  "motivo": "Eleição de novo diretor financeiro e de RI: substituição."
+ },
+ "28": {
+  "evento": "saida_executivo",
+  "motivo": "Substituição do diretor presidente (CEO)."
+ },
+ "29": {
+  "evento": "reestruturacao_divida",
+  "motivo": "Atualização do processo de Chapter 11, com plano de redução de dívida."
+ },
+ "30": {
+  "evento": "outro",
+  "motivo": "Autuação da Receita Federal sobre o ágio (IRPJ e CSLL): disputa tributária, sem suspeita de irregularidade contábil e fora dos órgãos da lista."
+ },
+ "31": {
+  "evento": "saida_executivo",
+  "motivo": "Troca do diretor presidente (CEO); o diretor financeiro e de RI passa a acumular o cargo."
+ },
+ "32": {
+  "evento": "outro",
+  "motivo": "Mudança na composição do comitê de auditoria estatutário; não é troca do auditor independente (o texto extraído só trouxe o rodapé; classificado pelo título)."
+ },
+ "33": {
+  "evento": "reestruturacao_divida",
+  "motivo": "Convocação da assembleia de credores para votar o plano de recuperação judicial."
+ },
+ "34": {
+  "evento": "investigacao",
+  "motivo": "Comitê independente para apurar suposta liberação indevida de créditos de ICMS investigada por autoridades públicas."
+ },
+ "35": {
+  "evento": "saida_executivo",
+  "motivo": "Renúncia do diretor financeiro e de RI; eleição de interino."
+ },
+ "36": {
+  "evento": "outro",
+  "motivo": "Mudança na composição do comitê de auditoria estatutário; não é troca do auditor independente."
+ },
+ "37": {
+  "evento": "saida_executivo",
+  "motivo": "Renúncia e sucessão do diretor presidente (CEO)."
+ },
+ "38": {
+  "evento": "outro",
+  "motivo": "Republicação do boletim de voto a distância (BVD) da assembleia; não é demonstração financeira."
+ },
+ "39": {
+  "evento": "auditoria",
+  "motivo": "Troca do auditor independente (EY por BDO), por rodízio obrigatório."
+ },
+ "40": {
+  "evento": "auditoria",
+  "motivo": "Troca do auditor independente (PwC por EY), por rodízio obrigatório."
+ },
+ "41": {
+  "evento": "politica_contabil",
+  "motivo": "Mesmo fato relevante do nº 19 (outro protocolo): revisão da metodologia de créditos de PIS e COFINS. Caso de fronteira."
+ },
+ "42": {
+  "evento": "outro",
+  "motivo": "Inauguração de lojas."
+ },
+ "43": {
+  "evento": "outro",
+  "motivo": "Apresentação de resultados do 3º trimestre."
+ },
+ "44": {
+  "evento": "outro",
+  "motivo": "Aprovação de capital alocável para resgate de ações preferenciais."
+ },
+ "45": {
+  "evento": "outro",
+  "motivo": "Termo de compromisso do Ministério de Minas e Energia para compensar cortes de geração; é compensação regulatória, não sanção nem acordo por infração."
+ },
+ "46": {
+  "evento": "politica_contabil",
+  "motivo": "Mudança da moeda funcional de real para dólar a partir de 2026."
+ },
+ "47": {
+  "evento": "outro",
+  "motivo": "Renúncia de membro do conselho de administração."
+ },
+ "48": {
+  "evento": "saida_executivo",
+  "motivo": "Eleição de novo presidente (CEO): substituição."
+ },
+ "49": {
+  "evento": "outro",
+  "motivo": "Rating e cronograma de nova emissão de debêntures."
+ },
+ "50": {
+  "evento": "reestruturacao_divida",
+  "motivo": "Deferimento do processamento da recuperação judicial do grupo."
+ }
+}

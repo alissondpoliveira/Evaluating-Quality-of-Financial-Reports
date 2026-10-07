@@ -1,0 +1,502 @@
+[
+ {
+  "n": 1,
+  "id": "025186IPE290620260187177778-90",
+  "cnpj": "24990777000109",
+  "empresa": "GRUPO MATEUS S.A.",
+  "data": "2026-06-29",
+  "categoria": "Fato relevante",
+  "titulo": "Auto de Infração - Armazém Mateus S.A.",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1539673&numSequencia=1064379&numVersao=1"
+ },
+ {
+  "n": 2,
+  "id": "009393IPE120520260189944701-43",
+  "cnpj": "60398369000479",
+  "empresa": "PARANAPANEMA S.A. - EM RECUPERAÇÃO JUDICIAL",
+  "data": "2026-05-12",
+  "categoria": "Fato relevante",
+  "titulo": "Assinatura Termo de Quitação Parcial Acordo Global",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1520331&numSequencia=1045037&numVersao=1"
+ },
+ {
+  "n": 3,
+  "id": "018775IPE201020250267460374-32",
+  "cnpj": "03758318000124",
+  "empresa": "INVESTIMENTOS E PARTICIP EM INFRA SA INVEPAR",
+  "data": "2025-10-20",
+  "categoria": "Fato relevante",
+  "titulo": "Standstill Extrajudicial",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1433928&numSequencia=958640&numVersao=2"
+ },
+ {
+  "n": 4,
+  "id": "021610IPE240620260138361248-26",
+  "cnpj": "09346601000125",
+  "empresa": "B3 S.A. - BRASIL, BOLSA, BALCÃO",
+  "data": "2026-06-24",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Processo Administrativo do CADE",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1538180&numSequencia=1062886&numVersao=1"
+ },
+ {
+  "n": 5,
+  "id": "008397IPE310320260193725854-52",
+  "cnpj": "61065298000102",
+  "empresa": "MANGELS INDUSTRIAL S.A.",
+  "data": "2026-03-31",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Destituição Diretor",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1498632&numSequencia=1023338&numVersao=1"
+ },
+ {
+  "n": 6,
+  "id": "025291IPE211020250197292428-42",
+  "cnpj": "12091809000155",
+  "empresa": "BRAVA ENERGIA S.A.",
+  "data": "2025-10-21",
+  "categoria": "Fato relevante",
+  "titulo": "Reestruturação Organizacional da Diretoria Estatutária e Mudança na Diretoria Financeira e de Relações com Investidores",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1434255&numSequencia=958967&numVersao=1"
+ },
+ {
+  "n": 7,
+  "id": "024929IPE310320260197224624-26",
+  "cnpj": "02421421000111",
+  "empresa": "TIM S.A.",
+  "data": "2026-03-31",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Renúncia Diretora Jurídica",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1499199&numSequencia=1023905&numVersao=1"
+ },
+ {
+  "n": 8,
+  "id": "019445IPE240620260158506473-49",
+  "cnpj": "17281106000103",
+  "empresa": "COMPANHIA DE SANEAMENTO DE MINAS GERAIS",
+  "data": "2026-06-24",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Comunicação Pagamento de Waiver Fee  21ª - 2ª Série",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1538152&numSequencia=1062858&numVersao=1"
+ },
+ {
+  "n": 9,
+  "id": "018775IPE300120260165849392-24",
+  "cnpj": "03758318000124",
+  "empresa": "INVESTIMENTOS E PARTICIP EM INFRA SA INVEPAR",
+  "data": "2026-01-30",
+  "categoria": "Fato relevante",
+  "titulo": "Não Prorrogação Standstill Extrajudicial",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1471674&numSequencia=996380&numVersao=1"
+ },
+ {
+  "n": 10,
+  "id": "024848IPE060220260144784245-86",
+  "cnpj": "45242914000105",
+  "empresa": "C&A MODAS S.A.",
+  "data": "2026-02-06",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Contratação da KPMG Auditores Independentes para auditoria externa",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1474649&numSequencia=999355&numVersao=1"
+ },
+ {
+  "n": 11,
+  "id": "009342IPE280220260146381129-27",
+  "cnpj": "92665611000177",
+  "empresa": "DIMED SA DISTRIBUIDORA DE MEDICAMENTOS",
+  "data": "2026-02-28",
+  "categoria": "Fato relevante",
+  "titulo": "Renúncia de membro do Conselho de Administração",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1483655&numSequencia=1008361&numVersao=1"
+ },
+ {
+  "n": 12,
+  "id": "020788IPE021220250178621455-43",
+  "cnpj": "03853896000140",
+  "empresa": "MARFRIG GLOBAL FOODS SA",
+  "data": "2025-12-02",
+  "categoria": "Fato relevante",
+  "titulo": "Leilão de Frações de Ações",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1451914&numSequencia=976626&numVersao=1"
+ },
+ {
+  "n": 13,
+  "id": "018414IPE021020260133465222-75",
+  "cnpj": "02365069000144",
+  "empresa": "PADTEC HOLDING S.A.",
+  "data": "2026-10-02",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Agenda de Divulgação de Resultados do 3T26",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1574031&numSequencia=1098737&numVersao=1"
+ },
+ {
+  "n": 14,
+  "id": "019330IPE240720260100189341-41",
+  "cnpj": "03014553000191",
+  "empresa": "TPI - TRIUNFO PARTICIPACOES E INVESTIMENTOS S.A.",
+  "data": "2026-07-24",
+  "categoria": "Fato relevante",
+  "titulo": "Termo de Autocomposição - Concebra",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1547955&numSequencia=1072661&numVersao=1"
+ },
+ {
+  "n": 15,
+  "id": "020087IPE100420260177091022-84",
+  "cnpj": "07689002000189",
+  "empresa": "EMBRAER S.A.",
+  "data": "2026-04-10",
+  "categoria": "Fato relevante",
+  "titulo": "Novo CFO",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1503373&numSequencia=1028079&numVersao=1"
+ },
+ {
+  "n": 16,
+  "id": "011932IPE260820260174539724-88",
+  "cnpj": "61156113000175",
+  "empresa": "IOCHPE MAXION SA",
+  "data": "2026-08-26",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Alteração de Membro do Comitê de Auditoria Estatutário",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1561586&numSequencia=1086292&numVersao=1"
+ },
+ {
+  "n": 17,
+  "id": "021342IPE300920260196022838-61",
+  "cnpj": "09112685000132",
+  "empresa": "OSX BRASIL S.A. - EM RECUPERAÇÃO JUDICIAL",
+  "data": "2026-10-01",
+  "categoria": "Fato relevante",
+  "titulo": "Homologação do Plano de Recuperação Judicial",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1573063&numSequencia=1097769&numVersao=1"
+ },
+ {
+  "n": 18,
+  "id": "020028IPE210520260144751686-12",
+  "cnpj": "33113309000147",
+  "empresa": "VALID SOLUÇÕES S.A.",
+  "data": "2026-05-21",
+  "categoria": "Fato relevante",
+  "titulo": "Destituição do Sr. Olavo Vaz como CFO, COO e DRI Eleição do novo CFO, COO e DRI.",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1525769&numSequencia=1050475&numVersao=1"
+ },
+ {
+  "n": 19,
+  "id": "020982IPE070520260197260619-23",
+  "cnpj": "07816890000153",
+  "empresa": "MULTIPLAN - EMPREEND IMOBILIARIOS S.A.",
+  "data": "2026-05-07",
+  "categoria": "Fato relevante",
+  "titulo": "Revisão da metodologia de apropriação de créditos PIS e COFINS",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1517995&numSequencia=1042701&numVersao=1"
+ },
+ {
+  "n": 20,
+  "id": "021342IPE220520260118059831-26",
+  "cnpj": "09112685000132",
+  "empresa": "OSX BRASIL S.A. - EM RECUPERAÇÃO JUDICIAL",
+  "data": "2026-05-22",
+  "categoria": "Fato relevante",
+  "titulo": "Assembleia Geral de Credores 22_05_2026",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1526354&numSequencia=1051060&numVersao=1"
+ },
+ {
+  "n": 21,
+  "id": "025461IPE120520260123185991-83",
+  "cnpj": "31553627000101",
+  "empresa": "GRUPO TOKY S.A. - EM RECUPERAÇÃO JUDICIAL",
+  "data": "2026-05-12",
+  "categoria": "Fato relevante",
+  "titulo": "Ajuizamento de pedido de recuperação judicial da Companhia e de suas subsidiárias",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1520334&numSequencia=1045040&numVersao=1"
+ },
+ {
+  "n": 22,
+  "id": "025232IPE070120260141207219-43",
+  "cnpj": "14110585000107",
+  "empresa": "MELIUZ S.A.",
+  "data": "2026-01-07",
+  "categoria": "Fato relevante",
+  "titulo": "Méliuz informa sobre recebimento de auto de infração",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1464534&numSequencia=989240&numVersao=1"
+ },
+ {
+  "n": 23,
+  "id": "021067IPE050520260184669337-80",
+  "cnpj": "12049631000184",
+  "empresa": "MOURA DUBEUX ENGENHARIA S/A",
+  "data": "2026-05-05",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Índice Brasil 100 (\"IBrX 100\")",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1515666&numSequencia=1040372&numVersao=1"
+ },
+ {
+  "n": 24,
+  "id": "004170IPE010220260154546556-82",
+  "cnpj": "33592510000154",
+  "empresa": "VALE S.A.",
+  "data": "2026-02-01",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Vale informa sobre pedido de bloqueio de recursos pelo Ministério Público Federal",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1471828&numSequencia=996534&numVersao=1"
+ },
+ {
+  "n": 25,
+  "id": "014826IPE100320260175434469-06",
+  "cnpj": "47508411000156",
+  "empresa": "COMPANHIA BRASILEIRA DE DISTRIBUIÇÃO",
+  "data": "2026-03-10",
+  "categoria": "Fato relevante",
+  "titulo": "Celebração de acordo para apresentação de plano de recuperação extrajudicial",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1487777&numSequencia=1012483&numVersao=1"
+ },
+ {
+  "n": 26,
+  "id": "009393IPE030720260111369360-16",
+  "cnpj": "60398369000479",
+  "empresa": "PARANAPANEMA S.A. - EM RECUPERAÇÃO JUDICIAL",
+  "data": "2026-07-03",
+  "categoria": "Fato relevante",
+  "titulo": "2º Termo Aditivo ao DIP com Fundo BS",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1541805&numSequencia=1066511&numVersao=1"
+ },
+ {
+  "n": 27,
+  "id": "020990IPE281120250165438401-93",
+  "cnpj": "00776574000156",
+  "empresa": "AMERICANAS S.A. - EM RECUPERAÇÃO JUDICIAL",
+  "data": "2025-11-28",
+  "categoria": "Fato relevante",
+  "titulo": "Eleição CFO e IRO",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1451032&numSequencia=975744&numVersao=1"
+ },
+ {
+  "n": 28,
+  "id": "022020IPE211020250119263855-81",
+  "cnpj": "52548435000179",
+  "empresa": "JSL S.A.",
+  "data": "2025-10-21",
+  "categoria": "Fato relevante",
+  "titulo": "Sucessão do Diretor Presidente da JSL",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1434574&numSequencia=959286&numVersao=1"
+ },
+ {
+  "n": 29,
+  "id": "024112IPE231020250135881285-31",
+  "cnpj": "09305994000129",
+  "empresa": "AZUL S.A.",
+  "data": "2025-10-23",
+  "categoria": "Fato relevante",
+  "titulo": "Azul Atualiza o Mercado sobre o Progresso do Processo de Chapter 11",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1435323&numSequencia=960035&numVersao=1"
+ },
+ {
+  "n": 30,
+  "id": "021610IPE271020250139482867-57",
+  "cnpj": "09346601000125",
+  "empresa": "B3 S.A. - BRASIL, BOLSA, BALCÃO",
+  "data": "2025-10-27",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Auto de Infração - IR/CSLL (2021 e 2022)",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1435763&numSequencia=960475&numVersao=1"
+ },
+ {
+  "n": 31,
+  "id": "025160IPE191220250186034241-67",
+  "cnpj": "01599101000193",
+  "empresa": "SEQUOIA LOGÍSTICA E TRANSPORTES S.A.",
+  "data": "2025-12-19",
+  "categoria": "Fato relevante",
+  "titulo": "Alteração de Chief Executive Officer e Diretoria Estatutária",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1459936&numSequencia=984642&numVersao=1"
+ },
+ {
+  "n": 32,
+  "id": "009512IPE250520260162695766-95",
+  "cnpj": "33000167000101",
+  "empresa": "PETRÓLEO BRASILEIRO S.A. - PETROBRAS",
+  "data": "2026-05-25",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Mudança na composição do comitê de auditoria estatutário",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1526639&numSequencia=1051345&numVersao=1"
+ },
+ {
+  "n": 33,
+  "id": "021342IPE271020250177545220-40",
+  "cnpj": "09112685000132",
+  "empresa": "OSX BRASIL S.A. - EM RECUPERAÇÃO JUDICIAL",
+  "data": "2025-10-27",
+  "categoria": "Fato relevante",
+  "titulo": "Convocação AGC - Planos de Recuperação Judicial",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1435784&numSequencia=960496&numVersao=1"
+ },
+ {
+  "n": 34,
+  "id": "006505IPE260320260162611366-52",
+  "cnpj": "33041260065290",
+  "empresa": "GRUPO CASAS BAHIA S.A.",
+  "data": "2026-03-26",
+  "categoria": "Fato relevante",
+  "titulo": "Constituição de Comitê Independente de Investigação",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1496205&numSequencia=1020911&numVersao=1"
+ },
+ {
+  "n": 35,
+  "id": "024716IPE100820260126172400-78",
+  "cnpj": "23373000000132",
+  "empresa": "VAMOS LOCAÇÃO DE CAMINHÕES, MÁQUINAS E EQUIPAMENTOS S.A.",
+  "data": "2026-08-10",
+  "categoria": "Fato relevante",
+  "titulo": "Eleição de CFO interino",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1554658&numSequencia=1079364&numVersao=1"
+ },
+ {
+  "n": 36,
+  "id": "006343IPE311020250182852894-71",
+  "cnpj": "84683374000149",
+  "empresa": "TUPY SA",
+  "data": "2025-10-31",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Mudança na composição do comitê de auditoria estatutário",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1438412&numSequencia=963124&numVersao=1"
+ },
+ {
+  "n": 37,
+  "id": "025291IPE120120260113633943-20",
+  "cnpj": "12091809000155",
+  "empresa": "BRAVA ENERGIA S.A.",
+  "data": "2026-01-12",
+  "categoria": "Fato relevante",
+  "titulo": "Renúncia e sucessão do Diretor Presidente e Substituição do Presidente do Conselho de Administração",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1466123&numSequencia=990829&numVersao=1"
+ },
+ {
+  "n": 38,
+  "id": "021091IPE080420260153135872-16",
+  "cnpj": "97837181000147",
+  "empresa": "DEXCO S.A.",
+  "data": "2026-04-08",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Republicação BVD",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1502729&numSequencia=1027435&numVersao=1"
+ },
+ {
+  "n": 39,
+  "id": "025445IPE301220250112870718-41",
+  "cnpj": "26659061000159",
+  "empresa": "MPM CORPÓREOS S.A.",
+  "data": "2025-12-30",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Comunicado ao Mercado - Alteração de Auditor Independente",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1462646&numSequencia=987352&numVersao=1"
+ },
+ {
+  "n": 40,
+  "id": "025500IPE131120250123091097-56",
+  "cnpj": "09042817000105",
+  "empresa": "BEMOBI MOBILE TECH S.A.",
+  "data": "2025-11-13",
+  "categoria": "Fato relevante",
+  "titulo": "Substituição de Auditor",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1444942&numSequencia=969654&numVersao=1"
+ },
+ {
+  "n": 41,
+  "id": "020982IPE070520260285137007-09",
+  "cnpj": "07816890000153",
+  "empresa": "MULTIPLAN - EMPREEND IMOBILIARIOS S.A.",
+  "data": "2026-05-07",
+  "categoria": "Fato relevante",
+  "titulo": "Revisão da metodologia de apropriação de créditos PIS e COFINS",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1518048&numSequencia=1042754&numVersao=2"
+ },
+ {
+  "n": 42,
+  "id": "025186IPE051220250133478521-08",
+  "cnpj": "24990777000109",
+  "empresa": "GRUPO MATEUS S.A.",
+  "data": "2025-12-05",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Inauguração de loja",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1453504&numSequencia=978216&numVersao=1"
+ },
+ {
+  "n": 43,
+  "id": "021490IPE071120250140619914-46",
+  "cnpj": "08364948000138",
+  "empresa": "ALUPAR INVESTIMENTO S/A",
+  "data": "2025-11-07",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Apresentação de Resultados 3T25",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1441605&numSequencia=966317&numVersao=1"
+ },
+ {
+  "n": 44,
+  "id": "002437IPE050820260189383448-72",
+  "cnpj": "00001180000126",
+  "empresa": "AXIA ENERGIA S.A.",
+  "data": "2026-08-05",
+  "categoria": "Fato relevante",
+  "titulo": "Aprovação do capital alocável referente ao 2T26",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1552882&numSequencia=1077588&numVersao=1"
+ },
+ {
+  "n": 45,
+  "id": "026620IPE100820260172121619-34",
+  "cnpj": "28594234000123",
+  "empresa": "AUREN ENERGIA S.A",
+  "data": "2026-08-10",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Adesão ao Termo de Compromisso",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1555198&numSequencia=1079904&numVersao=1"
+ },
+ {
+  "n": 46,
+  "id": "014320IPE120220260198961226-66",
+  "cnpj": "60894730000105",
+  "empresa": "USINAS SID DE MINAS GERAIS S.A.-USIMINAS",
+  "data": "2026-02-12",
+  "categoria": "Fato relevante",
+  "titulo": "Alteração da moeda funcional utilizada pela Companhia",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1477332&numSequencia=1002038&numVersao=1"
+ },
+ {
+  "n": 47,
+  "id": "006343IPE270220260132307299-74",
+  "cnpj": "84683374000149",
+  "empresa": "TUPY SA",
+  "data": "2026-02-27",
+  "categoria": "Fato relevante",
+  "titulo": "Renúncia de membro do Conselho de Administração",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1483345&numSequencia=1008051&numVersao=1"
+ },
+ {
+  "n": 48,
+  "id": "002453IPE070520260132090726-34",
+  "cnpj": "17155730000164",
+  "empresa": "CIA ENERG MINAS GERAIS - CEMIG",
+  "data": "2026-05-07",
+  "categoria": "Fato relevante",
+  "titulo": "Fato Relevante - Eleição de novo Presidente",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1518290&numSequencia=1042996&numVersao=1"
+ },
+ {
+  "n": 49,
+  "id": "019623IPE211120250110034137-36",
+  "cnpj": "61486650000183",
+  "empresa": "DIAGNOSTICOS DA AMERICA SA",
+  "data": "2025-11-21",
+  "categoria": "Comunicado ao mercado",
+  "titulo": "Classificação de Risco da 22ª Emissão de Debêntures e Alteração do Cronograma",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1448079&numSequencia=972791&numVersao=1"
+ },
+ {
+  "n": 50,
+  "id": "008427IPE160620260172230082-18",
+  "cnpj": "61082004000150",
+  "empresa": "MANUFATURA DE  BRINQUEDOS ESTRELA SA",
+  "data": "2026-06-16",
+  "categoria": "Fato relevante",
+  "titulo": "deferiu o processamento da Recuperação Judicial da Companhia e das demais sociedades integrantes do Grupo Estrela,",
+  "url": "https://www.rad.cvm.gov.br/ENET/frmDownloadDocumento.aspx?Tela=ext&descTipo=IPE&CodigoInstituicao=1&numProtocolo=1535170&numSequencia=1059876&numVersao=1"
+ }
+]

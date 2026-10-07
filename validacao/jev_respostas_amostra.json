@@ -1,0 +1,240 @@
+{
+ "025186IPE290620260187177778-90": {
+  "evento": "investigacao",
+  "confianca": 0.99,
+  "criterios": 2
+ },
+ "009393IPE120520260189944701-43": {
+  "evento": "reestruturacao_divida",
+  "confianca": 1.0,
+  "criterios": 2
+ },
+ "018775IPE201020250267460374-32": {
+  "evento": "reestruturacao_divida",
+  "confianca": 0.94,
+  "criterios": 2
+ },
+ "021610IPE240620260138361248-26": {
+  "evento": "investigacao",
+  "confianca": 0.99,
+  "criterios": 2
+ },
+ "008397IPE310320260193725854-52": {
+  "evento": "saida_executivo",
+  "confianca": 0.91,
+  "criterios": 2
+ },
+ "025291IPE211020250197292428-42": {
+  "evento": "saida_executivo",
+  "confianca": 0.96,
+  "criterios": 2
+ },
+ "024929IPE310320260197224624-26": {
+  "evento": "outro",
+  "confianca": 0.7,
+  "criterios": 2
+ },
+ "019445IPE240620260158506473-49": {
+  "evento": "reestruturacao_divida",
+  "confianca": 0.86,
+  "criterios": 2
+ },
+ "018775IPE300120260165849392-24": {
+  "evento": "reestruturacao_divida",
+  "confianca": 0.96,
+  "criterios": 2
+ },
+ "024848IPE060220260144784245-86": {
+  "evento": "auditoria",
+  "confianca": 0.99,
+  "criterios": 2
+ },
+ "009342IPE280220260146381129-27": {
+  "evento": "outro",
+  "confianca": 0.57
+ },
+ "020788IPE021220250178621455-43": {
+  "evento": "outro",
+  "confianca": 1.0
+ },
+ "018414IPE021020260133465222-75": {
+  "evento": "outro",
+  "confianca": 1.0
+ },
+ "019330IPE240720260100189341-41": {
+  "evento": "investigacao",
+  "confianca": 0.98,
+  "criterios": 2
+ },
+ "020087IPE100420260177091022-84": {
+  "evento": "saida_executivo",
+  "confianca": 0.95,
+  "criterios": 2
+ },
+ "011932IPE260820260174539724-88": {
+  "evento": "outro",
+  "confianca": 0.94
+ },
+ "021342IPE300920260196022838-61": {
+  "evento": "reestruturacao_divida",
+  "confianca": 1.0,
+  "criterios": 2
+ },
+ "020028IPE210520260144751686-12": {
+  "evento": "saida_executivo",
+  "confianca": 1.0,
+  "criterios": 2
+ },
+ "020982IPE070520260197260619-23": {
+  "evento": "politica_contabil",
+  "confianca": 1.0,
+  "criterios": 2
+ },
+ "021342IPE220520260118059831-26": {
+  "evento": "reestruturacao_divida",
+  "confianca": 0.89,
+  "criterios": 2
+ },
+ "025461IPE120520260123185991-83": {
+  "evento": "reestruturacao_divida",
+  "confianca": 1.0,
+  "criterios": 2
+ },
+ "025232IPE070120260141207219-43": {
+  "evento": "investigacao",
+  "confianca": 1.0,
+  "criterios": 2
+ },
+ "021067IPE050520260184669337-80": {
+  "evento": "outro",
+  "confianca": 1.0
+ },
+ "004170IPE010220260154546556-82": {
+  "evento": "investigacao",
+  "confianca": 0.99,
+  "criterios": 2
+ },
+ "014826IPE100320260175434469-06": {
+  "evento": "reestruturacao_divida",
+  "confianca": 1.0,
+  "criterios": 2
+ },
+ "009393IPE030720260111369360-16": {
+  "evento": "reestruturacao_divida",
+  "confianca": 0.99,
+  "criterios": 2
+ },
+ "020990IPE281120250165438401-93": {
+  "evento": "saida_executivo",
+  "confianca": 0.92,
+  "criterios": 2
+ },
+ "022020IPE211020250119263855-81": {
+  "evento": "saida_executivo",
+  "confianca": 1.0,
+  "criterios": 2
+ },
+ "024112IPE231020250135881285-31": {
+  "evento": "reestruturacao_divida",
+  "confianca": 0.99,
+  "criterios": 2
+ },
+ "021610IPE271020250139482867-57": {
+  "evento": "investigacao",
+  "confianca": 0.95,
+  "criterios": 2
+ },
+ "025160IPE191220250186034241-67": {
+  "evento": "saida_executivo",
+  "confianca": 0.99,
+  "criterios": 2
+ },
+ "009512IPE250520260162695766-95": {
+  "evento": "outro",
+  "confianca": 0.87
+ },
+ "021342IPE271020250177545220-40": {
+  "evento": "reestruturacao_divida",
+  "confianca": 0.96,
+  "criterios": 2
+ },
+ "006505IPE260320260162611366-52": {
+  "evento": "investigacao",
+  "confianca": 1.0,
+  "criterios": 2
+ },
+ "024716IPE100820260126172400-78": {
+  "evento": "saida_executivo",
+  "confianca": 0.95,
+  "criterios": 2
+ },
+ "006343IPE311020250182852894-71": {
+  "evento": "outro",
+  "confianca": 0.89
+ },
+ "025291IPE120120260113633943-20": {
+  "evento": "saida_executivo",
+  "confianca": 1.0,
+  "criterios": 2
+ },
+ "021091IPE080420260153135872-16": {
+  "evento": "outro",
+  "confianca": 0.81,
+  "criterios": 2
+ },
+ "025445IPE301220250112870718-41": {
+  "evento": "auditoria",
+  "confianca": 1.0,
+  "criterios": 2
+ },
+ "025500IPE131120250123091097-56": {
+  "evento": "auditoria",
+  "confianca": 1.0,
+  "criterios": 2
+ },
+ "020982IPE070520260285137007-09": {
+  "evento": "politica_contabil",
+  "confianca": 0.99,
+  "criterios": 2
+ },
+ "025186IPE051220250133478521-08": {
+  "evento": "outro",
+  "confianca": 1.0
+ },
+ "021490IPE071120250140619914-46": {
+  "evento": "outro",
+  "confianca": 1.0
+ },
+ "002437IPE050820260189383448-72": {
+  "evento": "outro",
+  "confianca": 0.94
+ },
+ "026620IPE100820260172121619-34": {
+  "evento": "investigacao",
+  "confianca": 1.0,
+  "criterios": 2
+ },
+ "014320IPE120220260198961226-66": {
+  "evento": "politica_contabil",
+  "confianca": 1.0,
+  "criterios": 2
+ },
+ "006343IPE270220260132307299-74": {
+  "evento": "outro",
+  "confianca": 0.67
+ },
+ "002453IPE070520260132090726-34": {
+  "evento": "saida_executivo",
+  "confianca": 0.94,
+  "criterios": 2
+ },
+ "019623IPE211120250110034137-36": {
+  "evento": "outro",
+  "confianca": 0.89
+ },
+ "008427IPE160620260172230082-18": {
+  "evento": "reestruturacao_divida",
+  "confianca": 1.0,
+  "criterios": 2
+ }
+}
