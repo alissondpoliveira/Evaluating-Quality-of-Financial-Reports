@@ -173,9 +173,11 @@ Grade: A  |  High-quality financials. Strong cash conversion,
 
 ## Live Demo
 
-Deployed on Railway: **[evaluating-quality-of-financial-reports-production.up.railway.app](https://evaluating-quality-of-financial-reports-production.up.railway.app)**
+Static version (recalculated weekly by GitHub Actions, served by Vercel): **[beneish.alissonprata.io](https://beneish.alissonprata.io)**
 
----
+`build_static_site.py` runs the same batch as `build_market_cache.py` (CVM registry, non-financial companies, DFP, `BeneishSectorScorer`) without changing any formula, and also stores the eight indices, each index's contribution to the M-Score and the base figures for both years. `site/gerar.py` renders `site/public/`. Workflow: `.github/workflows/site-estatico.yml`. The static version has no AI narrative layer.
+
+Educational project; it may contain data or account-mapping errors and is not investment advice.
 
 ## Author
 

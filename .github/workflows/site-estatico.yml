@@ -1,0 +1,36 @@
+name: Site estático do M-Score
+
+# Recalcula o M-Score de todas as não financeiras com as DFPs da CVM e regera a página
+# servida pela Vercel em beneish.alissonprata.io. DFP é anual: uma vez por semana basta.
+on:
+  schedule:
+    - cron: "0 9 * * 1"   # segunda-feira, 6h em Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  gerar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Dependências do cálculo
+        run: pip install "pandas>=2.2,<3" numpy requests
+      - name: Calcular o M-Score
+        run: python build_static_site.py --workers 2
+      - name: Gerar a página
+        run: python site/gerar.py
+      - name: Publicar
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/public
+          if git diff --cached --quiet; then echo "Sem mudança"; exit 0; fi
+          git commit -m "dados: M-Score $(date -u +%F)"
+          git pull --rebase -X theirs
+          git push
