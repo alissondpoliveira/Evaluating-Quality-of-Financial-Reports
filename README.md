@@ -175,7 +175,7 @@ Grade: A  |  High-quality financials. Strong cash conversion,
 
 Static version (recalculated weekly by GitHub Actions, served by Vercel): **[beneish.alissonprata.io](https://beneish.alissonprata.io)**
 
-`build_static_site.py` runs the same batch as `build_market_cache.py` (CVM registry, non-financial companies, DFP, `BeneishSectorScorer`) without changing any formula, and also stores the eight indices, each index's contribution to the M-Score and the base figures for both years. `site/gerar.py` renders `site/public/`. Workflow: `.github/workflows/site-estatico.yml`. The static version has no AI narrative layer.
+`build_static_site.py` runs the same batch as `build_market_cache.py` (CVM registry, non-financial companies, DFP, `BeneishSectorScorer`) without changing any formula, and also stores the eight indices, each index's contribution to the M-Score and the base figures for both years. `site/gerar.py` renders `site/public/`. Workflow: `.github/workflows/site-estatico.yml`. The static version has no AI narrative layer. `jev_eventos.py` adds a complementary, display-only layer: the JEV model (TypeSafe System One) reads the titles of the last 12 months of material facts and market notices (CVM IPE) and flags restatements, auditor issues, CFO/IR departures, investigations, debt restructuring and accounting policy changes (confidence ≥ 0.8, not yet manually validated; requires the `TYPESAFE_API_KEY` repository secret).
 
 Educational project; it may contain data or account-mapping errors and is not investment advice.
 

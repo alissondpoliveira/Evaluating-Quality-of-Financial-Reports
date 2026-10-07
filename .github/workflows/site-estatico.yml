@@ -23,13 +23,18 @@ jobs:
         run: pip install "pandas>=2.2,<3" numpy requests
       - name: Calcular o M-Score
         run: python build_static_site.py --workers 2
+      - name: Eventos nos documentos (JEV)
+        # sem o segredo, o script não chama a API e mantém o que já está no cache
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: python jev_eventos.py --limite 2500
       - name: Gerar a página
         run: python site/gerar.py
       - name: Publicar
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add site/public
+          git add site/public data/jev
           if git diff --cached --quiet; then echo "Sem mudança"; exit 0; fi
           git commit -m "dados: M-Score $(date -u +%F)"
           git pull --rebase -X theirs
