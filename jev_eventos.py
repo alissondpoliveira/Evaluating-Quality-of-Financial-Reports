@@ -49,13 +49,27 @@ CONFIANCA_MINIMA = 0.8  # mesma trava do Grafo de Crédito; nesta taxonomia, ain
 JANELA_DIAS = 365
 CATEGORIAS = {"Fato Relevante": "Fato relevante", "Comunicado ao Mercado": "Comunicado ao mercado"}
 
+# Versão 2 (07/10/2026): mesmas categorias, com o que NÃO conta escrito em cada uma. Na primeira carga,
+# o JEV marcava resgate antecipado voluntário como reestruturação, "Reapresentação do BVD" (boletim de voto)
+# como reapresentação de demonstrações e aprovação de aquisição pelo CADE como investigação.
+CRITERIOS_VERSAO = 2
 EVENTOS = {
-    "reapresentacao": "Reapresentação, retificação ou republicação de demonstrações financeiras; correção de erro contábil",
-    "auditoria": "Troca de auditor independente; parecer com ressalva, abstenção de opinião ou ênfase relevante; divergência com o auditor",
-    "saida_executivo": "Renúncia, destituição ou substituição de diretor financeiro, diretor de relações com investidores ou presidente",
-    "investigacao": "Investigação, processo, sanção ou acordo com CVM, Polícia Federal, Ministério Público ou CADE; apuração interna de irregularidade",
-    "reestruturacao_divida": "Recuperação judicial ou extrajudicial, inadimplemento, vencimento antecipado, waiver ou renegociação de dívida",
-    "politica_contabil": "Mudança de política ou estimativa contábil; baixa contábil relevante (impairment) ou ajuste de exercícios anteriores",
+    "reapresentacao": ("Reapresentação, retificação ou republicação das demonstrações financeiras (DFP, ITR, balanço, "
+                       "notas explicativas) por erro ou ajuste contábil. Não conta: reapresentação de boletim de voto a "
+                       "distância (BVD), edital, proposta, ata ou outros documentos de assembleia."),
+    "auditoria": ("Troca ou substituição do auditor independente; parecer com ressalva, abstenção de opinião ou ênfase "
+                  "relevante; divergência com o auditor."),
+    "saida_executivo": ("Renúncia, destituição ou substituição do diretor financeiro (CFO), do diretor de relações com "
+                        "investidores ou do presidente (CEO)."),
+    "investigacao": ("Investigação, processo sancionador, sanção, multa, termo de compromisso ou acordo com CVM, Polícia "
+                     "Federal, Ministério Público ou CADE por suspeita de infração; apuração interna de irregularidade. "
+                     "Não conta: aprovação de fusão, aquisição ou venda pelo CADE ou por outro órgão."),
+    "reestruturacao_divida": ("Dificuldade para pagar dívidas: recuperação judicial ou extrajudicial, inadimplemento, "
+                              "vencimento antecipado, pedido de waiver, renegociação ou reperfilamento por dificuldade "
+                              "financeira. Não conta: resgate antecipado voluntário, amortização ou pagamento em dia, "
+                              "nova emissão ou captação, liquidação de dívida."),
+    "politica_contabil": ("Mudança de política, estimativa ou moeda funcional contábil; baixa contábil relevante "
+                          "(impairment) ou ajuste de exercícios anteriores."),
     "outro": "Outro assunto, sem relação com a qualidade da informação contábil",
 }
 PERGUNTA = {"evento": {"type": "choice", "criteria": EVENTOS, "instructions": (
@@ -121,7 +135,7 @@ def classificar(doc: dict, empresa: dict) -> dict:
     estado = (f"Companhia aberta brasileira: {empresa['nome']}. Setor: {empresa['setor']}. "
               f"Documento entregue à CVM: {doc['categoria']}, em {doc['data']}. Título: {doc['titulo']}")
     a = _chamar({"model": _MODELO, "state": estado, "questions": PERGUNTA})["answers"]["evento"]
-    return {"evento": a["choice"], "confianca": round(a["confidence"], 3)}
+    return {"evento": a["choice"], "confianca": round(a["confidence"], 3), "criterios": CRITERIOS_VERSAO}
 
 
 def main() -> None:
@@ -135,7 +149,10 @@ def main() -> None:
     empresas = {e["cnpj"]: e for e in dados["empresas"] if e.get("mscore") is not None}
     docs = documentos(empresas)
     cache = json.loads(_CACHE.read_text(encoding="utf-8")) if _CACHE.exists() else {}
-    novos = [d for d in docs if d["id"] not in cache]
+    # Reenvia o que foi marcado com algum evento numa versão anterior dos critérios. Os já classificados
+    # como "outro" ficam: critérios mais restritivos não transformam "outro" em evento.
+    desatualizado = lambda r: r.get("criterios", 1) < CRITERIOS_VERSAO and r["evento"] != "outro"
+    novos = [d for d in docs if d["id"] not in cache or desatualizado(cache[d["id"]])]
     print(f"{len(docs)} documentos na janela de {JANELA_DIAS} dias; {len(novos)} ainda não classificados")
 
     if not a.contar:
