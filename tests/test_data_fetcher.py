@@ -36,6 +36,14 @@ _COLUMNS = [
 ]
 
 
+# Descrições reais do plano de contas da CVM para as linhas que são resolvidas pelo texto.
+_DESCRICOES = {
+    "1.01.03": "Contas a Receber",
+    "1.01.06": "Tributos a Recuperar",
+    "6.01.01.02": "Depreciação e Amortização",
+}
+
+
 def _make_rows(company: str, year: int, accounts: dict[str, float]) -> list[dict]:
     """Generate one row per account code for a given company/year."""
     rows = []
@@ -49,7 +57,7 @@ def _make_rows(company: str, year: int, accounts: dict[str, float]) -> list[dict
             "DT_INI_EXERC": f"{year}-01-01",
             "DT_FIM_EXERC": f"{year}-12-31",
             "CD_CONTA": code,
-            "DS_CONTA": f"Conta {code}",
+            "DS_CONTA": _DESCRICOES.get(code, f"Conta {code}"),
             "VL_CONTA": value,
             "ST_CONTA_FIXA": "S",
         })
@@ -80,7 +88,7 @@ _ACCOUNTS_T = {
     # BPA
     "1":      900_000.0,     # total_assets
     "1.01":   300_000.0,     # current_assets
-    "1.01.06":100_000.0,     # receivables
+    "1.01.03":100_000.0,     # receivables (Contas a Receber)
     "1.02.03":400_000.0,     # pp_and_e
     "1.01.01.02": 50_000.0,  # securities
     # BPP
@@ -98,7 +106,7 @@ _ACCOUNTS_T1 = {
     "3.11":   100_000.0,
     "1":      800_000.0,
     "1.01":   260_000.0,
-    "1.01.06": 80_000.0,
+    "1.01.03": 80_000.0,
     "1.02.03":360_000.0,
     "1.01.01.02": 40_000.0,
     "2.01":    80_000.0,
@@ -179,7 +187,7 @@ class TestCvmAccounts:
 
     def test_each_spec_has_at_least_one_code(self):
         for spec in ACCOUNT_SPECS:
-            assert len(spec.codes) >= 1, f"{spec.field_name} has no codes"
+            assert (len(spec.codes) >= 1 or bool(spec.desc_pattern)), f"{spec.field_name} has no codes"
 
     def test_sign_values_are_valid(self):
         for spec in ACCOUNT_SPECS:
@@ -262,28 +270,67 @@ class TestCVMDataFetcherMocked:
         # CVM stores as -720_000; sign=-1 → corrected to +720_000
         assert value == pytest.approx(720_000.0)
 
-    def test_resolve_account_fallback_code(self, tmp_path):
-        """Primary code missing → should fall back to second candidate."""
+    def test_tributos_a_recuperar_not_used_as_receivables(self, tmp_path):
+        """1.01.06 is Tributos a Recuperar in the CVM chart; it must never feed receivables."""
         fetcher = self._make_fetcher(tmp_path)
-        # Use 1.01.03 instead of 1.01.06 for receivables
         accounts = dict(_ACCOUNTS_T)
-        del accounts["1.01.06"]
-        accounts["1.01.03"] = 90_000.0
+        del accounts["1.01.03"]
+        accounts["1.01.06"] = 90_000.0
         zip_bytes = _build_fake_zip_for_year(2023, accounts)
         self._patch_download(fetcher, 2023, zip_bytes)
 
         df = fetcher._load_statement(2023, "BPA")
         filtered = fetcher._filter_company(df, "PETROBRAS", "ticker", 2023)
 
-        spec = SPEC_BY_FIELD["receivables"]
-        value = fetcher._resolve_account(filtered, spec)
-        assert value == pytest.approx(90_000.0)
+        import math
+        value = fetcher._resolve_account(filtered, SPEC_BY_FIELD["receivables"])
+        assert math.isnan(value)
+
+    def test_receivables_from_contas_a_receber(self, tmp_path):
+        fetcher = self._make_fetcher(tmp_path)
+        accounts = dict(_ACCOUNTS_T)
+        accounts["1.01.06"] = 999_000.0  # tributos a recuperar, must be ignored
+        zip_bytes = _build_fake_zip_for_year(2023, accounts)
+        self._patch_download(fetcher, 2023, zip_bytes)
+
+        df = fetcher._load_statement(2023, "BPA")
+        filtered = fetcher._filter_company(df, "PETROBRAS", "ticker", 2023)
+        assert fetcher._resolve_account(filtered, SPEC_BY_FIELD["receivables"]) == pytest.approx(100_000.0)
+
+    def test_sga_sums_selling_and_admin(self, tmp_path):
+        fetcher = self._make_fetcher(tmp_path)
+        accounts = dict(_ACCOUNTS_T)
+        accounts["3.04.01"] = -80_000.0   # despesas com vendas
+        zip_bytes = _build_fake_zip_for_year(2023, accounts)
+        self._patch_download(fetcher, 2023, zip_bytes)
+
+        df = fetcher._load_statement(2023, "DRE")
+        filtered = fetcher._filter_company(df, "PETROBRAS", "ticker", 2023)
+        value = fetcher._resolve_account(filtered, SPEC_BY_FIELD["sales_general_admin_expenses"])
+        assert value == pytest.approx(200_000.0)  # 80k vendas + 120k G&A
+
+    def test_depreciation_found_by_description(self, tmp_path):
+        """D&A sits in a different 6.01.01.NN line per company; transaction-cost amortisation is excluded."""
+        fetcher = self._make_fetcher(tmp_path)
+        accounts = {k: v for k, v in _ACCOUNTS_T.items() if k != "6.01.01.02"}
+        accounts.update({"6.01.01.07": 30_000.0, "6.01.01.09": 5_000.0, "6.01.01.11": 2_000.0})
+        _DESCRICOES.update({"6.01.01.07": "Depreciação e amortização", "6.01.01.09": "Amortização de direito de uso",
+                            "6.01.01.11": "Amortização de custo de transação de empréstimos"})
+        try:
+            zip_bytes = _build_fake_zip_for_year(2023, accounts)
+        finally:
+            for k in ("6.01.01.07", "6.01.01.09", "6.01.01.11"):
+                _DESCRICOES.pop(k)
+        self._patch_download(fetcher, 2023, zip_bytes)
+
+        df = fetcher._load_statement(2023, "DFC_MI")
+        filtered = fetcher._filter_company(df, "PETROBRAS", "ticker", 2023)
+        value = fetcher._resolve_account(filtered, SPEC_BY_FIELD["depreciation"])
+        assert value == pytest.approx(35_000.0)
 
     def test_resolve_account_returns_nan_when_all_codes_missing(self, tmp_path):
         fetcher = self._make_fetcher(tmp_path)
-        # Accounts with no receivable code at all
-        accounts = {k: v for k, v in _ACCOUNTS_T.items()
-                    if k not in ("1.01.06", "1.01.03", "1.01.04")}
+        accounts = {k: v for k, v in _ACCOUNTS_T.items() if k != "1.01.03"}
         zip_bytes = _build_fake_zip_for_year(2023, accounts)
         self._patch_download(fetcher, 2023, zip_bytes)
 
