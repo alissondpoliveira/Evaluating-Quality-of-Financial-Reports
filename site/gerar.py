@@ -388,6 +388,11 @@ def main() -> None:
                   {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"},
                   {"key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=()"}]
     (PUBLICO / "vercel.json").write_text(json.dumps({"headers": [{"source": "/(.*)", "headers": cabecalhos}]}, indent=2) + "\n", encoding="utf-8")
+    # vercel.json da raiz do repositório: sem framework e sem build, publica site/public.
+    # Sem ele a Vercel detecta o requirements.txt do app Streamlit e tenta montar um projeto Python.
+    raiz = {"framework": None, "installCommand": "echo sem dependencias", "buildCommand": "echo pagina estatica",
+            "outputDirectory": "site/public", "headers": [{"source": "/(.*)", "headers": cabecalhos}]}
+    (PUBLICO.parent.parent / "vercel.json").write_text(json.dumps(raiz, indent=2, ensure_ascii=False) + chr(10), encoding="utf-8")
     print("site/public gerado")
 
 
