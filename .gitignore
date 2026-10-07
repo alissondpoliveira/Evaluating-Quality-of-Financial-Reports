@@ -22,3 +22,6 @@ data/cache/*.json
 data/cache/*.lock
 data/cache/*.log
 site/public/*.tmp
+
+# textos extraídos dos PDFs da CVM para a validação (públicos, mas volumosos)
+validacao/textos/
