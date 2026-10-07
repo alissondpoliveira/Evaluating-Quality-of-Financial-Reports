@@ -400,6 +400,28 @@ class CVMDataFetcher:
         convention), others as positive (add-back convention in DFC indirect
         method).  Using ``abs()`` instead of ``value * -1`` handles both cases.
         """
+        if spec.desc_pattern and not filtered_df.empty:
+            desc = filtered_df["DS_CONTA"].astype(str).map(
+                lambda x: unicodedata.normalize("NFKD", x).encode("ascii", "ignore").decode().lower())
+            mask = (filtered_df["CD_CONTA"].astype(str).str.match(spec.desc_codes)
+                    & desc.str.contains(spec.desc_pattern, regex=True))
+            if spec.desc_exclude:
+                mask &= ~desc.str.contains(spec.desc_exclude, regex=True)
+            values = filtered_df.loc[mask, "VL_CONTA"].dropna().astype(float)
+            if not values.empty:
+                total = float(values.abs().sum()) if spec.sign == -1 else float(values.sum())
+                logger.debug("  %-35s by description (%d lines) = %14.2f", spec.field_name, len(values), total)
+                return total
+
+        if spec.sum_codes:
+            found = []
+            for code in spec.codes:
+                rows = filtered_df[filtered_df["CD_CONTA"] == code]
+                if not rows.empty and not pd.isna(rows["VL_CONTA"].iloc[0]):
+                    found.append(float(rows["VL_CONTA"].iloc[0]))
+            if found:
+                return float(sum(abs(v) for v in found)) if spec.sign == -1 else float(sum(found))
+
         for code in spec.codes:
             rows = filtered_df[filtered_df["CD_CONTA"] == code]
             if not rows.empty:

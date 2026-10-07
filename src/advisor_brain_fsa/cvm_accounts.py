@@ -38,6 +38,13 @@ class AccountSpec:
     codes: List[str]          # tried in order; first found wins
     description: str
     sign: int = 1             # apply sign correction if CVM stores as negative
+    sum_codes: bool = False   # sum every code found instead of taking the first
+    # Lookup by description for free-form lines (e.g. DFC 6.01.01.NN differs per company):
+    # rows whose CD_CONTA matches desc_codes and whose normalised DS_CONTA matches
+    # desc_pattern (and not desc_exclude) are summed. Tried before `codes`.
+    desc_codes: str = ""
+    desc_pattern: str = ""
+    desc_exclude: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -68,9 +75,11 @@ ACCOUNT_SPECS: List[AccountSpec] = [
         field_name="sales_general_admin_expenses",
         statement="DRE",
         # 3.04.02 = Gerais e Administrativas; 3.04.01 = Vendas; 3.04 = total despesas
-        codes=["3.04.02", "3.04.01", "3.04"],
-        description="Despesas Gerais e Administrativas (SGA)",
+        # Beneish SGAI uses selling + general & administrative expenses (SG&A).
+        codes=["3.04.01", "3.04.02"],
+        description="Despesas com Vendas (3.04.01) + Gerais e Administrativas (3.04.02)",
         sign=-1,
+        sum_codes=True,
     ),
     AccountSpec(
         field_name="net_income",
@@ -98,7 +107,8 @@ ACCOUNT_SPECS: List[AccountSpec] = [
         statement="BPA",
         # 1.01.06 = Contas a Receber (newer taxonomy)
         # 1.01.03 = older taxonomy used before 2020 reclassification
-        codes=["1.01.06", "1.01.03", "1.01.04"],
+        # CVM fixed chart: 1.01.03 = Contas a Receber; 1.01.04 = Estoques; 1.01.06 = Tributos a Recuperar.
+        codes=["1.01.03"],
         description="Contas a Receber / Clientes",
     ),
     AccountSpec(
@@ -146,9 +156,14 @@ ACCOUNT_SPECS: List[AccountSpec] = [
         statement="DFC_MI",
         # In the indirect method, D&A is added back under operating adjustments.
         # 6.01.01.02 or 6.01.01.03 depending on the company's chart of accounts.
-        codes=["6.01.01.02", "6.01.01.03", "6.01.01.04", "6.01.02"],
+        # The 6.01.01.NN adjustment lines are free-form per company (6.01.01.02 is D&A in
+        # only ~60% of filers), so D&A is found by description and summed.
+        codes=[],
         description="Depreciação, Amortização e Exaustão (D&A add-back em DFC)",
         sign=-1,   # stored as negative adjustment; absolute value needed
+        desc_codes=r"^6\.01\.01\.\d+$",
+        desc_pattern=r"deprec|amortiz|exaust",
+        desc_exclude=r"custo.{0,20}(?:transac|captac|emissao)|emprestim|financiament|debentur|juros|captac|desagio",
     ),
 ]
 
