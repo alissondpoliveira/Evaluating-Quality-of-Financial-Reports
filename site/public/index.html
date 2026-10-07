@@ -113,6 +113,7 @@ body.aberta .fundo{opacity:1;pointer-events:auto}
 <select id="fAlerta" aria-label="Nível de alerta"><option value="">Todos os alertas</option><option>Crítico</option><option>Alto Risco</option><option>Atenção</option><option>Normal</option></select>
 <label class="chk"><input type="checkbox" id="fAcima"> só acima do limiar</label>
 <label class="chk"><input type="checkbox" id="fCompleto" checked> só com dado completo</label>
+<label class="chk" id="fEventoRot" hidden><input type="checkbox" id="fEvento"> com evento nos documentos</label>
 <span class="espaco"></span><span id="fInfo" class="pequeno fraco" aria-live="polite"></span><button id="fLimpar" hidden>Limpar filtros</button>
 </div>
 <div class="tabela"><table id="tab"><thead><tr>
@@ -121,7 +122,7 @@ body.aberta .fundo{opacity:1;pointer-events:auto}
 <th class="t" data-k="alerta">Alerta <button type="button" class="info" data-info="alerta">i</button></th>
 <th data-k="accrual">Accrual ratio <button type="button" class="info" data-info="accrual">i</button></th>
 <th class="t" data-k="qualidade">Qualidade dos lucros <button type="button" class="info" data-info="qualidade">i</button></th>
-<th class="t" data-k="flags">Principal sinal</th></tr></thead><tbody></tbody></table>
+<th class="t" data-k="flags">Principal sinal</th><th data-k="nev">Eventos <button type="button" class="info" data-info="jev">i</button></th></tr></thead><tbody></tbody></table>
 <p id="vazio" class="vazio" hidden>Nenhuma empresa com esses filtros.</p></div>
 </div>
 <p class="pequeno fraco" id="semDados"></p>
@@ -135,6 +136,7 @@ body.aberta .fundo{opacity:1;pointer-events:auto}
 <li><b>Qualidade dos lucros.</b> Accrual ratio = (lucro líquido − fluxo de caixa operacional) ÷ ativo total médio. O nível de alerta combina essa leitura com o M-Score.</li>
 <li><b>Dado ausente.</b> Quando uma conta não é encontrada, o coletor usa zero; quando um índice não pode ser calculado ou sai negativo, ele vira 1 (neutro). Quando o exercício pedido não existe, o coletor usa o mais próximo. Índices fora de uma faixa larga (acima de 10 ou abaixo de 0,1; TATA além de ±1) também são marcados, porque costumam indicar conta mapeada errado ou ano atípico. As fichas mostram esses casos com ⚠, e o filtro "só com dado completo" os exclui.</li>
 <li><b>O que o modelo não mede.</b> Mudança de norma contábil, reorganização societária, setores com ciclo próprio e o contexto de cada empresa. O modelo foi estimado com empresas americanas dos anos 1980 e 1990; aplicado ao Brasil, é uma triagem, não um diagnóstico.</li>
+<li><b>Eventos nos documentos (JEV).</b> O modelo System One da TypeSafe lê o título dos fatos relevantes e comunicados ao mercado dos últimos 12 meses e indica se tratam de reapresentação de demonstrações, auditoria, saída de diretor financeiro ou de RI, investigação, reestruturação de dívida ou mudança de política contábil. Só entram classificações com confiança de pelo menos 0,8; títulos genéricos não são enviados. É informação complementar: não altera o M-Score nem o nível de alerta, e a lista de eventos ainda não passou por validação manual.</li>
 <li><b>Referência.</b> Beneish, M. D. (1999). The Detection of Earnings Manipulation. Financial Analysts Journal, 55(5), 24 a 36.</li>
 </ul>
 <h3>Glossário</h3>
@@ -179,6 +181,7 @@ const GLOSS = {
   accrual:{t:'Accrual ratio', d:'Diferença entre lucro líquido e caixa das operações, sobre o ativo total médio dos dois anos.', fx:['\\frac{LL_t - FCO_t}{(AT_t + AT_{t-1})/2}'], l:'Abaixo de 0,01: qualidade alta. Entre 0,01 e 0,05: moderada. A partir de 0,05: baixa.'},
   qualidade:{t:'Qualidade dos lucros', d:'Classe do accrual ratio: alta, moderada ou baixa.', l:'Lucro sustentado por caixa tem qualidade maior que lucro sustentado por lançamentos contábeis.'},
   alerta:{t:'Nível de alerta', d:'Combina o M-Score com a qualidade dos lucros.', l:'Crítico: acima do limiar e com qualidade baixa. Alto risco: acima do limiar. Atenção: abaixo do limiar, mas com qualidade baixa. Normal: nenhum dos dois.'},
+  jev:{t:'Eventos nos documentos (JEV)', d:'Fatos relevantes e comunicados ao mercado dos últimos 12 meses cujo título o JEV (modelo System One da TypeSafe) classificou como um evento que a análise forense costuma cruzar com o M-Score: reapresentação de demonstrações, auditoria, saída de diretor financeiro ou de RI, investigação, reestruturação de dívida ou mudança de política contábil.', l:'Só aparecem classificações com confiança de pelo menos 0,8. Não altera o M-Score. É um apontamento para ler o documento original, não uma conclusão; a lista de eventos ainda não foi validada manualmente.'},
   contrib:{t:'Formação do M-Score', d:'Cada barra é o coeficiente do índice multiplicado pelo valor do índice. Somadas à constante (−4,84), dão o M-Score.', fx:['M = -4{,}84 + \\sum_i \\beta_i \\, I_i'], l:'Mostra qual índice puxou o resultado. Um índice igual a 1 contribui com o próprio coeficiente.'},
 };
 let _katex = null;
@@ -209,10 +212,13 @@ function montarGlossario(){ document.getElementById('glossario').innerHTML = Obj
 document.getElementById('tema').onclick = () => { const r = document.documentElement, escuro = r.dataset.theme ? r.dataset.theme==='dark' : matchMedia('(prefers-color-scheme: dark)').matches;
   r.dataset.theme = escuro ? 'light' : 'dark'; try { localStorage.setItem('tema', r.dataset.theme); } catch(e) {} };
 
-fetch('/dados.json', {cache:'no-cache'}).then(r => r.json()).then(iniciar).catch(() => { document.getElementById('topoData').textContent = 'falha ao carregar os dados; recarregue a página'; });
+Promise.all([fetch('/dados.json', {cache:'no-cache'}).then(r => r.json()), fetch('/eventos.json', {cache:'no-cache'}).then(r => r.ok ? r.json() : null).catch(() => null)]).then(([d, ev]) => iniciar(d, ev)).catch(() => { document.getElementById('topoData').textContent = 'falha ao carregar os dados; recarregue a página'; });
 
-function iniciar(D){
+function iniciar(D, EV){
+  const EVE = (EV && EV.empresas) || {}, NOME_EV = {reapresentacao:'Reapresentação de demonstrações', auditoria:'Auditoria', saida_executivo:'Saída de executivo', investigacao:'Investigação ou sanção', reestruturacao_divida:'Reestruturação de dívida', politica_contabil:'Política contábil ou baixa'};
   const E = D.empresas, ok = E.filter(e => !e.erro && e.mscore!=null), lim = D.limiar;
+  ok.forEach(e => e.nev = (EVE[e.cnpj]||[]).length);
+  if (EV && EV.classificados) document.getElementById('fEventoRot').hidden = false;
   const completo = e => !e.avisos;
   document.getElementById('topoData').textContent = 'exercício '+D.exercicio+' contra '+(D.exercicio-1)+' · atualizado '+D.gerado_em;
   document.getElementById('dekAnos').textContent = 'Exercício '+D.exercicio+' contra '+(D.exercicio-1)+'.';
@@ -257,22 +263,22 @@ function iniciar(D){
   let ordem = {k:'mscore', asc:false};
   function linhas(){
     const q = semA(document.getElementById('fBusca').value).trim(), s = document.getElementById('fSetor').value, al = document.getElementById('fAlerta').value;
-    const so = document.getElementById('fAcima').checked, comp = document.getElementById('fCompleto').checked;
-    let r = ok.filter(e => (!q || semA(e.nome+' '+e.ticker+' '+e.cnpj).includes(q)) && (!s || e.setor===s) && (!al || e.alerta===al) && (!so || e.mscore > lim) && (!comp || completo(e)) && (!faixa || (e.mscore >= faixa.a && e.mscore < faixa.b) || (faixa.a===-5 && e.mscore < -5) || (faixa.b===2 && e.mscore >= 2)));
+    const so = document.getElementById('fAcima').checked, comp = document.getElementById('fCompleto').checked, cev = document.getElementById('fEvento').checked;
+    let r = ok.filter(e => (!q || semA(e.nome+' '+e.ticker+' '+e.cnpj).includes(q)) && (!s || e.setor===s) && (!al || e.alerta===al) && (!so || e.mscore > lim) && (!comp || completo(e)) && (!cev || e.nev > 0) && (!faixa || (e.mscore >= faixa.a && e.mscore < faixa.b) || (faixa.a===-5 && e.mscore < -5) || (faixa.b===2 && e.mscore >= 2)));
     const v = e => ordem.k==='alerta' ? ORDEM_ALERTA[e.alerta] : ordem.k==='flags' ? primeiroSinal(e) : e[ordem.k];
     r.sort((a,b) => { const x = v(a), y = v(b); return (x==null) - (y==null) || (x>y?1:x<y?-1:0)*(ordem.asc?1:-1); });
-    document.getElementById('fLimpar').hidden = !(q || s || al || so || !comp || faixa);
+    document.getElementById('fLimpar').hidden = !(q || s || al || so || !comp || cev || faixa);
     document.getElementById('fInfo').textContent = r.length===ok.length ? r.length+' empresas' : r.length+' de '+ok.length+' empresas';
     document.getElementById('vazio').hidden = r.length > 0;
     return r;
   }
   function filtrar(){
     corpo.innerHTML = linhas().map(e => '<tr data-cnpj="'+e.cnpj+'" tabindex="0"><td class="t"><span class="nome" title="'+esc(e.nome)+'">'+esc(e.nome)+'</span> <span class="fraco">'+esc(tk(e))+'</span>'+(completo(e)?'':' <span class="av" title="dado incompleto">⚠</span>')+'</td><td class="t">'+esc(e.setor)+'</td>'
-      +'<td>'+fmt(e.mscore,2)+'</td><td class="t"><span class="badge"><i style="background:'+COR_ALERTA[e.alerta]+'"></i>'+e.alerta+'</span></td><td>'+fmt(e.accrual,3)+'</td><td class="t">'+(e.qualidade||'–')+'</td><td class="t fraco">'+esc(primeiroSinal(e))+'</td></tr>').join('');
+      +'<td>'+fmt(e.mscore,2)+'</td><td class="t"><span class="badge"><i style="background:'+COR_ALERTA[e.alerta]+'"></i>'+e.alerta+'</span></td><td>'+fmt(e.accrual,3)+'</td><td class="t">'+(e.qualidade||'–')+'</td><td class="t fraco">'+esc(primeiroSinal(e))+'</td><td>'+(e.nev ? '<span title="eventos nos documentos dos últimos 12 meses">⚑ '+e.nev+'</span>' : '<span class="fraco">–</span>')+'</td></tr>').join('');
   }
-  ['fBusca','fSetor','fAlerta','fAcima','fCompleto'].forEach(id => document.getElementById(id).addEventListener(id==='fBusca'?'input':'change', filtrar));
+  ['fBusca','fSetor','fAlerta','fAcima','fCompleto','fEvento'].forEach(id => document.getElementById(id).addEventListener(id==='fBusca'?'input':'change', filtrar));
   document.getElementById('fCompleto').addEventListener('change', desenharHist);
-  document.getElementById('fLimpar').onclick = () => { ['fBusca','fSetor','fAlerta'].forEach(id => document.getElementById(id).value=''); document.getElementById('fAcima').checked = false; document.getElementById('fCompleto').checked = true; faixa = null; desenharHist(); filtrar(); };
+  document.getElementById('fLimpar').onclick = () => { ['fBusca','fSetor','fAlerta'].forEach(id => document.getElementById(id).value=''); document.getElementById('fAcima').checked = false; document.getElementById('fCompleto').checked = true; document.getElementById('fEvento').checked = false; faixa = null; desenharHist(); filtrar(); };
   document.querySelectorAll('#tab th[data-k]').forEach(th => th.addEventListener('click', () => { ordem = {k:th.dataset.k, asc: ordem.k===th.dataset.k ? !ordem.asc : th.classList.contains('t')}; filtrar(); }));
   corpo.addEventListener('click', e => { const tr = e.target.closest('tr[data-cnpj]'); if (tr) abrirFicha(tr.dataset.cnpj); });
   corpo.addEventListener('keydown', e => { const tr = e.target.closest('tr[data-cnpj]'); if (tr && e.key==='Enter') abrirFicha(tr.dataset.cnpj); });
@@ -305,6 +311,9 @@ function iniciar(D){
       + ix.map(k => { const v = e.indices[k], sinal = v!=null && v > ref[k]; return '<tr><td class="t"><b>'+k.toUpperCase()+'</b> '+infoBtn(k)+'<br><span class="fraco">'+NOMES[k]+'</span></td><td>'+fmt(v, k==='tata'?4:3)+(sinal?' <span class="av" title="acima da referência">▲</span>':'')+'</td><td>'+fmt(ref[k], k==='tata'?3:3)+'</td><td>'+(e.contrib[k]>0?'+':'')+fmt(e.contrib[k],3)+'</td></tr>'; }).join('')
       + '</tbody></table></div>'
       + ((e.flags||[]).length ? '<h3>Sinais mais fortes</h3><ul class="pequeno" style="padding-left:1.1rem;margin:.2rem 0">'+ix.filter(k => (e.flags||[]).some(f => f.toLowerCase().startsWith(k))).map(k => '<li><b>'+k.toUpperCase()+'</b> em '+fmt(e.indices[k], k==='tata'?4:2)+': '+SINAL[k]+'</li>').join('')+'</ul>' : '<p class="pequeno muted">Nenhum índice acima da referência de alerta.</p>')
+      + (() => { const ev = EVE[e.cnpj] || []; if (!EV || !EV.classificados) return '';
+          return '<h3>Eventos nos documentos (JEV) '+infoBtn('jev')+'</h3>' + (ev.length ? '<ul class="pequeno" style="padding-left:1.1rem;margin:.2rem 0">'+ev.map(x => '<li><span class="fraco">'+x.data.split('-').reverse().join('/')+'</span> <b>'+NOME_EV[x.evento]+'</b>: <a href="'+esc(x.url)+'" target="_blank" rel="noopener">'+esc(x.titulo)+'</a> <span class="fraco">('+x.categoria.toLowerCase()+', confiança '+fmt(x.confianca,2)+')</span></li>').join('')+'</ul>' : '<p class="pequeno muted">Nenhum evento desse tipo nos fatos relevantes e comunicados dos últimos 12 meses.</p>')
+            + '<p class="pequeno fraco">Classificação automática do título, sem validação manual; leia o documento original. Não altera o M-Score.</p>'; })()
       + '<h3>Números de base</h3><p class="pequeno fraco" style="margin-top:0">Demonstrações consolidadas da DFP, na escala publicada pela companhia (em geral, R$ mil).</p>'
       + '<div class="tabela" style="max-height:none;border:1px solid var(--line);border-radius:8px"><table><thead><tr><th class="t">Conta</th><th>'+D.exercicio+'</th><th>'+(D.exercicio-1)+'</th><th>Variação</th></tr></thead><tbody>'
       + CAMPOS.map(([k, n]) => { const a = e.fin.t[k], b = e.fin.t1[k], vr = b ? (a/b-1)*100 : null; return '<tr><td class="t">'+n+'</td><td>'+fmt(a,0)+'</td><td>'+fmt(b,0)+'</td><td>'+(vr==null||!isFinite(vr)?'–':(vr>0?'+':'')+fmt(vr,1)+'%')+'</td></tr>'; }).join('')
