@@ -84,6 +84,10 @@ def _empresa(cnpj, denom, setor, ano, fetcher, scorer) -> dict:
     _avisos.atual[threading.get_ident()] = cnpj
     try:
         fd_t, fd_t1 = fetcher.get_financial_data(cnpj, year_t=ano, year_t1=ano - 1)
+        # Sem ativo total num dos anos, o coletor devolveu tudo zerado: os índices viram 1 e o
+        # M-Score sai −2,48 com qualidade "Alta", sem significado. Trata como empresa sem dados.
+        if not fd_t.total_assets or not fd_t1.total_assets:
+            raise ValueError(f"Demonstrações sem valores em {ano if not fd_t.total_assets else ano - 1} (ativo total zero)")
         sr = scorer.score(fd_t, fd_t1)
         ms, cfq = sr.mscore_result, sr.cfq_result
         base.update({
