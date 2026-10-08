@@ -145,10 +145,11 @@ def planilha() -> None:
     print(f"planilha → {PLANILHA.relative_to(_ROOT)}")
 
 
-def comparar() -> None:
+def comparar(atual: bool = False) -> None:
+    """atual=True compara com o cache de hoje (critérios mais recentes), em vez das respostas congeladas da amostra."""
     from openpyxl import load_workbook
     itens = {it["n"]: it for it in json.loads(AMOSTRA.read_text(encoding="utf-8"))}
-    resp = json.loads(RESPOSTAS.read_text(encoding="utf-8"))
+    resp = json.loads((jev._CACHE if atual else RESPOSTAS).read_text(encoding="utf-8"))
     ws = load_workbook(PLANILHA)["Validar"]
     pares = []
     for row in ws.iter_rows(min_row=2, values_only=True):
@@ -177,4 +178,5 @@ def comparar() -> None:
 
 
 if __name__ == "__main__":
-    {"amostra": amostra, "planilha": planilha, "comparar": comparar}[sys.argv[1]]()
+    {"amostra": amostra, "planilha": planilha, "comparar": comparar,
+     "comparar-atual": lambda: comparar(atual=True)}[sys.argv[1]]()

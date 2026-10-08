@@ -52,7 +52,10 @@ CATEGORIAS = {"Fato Relevante": "Fato relevante", "Comunicado ao Mercado": "Comu
 # Versão 2 (07/10/2026): mesmas categorias, com o que NÃO conta escrito em cada uma. Na primeira carga,
 # o JEV marcava resgate antecipado voluntário como reestruturação, "Reapresentação do BVD" (boletim de voto)
 # como reapresentação de demonstrações e aprovação de aquisição pelo CADE como investigação.
-CRITERIOS_VERSAO = 2
+# Versão 3 (08/10/2026), a partir da validação de 50 documentos (validacao/): autos de infração da Receita
+# Federal e termo de compromisso regulatório do MME saíam como investigação; destituição de diretor sem
+# designação saía como saída de executivo; pagamento de waiver fee já aprovado saía como reestruturação.
+CRITERIOS_VERSAO = 3
 EVENTOS = {
     "reapresentacao": ("Reapresentação, retificação ou republicação das demonstrações financeiras (DFP, ITR, balanço, "
                        "notas explicativas) por erro ou ajuste contábil. Não conta: reapresentação de boletim de voto a "
@@ -60,14 +63,18 @@ EVENTOS = {
     "auditoria": ("Troca ou substituição do auditor independente; parecer com ressalva, abstenção de opinião ou ênfase "
                   "relevante; divergência com o auditor."),
     "saida_executivo": ("Renúncia, destituição ou substituição do diretor financeiro (CFO), do diretor de relações com "
-                        "investidores ou do presidente (CEO)."),
+                        "investidores ou do presidente (CEO). Não conta: diretor jurídico, operacional ou sem designação "
+                        "específica, membro do conselho de administração ou de comitê."),
     "investigacao": ("Investigação, processo sancionador, sanção, multa, termo de compromisso ou acordo com CVM, Polícia "
                      "Federal, Ministério Público ou CADE por suspeita de infração; apuração interna de irregularidade. "
-                     "Não conta: aprovação de fusão, aquisição ou venda pelo CADE ou por outro órgão."),
+                     "Não conta: aprovação de fusão, aquisição ou venda pelo CADE ou por outro órgão; auto de infração "
+                     "ou autuação da Receita Federal ou de secretaria de fazenda (disputa tributária); termo de "
+                     "compromisso ou acordo regulatório para compensação ou reequilíbrio (MME, ANEEL, ANTT)."),
     "reestruturacao_divida": ("Dificuldade para pagar dívidas: recuperação judicial ou extrajudicial, inadimplemento, "
                               "vencimento antecipado, pedido de waiver, renegociação ou reperfilamento por dificuldade "
                               "financeira. Não conta: resgate antecipado voluntário, amortização ou pagamento em dia, "
-                              "nova emissão ou captação, liquidação de dívida."),
+                              "nova emissão ou captação, liquidação de dívida, pagamento de waiver fee de waiver já aprovado "
+                              "sem dificuldade financeira."),
     "politica_contabil": ("Mudança de política, estimativa ou moeda funcional contábil; baixa contábil relevante "
                           "(impairment) ou ajuste de exercícios anteriores."),
     "outro": "Outro assunto, sem relação com a qualidade da informação contábil",
