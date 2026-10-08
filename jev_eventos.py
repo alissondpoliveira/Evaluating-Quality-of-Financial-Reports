@@ -8,8 +8,11 @@ saída do diretor financeiro, investigação, reestruturação de dívida. Este 
 dos fatos relevantes e comunicados ao mercado (IPE/CVM) dos últimos 12 meses das empresas com
 M-Score e pergunta ao JEV (TypeSafe, modelo System One) qual desses eventos o documento descreve.
 
-Só exibição: não altera o M-Score nem o nível de alerta. A lista de eventos (EVENTOS) é escolha
-analítica e ainda não passou por validação manual nesta taxonomia; a página avisa isso.
+Duas etapas: (1) triagem pelo título de todos os documentos; (2) os que o título marca com algum
+evento são baixados, o texto do PDF é extraído e o JEV reclassifica com título e texto. PDF só com
+imagem (sem texto extraível) fica com a classificação do título.
+
+Só exibição: não altera o M-Score nem o nível de alerta. A lista de eventos (EVENTOS) é escolha analítica.
 
 Uso:
     python jev_eventos.py --contar     # só conta o que seria enviado (não chama a API)
@@ -45,7 +48,8 @@ _ZIPS = _ROOT / "data" / "cache"
 _IPE = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/IPE/DADOS/ipe_cia_aberta_{}.zip"
 _API = "https://api.typesafe.ai/v1"
 _MODELO = "jev-latest"
-CONFIANCA_MINIMA = 0.8  # mesma trava do Grafo de Crédito; nesta taxonomia, ainda sem validação manual
+CONFIANCA_MINIMA = 0.8  # mesma trava do Grafo de Crédito
+TEXTO_MAXIMO = 6000  # caracteres do documento enviados na segunda etapa (o início traz o fato)
 JANELA_DIAS = 365
 CATEGORIAS = {"Fato Relevante": "Fato relevante", "Comunicado ao Mercado": "Comunicado ao mercado"}
 
@@ -81,6 +85,9 @@ EVENTOS = {
 }
 PERGUNTA = {"evento": {"type": "choice", "criteria": EVENTOS, "instructions": (
     "Qual destes eventos o documento descreve? Escolha 'outro' se o título não tratar de nenhum deles.")}}
+PERGUNTA_TEXTO = {"evento": {"type": "choice", "criteria": EVENTOS, "instructions": (
+    "Qual destes eventos o documento descreve? Decida pelo texto do documento, não só pelo título. "
+    "Escolha 'outro' se o documento não tratar de nenhum deles.")}}
 # títulos sem conteúdo: no Grafo de Crédito o JEV respondia com confiança alta e errado; não são enviados
 GENERICOS = re.compile(r"^\s*(comunicado( ao mercado)?|fato relevante|outros comunicados.*|esclarecimentos?( sobre .{0,40})?|"
                        r"aviso aos acionistas|comunicado ao mercado - .{0,20})\s*[.:-]?\s*$", re.I)
@@ -123,6 +130,11 @@ def documentos(empresas: dict[str, dict]) -> list[dict]:
     return sorted(por_protocolo.values(), key=lambda d: d["data"], reverse=True)
 
 
+def _gravar(cache: dict) -> None:
+    _CACHE.parent.mkdir(parents=True, exist_ok=True)
+    _CACHE.write_text(json.dumps(cache, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+
+
 def _chamar(corpo: dict) -> dict:
     chave = os.environ["TYPESAFE_API_KEY"]
     req = urllib.request.Request(f"{_API}/systemone", method="POST", data=json.dumps(corpo).encode(),
@@ -145,6 +157,32 @@ def classificar(doc: dict, empresa: dict) -> dict:
     return {"evento": a["choice"], "confianca": round(a["confidence"], 3), "criterios": CRITERIOS_VERSAO}
 
 
+def _texto_documento(url: str) -> str:
+    """Texto do PDF da CVM (pypdf). Vazio se o PDF for só imagem ou não abrir."""
+    from pypdf import PdfReader
+    req = urllib.request.Request(url, headers={"User-Agent": "beneish-mscore"})
+    with urllib.request.urlopen(req, timeout=120) as r:
+        pdf = r.read()
+    try:
+        paginas = PdfReader(io.BytesIO(pdf)).pages
+        texto = " ".join((pg.extract_text() or "") for pg in paginas[:6])
+    except Exception:
+        return ""
+    return re.sub(r"\s+", " ", texto).strip()[:TEXTO_MAXIMO]
+
+
+def classificar_documento(doc: dict, empresa: dict) -> dict | None:
+    """Segunda etapa. None quando não há texto: fica a classificação pelo título."""
+    texto = _texto_documento(doc["url"])
+    if len(texto) < 200:
+        return None
+    estado = (f"Companhia aberta brasileira: {empresa['nome']}. Setor: {empresa['setor']}. "
+              f"Documento entregue à CVM: {doc['categoria']}, em {doc['data']}. Título: {doc['titulo']}. "
+              f"Texto do documento: {texto}")
+    a = _chamar({"model": _MODELO, "state": estado, "questions": PERGUNTA_TEXTO})["answers"]["evento"]
+    return {"evento": a["choice"], "confianca": round(a["confidence"], 3)}
+
+
 def main() -> None:
     p = argparse.ArgumentParser(description="Eventos de qualidade contábil nos documentos da CVM (JEV).")
     p.add_argument("--contar", action="store_true", help="só conta o que seria enviado")
@@ -158,7 +196,7 @@ def main() -> None:
     cache = json.loads(_CACHE.read_text(encoding="utf-8")) if _CACHE.exists() else {}
     # Reenvia o que foi marcado com algum evento numa versão anterior dos critérios. Os já classificados
     # como "outro" ficam: critérios mais restritivos não transformam "outro" em evento.
-    desatualizado = lambda r: r.get("criterios", 1) < CRITERIOS_VERSAO and r["evento"] != "outro"
+    desatualizado = lambda r: r.get("criterios", 1) < CRITERIOS_VERSAO and (r.get("pelo_titulo") or r)["evento"] != "outro"
     novos = [d for d in docs if d["id"] not in cache or desatualizado(cache[d["id"]])]
     print(f"{len(docs)} documentos na janela de {JANELA_DIAS} dias; {len(novos)} ainda não classificados")
 
@@ -180,12 +218,36 @@ def main() -> None:
                     if r:
                         cache[doc_id] = r
                     if i % 200 == 0:
-                        _CACHE.parent.mkdir(parents=True, exist_ok=True)
-                        _CACHE.write_text(json.dumps(cache, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+                        _gravar(cache)
                         print(f"  {i}/{len(lote)}")
-            _CACHE.parent.mkdir(parents=True, exist_ok=True)
-            _CACHE.write_text(json.dumps(cache, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+            _gravar(cache)
             print(f"classificados nesta execução: {len(lote)}; restantes: {len(novos) - len(lote)}")
+
+            # Segunda etapa: o que o título marcou com evento é lido no documento.
+            pendentes = [d for d in docs if d["id"] in cache and cache[d["id"]]["evento"] != "outro"
+                         and cache[d["id"]].get("base") not in ("documento", "sem_texto")]
+
+            def ler(d):
+                try:
+                    return d["id"], classificar_documento(d, empresas[d["cnpj"]]), None
+                except Exception as exc:
+                    return d["id"], None, str(exc)[:120]
+
+            sem_texto = erros = 0
+            with ThreadPoolExecutor(max_workers=a.workers) as pool:
+                for doc_id, r, erro in pool.map(ler, pendentes[: a.limite]):
+                    if erro:  # tenta de novo na próxima execução
+                        erros += 1
+                        print(f"erro ao ler {doc_id}: {erro}")
+                        continue
+                    titulo = {k: cache[doc_id][k] for k in ("evento", "confianca")}
+                    if r is None:
+                        sem_texto += 1
+                        cache[doc_id].update(base="sem_texto")
+                    else:
+                        cache[doc_id].update(r, base="documento", pelo_titulo=titulo)
+            _gravar(cache)
+            print(f"lidos no documento: {len(pendentes[: a.limite]) - sem_texto - erros}; sem texto: {sem_texto}; erros: {erros}")
 
     por_empresa: dict[str, list] = {}
     for d in docs:
@@ -193,11 +255,11 @@ def main() -> None:
         if r and r["evento"] != "outro" and r["confianca"] >= CONFIANCA_MINIMA:
             por_empresa.setdefault(d["cnpj"], []).append(
                 {"data": d["data"], "evento": r["evento"], "confianca": r["confianca"], "titulo": d["titulo"],
-                 "categoria": d["categoria"], "url": d["url"]})
+                 "categoria": d["categoria"], "url": d["url"], "base": "documento" if r.get("base") == "documento" else "titulo"})
     classificados = sum(1 for d in docs if d["id"] in cache)
     saida = {
         "gerado_em": datetime.now(timezone(timedelta(hours=-3))).strftime("%d/%m/%Y %H:%M"),
-        "janela_dias": JANELA_DIAS, "confianca_minima": CONFIANCA_MINIMA, "validado": False,
+        "janela_dias": JANELA_DIAS, "confianca_minima": CONFIANCA_MINIMA,
         "documentos": len(docs), "classificados": classificados,
         "eventos": {k: v for k, v in EVENTOS.items() if k != "outro"},
         "empresas": por_empresa,

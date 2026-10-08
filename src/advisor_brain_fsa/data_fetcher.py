@@ -65,14 +65,18 @@ CVM_BASE_URL = "https://dados.cvm.gov.br/dados/CIA_ABERTA/DOC/DFP/DADOS"
 ZIP_NAME_TPL = "dfp_cia_aberta_{year}.zip"
 
 # Statement suffix used in consolidated ("con") files; "ind" for standalone.
+# Consolidated is the default. Companies without subsidiaries do not publish a
+# consolidated DFP (or publish it with every account at zero, e.g. TIM S.A.);
+# for them the individual statements cover the same entity, so they are used instead.
 _MODALITY = "con"
+_FALLBACK_MODALITY = "ind"
 
 # Map our logical statement names to the file-name segment used by CVM.
 _STATEMENT_FILE_MAP = {
-    "BPA": f"BPA_{_MODALITY}",
-    "BPP": f"BPP_{_MODALITY}",
-    "DRE": f"DRE_{_MODALITY}",
-    "DFC_MI": f"DFC_MI_{_MODALITY}",
+    "BPA": "BPA",
+    "BPP": "BPP",
+    "DRE": "DRE",
+    "DFC_MI": "DFC_MI",
 }
 
 # CVM CSV encoding and separator
@@ -98,9 +102,9 @@ def _build_zip_url(year: int) -> str:
     return f"{CVM_BASE_URL}/{ZIP_NAME_TPL.format(year=year)}"
 
 
-def _csv_name_inside_zip(statement_key: str, year: int) -> str:
+def _csv_name_inside_zip(statement_key: str, year: int, modality: str = _MODALITY) -> str:
     suffix = _STATEMENT_FILE_MAP[statement_key]
-    return f"dfp_cia_aberta_{suffix}_{year}.csv"
+    return f"dfp_cia_aberta_{suffix}_{modality}_{year}.csv"
 
 
 # ---------------------------------------------------------------------------
@@ -255,14 +259,14 @@ class CVMDataFetcher:
     # Statement loader
     # ------------------------------------------------------------------
 
-    def _load_statement(self, year: int, statement_key: str) -> pd.DataFrame:
+    def _load_statement(self, year: int, statement_key: str, modality: str = _MODALITY) -> pd.DataFrame:
         """Load one statement CSV from the ZIP, with in-memory caching."""
-        cache_key = (year, statement_key)
+        cache_key = (year, statement_key, modality)
         if cache_key in self._df_cache:
             return self._df_cache[cache_key]
 
         zip_path = self._download_zip(year)
-        csv_name = _csv_name_inside_zip(statement_key, year)
+        csv_name = _csv_name_inside_zip(statement_key, year, modality)
 
         try:
             with zipfile.ZipFile(zip_path, "r") as zf:
@@ -454,10 +458,33 @@ class CVMDataFetcher:
     ) -> FinancialData:
         """Load all statements and assemble one FinancialData for `year`."""
         # Cache loaded statement DataFrames for this call
-        stmt_dfs: Dict[str, pd.DataFrame] = {}
-        for stmt_key in _STATEMENT_FILE_MAP:
-            df = self._load_statement(year, stmt_key)
-            stmt_dfs[stmt_key] = self._filter_company(df, keyword, query_type, year)
+        def carregar(modality: str) -> Dict[str, pd.DataFrame]:
+            return {k: self._filter_company(self._load_statement(year, k, modality), keyword, query_type, year)
+                    for k in _STATEMENT_FILE_MAP}
+
+        def tem_valores(dfs: Dict[str, pd.DataFrame]) -> bool:
+            bpa = dfs.get("BPA", pd.DataFrame())
+            if bpa.empty:
+                return False
+            ativo = bpa.loc[bpa["CD_CONTA"] == "1", "VL_CONTA"].dropna()
+            return bool((ativo != 0).any())
+
+        erro_con: Optional[Exception] = None
+        try:
+            stmt_dfs = carregar(_MODALITY)
+        except ValueError as exc:  # company absent from the consolidated file
+            erro_con, stmt_dfs = exc, None
+        if stmt_dfs is None or not tem_valores(stmt_dfs):
+            try:
+                ind = carregar(_FALLBACK_MODALITY)
+            except (ValueError, FileNotFoundError):
+                ind = None
+            if ind is not None and tem_valores(ind):
+                logger.warning("Year %d — consolidated statements empty for '%s'; using individual statements.",
+                               year, keyword)
+                stmt_dfs = ind
+            elif stmt_dfs is None:
+                raise erro_con
 
         resolved: Dict[str, float] = {}
         for spec in ACCOUNT_SPECS:

@@ -342,6 +342,42 @@ class TestCVMDataFetcherMocked:
         value = fetcher._resolve_account(filtered, spec)
         assert math.isnan(value)
 
+    def _zip_con_e_ind(self, year, con_accounts, ind_accounts):
+        csv = lambda acc: _make_csv_bytes(_make_rows("PETROBRAS", year, acc))
+        files = {}
+        for st in ("BPA", "BPP", "DRE", "DFC_MI"):
+            if con_accounts is not None:
+                files[f"dfp_cia_aberta_{st}_con_{year}.csv"] = csv(con_accounts)
+            files[f"dfp_cia_aberta_{st}_ind_{year}.csv"] = csv(ind_accounts)
+        if con_accounts is None:  # the zip always has the consolidated file, with other companies
+            vazio = _make_csv_bytes([])
+            for st in ("BPA", "BPP", "DRE", "DFC_MI"):
+                files[f"dfp_cia_aberta_{st}_con_{year}.csv"] = vazio
+        return _make_fake_zip(files)
+
+    def test_consolidated_with_zeros_uses_individual(self, tmp_path):
+        """TIM S.A.: consolidated DFP published with every account at zero."""
+        fetcher = self._make_fetcher(tmp_path)
+        zeros = {k: 0.0 for k in _ACCOUNTS_T}
+        self._patch_download(fetcher, 2023, self._zip_con_e_ind(2023, zeros, _ACCOUNTS_T))
+        fd = fetcher._build_financial_data("PETROBRAS", "ticker", 2023)
+        assert fd.total_assets == pytest.approx(900_000.0)
+        assert fd.net_income == pytest.approx(120_000.0)
+
+    def test_missing_consolidated_uses_individual(self, tmp_path):
+        """Company without subsidiaries: absent from the consolidated file."""
+        fetcher = self._make_fetcher(tmp_path)
+        self._patch_download(fetcher, 2023, self._zip_con_e_ind(2023, None, _ACCOUNTS_T))
+        fd = fetcher._build_financial_data("PETROBRAS", "ticker", 2023)
+        assert fd.total_assets == pytest.approx(900_000.0)
+
+    def test_consolidated_preferred_when_it_has_values(self, tmp_path):
+        fetcher = self._make_fetcher(tmp_path)
+        ind = dict(_ACCOUNTS_T, **{"1": 500_000.0})
+        self._patch_download(fetcher, 2023, self._zip_con_e_ind(2023, _ACCOUNTS_T, ind))
+        fd = fetcher._build_financial_data("PETROBRAS", "ticker", 2023)
+        assert fd.total_assets == pytest.approx(900_000.0)
+
     def test_build_financial_data_returns_financial_data(self, tmp_path):
         fetcher = self._make_fetcher(tmp_path)
         for yr, accs in [(2023, _ACCOUNTS_T), (2022, _ACCOUNTS_T1)]:
