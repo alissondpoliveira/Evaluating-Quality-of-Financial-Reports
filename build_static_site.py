@@ -52,12 +52,17 @@ class _AvisosDoColetor(logging.Handler):
         super().__init__(logging.WARNING)
         self.atual: dict[int, str] = {}
         self.avisos: dict[str, dict] = {}
+        self.individuais: dict[str, list] = {}  # dado válido, não é aviso: empresa sem controladas
 
     def emit(self, record):
         cnpj = self.atual.get(record.thread)
         if not cnpj:
             return
         msg = record.getMessage()
+        m = re.search(r"Year (\d{4}) .*using individual statements", msg)
+        if m:
+            self.individuais.setdefault(cnpj, []).append(int(m.group(1)))
+            return
         a = self.avisos.setdefault(cnpj, {"exercicio_substituido": [], "contas_ausentes": {}, "indices_neutralizados": []})
         m = re.search(r"Falling back to fiscal year (\d{4})", msg)
         if m:
@@ -107,6 +112,8 @@ def _empresa(cnpj, denom, setor, ano, fetcher, scorer) -> dict:
         base["erro"] = str(exc)[:200]
     finally:
         _avisos.atual.pop(threading.get_ident(), None)
+    if _avisos.individuais.get(cnpj):
+        base["individual"] = sorted(set(_avisos.individuais[cnpj]))
     av = dict(_avisos.avisos.get(cnpj) or {})
     # Sinal de exibição, sem efeito no cálculo: índice fora de uma faixa larga costuma ser
     # conta mapeada errado ou ano atípico (ex.: recebíveis quase zerados num dos anos).

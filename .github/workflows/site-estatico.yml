@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: "3.11"
       - name: Dependências do cálculo
-        run: pip install "pandas>=2.2,<3" numpy requests
+        run: pip install "pandas>=2.2,<3" numpy requests pypdf
       - name: Calcular o M-Score
         run: python build_static_site.py --workers 2
       - name: Eventos nos documentos (JEV)
