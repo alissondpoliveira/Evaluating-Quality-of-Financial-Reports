@@ -23,6 +23,8 @@ jobs:
         run: pip install "pandas>=2.2,<3" numpy requests pypdf
       - name: Calcular o M-Score
         run: python build_static_site.py --workers 2
+      - name: Instituições financeiras (IF.data do Banco Central)
+        run: python build_bancos.py
       - name: Eventos nos documentos (JEV)
         # sem o segredo, o script não chama a API e mantém o que já está no cache
         env:

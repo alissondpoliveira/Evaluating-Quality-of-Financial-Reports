@@ -108,7 +108,7 @@ HTML = """<!doctype html>
 <body>
 <header class="barra"><div class="barra-in">
 <a class="marca" href="#"><b>M-Score de Beneish</b><span id="topoData">carregando…</span></a>
-<nav class="nav" aria-label="Seções"><a href="#empresas">Empresas</a><a href="#metodo">Método</a><a href="https://www.alissonprata.io/">Alisson Prata</a>
+<nav class="nav" aria-label="Seções"><a href="#empresas">Empresas</a><a href="/bancos/">Bancos</a><a href="#metodo">Método</a><a href="https://www.alissonprata.io/">Alisson Prata</a>
 <button id="tema" class="icone" aria-label="Alternar tema claro ou escuro">◐</button></nav>
 </div></header>
 <main>
@@ -404,9 +404,226 @@ function iniciar(D, EV){
 """
 
 
+HTML_BANCOS = """<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Qualidade dos Lucros de Bancos</title>
+<meta name="description" content="Projeto educacional: triagem da qualidade dos lucros das instituições financeiras com os dados do IF.data do Banco Central.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
+<style>__CSS__</style>
+<script>try{var t=localStorage.getItem('tema');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
+</head>
+<body>
+<header class="barra"><div class="barra-in">
+<a class="marca" href="/"><b>M-Score de Beneish</b><span id="topoData">carregando…</span></a>
+<nav class="nav" aria-label="Seções"><a href="/#empresas">Empresas</a><a href="#instituicoes" aria-current="page"><b>Bancos</b></a><a href="#metodo">Método</a><a href="https://www.alissonprata.io/">Alisson Prata</a>
+<button id="tema" class="icone" aria-label="Alternar tema claro ou escuro">◐</button></nav>
+</div></header>
+<main>
+<div class="kicker">Qualidade dos lucros · instituições financeiras</div>
+<h1>Bancos e instituições financeiras</h1>
+<p class="dek">O M-Score de Beneish não serve para bancos: não há estoque nem margem bruta, e o lançamento que mais mexe no lucro de um banco é a provisão para perdas de crédito. Esta aba faz a triagem equivalente para todas as instituições do IF.data do Banco Central, com sete sinais que comparam o período com o mesmo período do ano anterior. <span id="dekAnos"></span></p>
+<div class="educ" role="note"><span aria-hidden="true">⚠</span><span>Projeto educacional e pessoal, sem fim comercial. É uma triagem: um sinal aceso aponta onde olhar, não indica fraude nem risco de quebra. Os dados são os que as instituições informam ao Banco Central e podem conter erros. Nada aqui é recomendação de investimento.</span></div>
+
+<div class="tiles" id="tiles"></div>
+
+<section id="instituicoes">
+<h2>Instituições</h2>
+<p class="muted pequeno">Clique numa linha para ver os sete índices, o retrato de capital, crédito e rentabilidade nos dois períodos e os números de base. Conglomerados aparecem pelo consolidado prudencial; as demais, individualmente. Por padrão a tabela mostra só as instituições com carteira de crédito nos dois períodos (as avaliadas).</p>
+<div class="painel">
+<div class="filtros">
+<input id="fBusca" type="search" placeholder="Buscar instituição" aria-label="Buscar instituição">
+<select id="fTipo" aria-label="Tipo de instituição"><option value="">Todos os tipos</option></select>
+<select id="fSeg" aria-label="Segmento"><option value="">Todos os segmentos</option><option>S1</option><option>S2</option><option>S3</option><option>S4</option><option>S5</option></select>
+<select id="fAlerta" aria-label="Nível de alerta"><option value="">Todos os alertas</option><option>Crítico</option><option>Alto Risco</option><option>Atenção</option><option>Normal</option></select>
+<label class="chk"><input type="checkbox" id="fAval" checked> só avaliadas</label>
+<span class="espaco"></span><span id="fInfo" class="pequeno fraco" aria-live="polite"></span><button id="fLimpar" hidden>Limpar filtros</button>
+</div>
+<div class="tabela"><table id="tab"><thead><tr>
+<th class="t" data-k="nome">Instituição</th><th class="t" data-k="segmento">Seg. <button type="button" class="info" data-info="segmento">i</button></th>
+<th data-k="ativo">Ativo (R$ bi)</th><th class="t" data-k="alerta">Alerta <button type="button" class="info" data-info="alerta">i</button></th>
+<th data-k="nsin">Sinais</th><th data-k="basileia">Basileia <button type="button" class="info" data-info="basileia">i</button></th>
+<th data-k="problematicos">Problemáticos <button type="button" class="info" data-info="problematicos">i</button></th>
+<th data-k="cobertura">Cobertura <button type="button" class="info" data-info="cobertura">i</button></th>
+<th data-k="roe">ROE <button type="button" class="info" data-info="roe">i</button></th></tr></thead><tbody></tbody></table>
+<p id="vazio" class="vazio" hidden>Nenhuma instituição com esses filtros.</p></div>
+</div>
+<p class="pequeno fraco" id="semDados"></p>
+</section>
+
+<section id="metodo">
+<h2>Método e limites</h2>
+<ul class="metodo pequeno">
+<li><b>Dados.</b> IF.data do Banco Central: balanço, demonstração de resultado, carteira de crédito e capital dos Conglomerados Prudenciais e Instituições Independentes, na última data-base publicada e na mesma data-base do ano anterior. Desde janeiro de 2025 as instituições seguem a Resolução CMN 4.966 (perda esperada, no lugar da antiga provisão por nível de risco), então a comparação usa só datas-base sob a regra nova. Em junho e dezembro a demonstração de resultado acumula o semestre; em março e setembro, o trimestre. Taxas de fluxo (ROE, custo do risco) aparecem anualizadas.</li>
+<li><b>Por que não o M-Score.</b> Os oito índices de Beneish usam receita de vendas, margem bruta, recebíveis, imobilizado e depreciação, que não descrevem um banco. O próprio M-Score foi estimado sem instituições financeiras.</li>
+<li><b>De onde vêm os sinais.</b> A leitura de instituições financeiras do currículo do CFA (Level II, análise de demonstrações financeiras) organiza a análise pelo CAMELS (capital, qualidade dos ativos, gestão, resultados, liquidez e sensibilidade a mercado) e aponta como riscos à qualidade dos lucros de um banco a estimativa de perda de crédito, os ganhos de valor justo e outros resultados não recorrentes e o crescimento acelerado da carteira. Os sete sinais traduzem isso em índices de um período contra o anterior, no formato dos índices de Beneish.</li>
+<li><b>Pontuação.</b> Não há coeficientes: Beneish estimou os dele com uma amostra de empresas que manipularam resultados, e não existe amostra equivalente de bancos brasileiros. O nível de alerta é a contagem de sinais acesos: nenhum, Normal; um, Atenção; dois, Alto Risco; três ou mais, Crítico. As réguas de cada sinal são escolhas do projeto, calibradas para não acender em metade do sistema; não são valores da literatura.</li>
+<li><b>O que a triagem não mede.</b> Mudança de estratégia, aquisições, venda de carteira, operações estruturadas, cooperativas que repassam recursos à central e o contexto de cada instituição. Instituições sem carteira de crédito (corretoras, distribuidoras, muitas instituições de pagamento) aparecem com o retrato, sem avaliação.</li>
+<li><b>Referências.</b> CFA Institute, Level II, Financial Statement Analysis: Analysis of Financial Institutions. Beaver e Engel (1996) e Ahmed, Takeda e Thomas (1999) sobre provisão para perdas de crédito como instrumento de gerenciamento de resultados.</li>
+</ul>
+<h3>Glossário</h3>
+<dl id="glossario" class="glossario"></dl>
+</section>
+
+<footer><p id="rodape"></p>Fonte: Banco Central do Brasil, IF.data. Projeto educacional de <a href="https://www.alissonprata.io/">Alisson Prata</a>; código em <a href="https://github.com/alissondpoliveira/Evaluating-Quality-of-Financial-Reports">GitHub</a>. Não constitui recomendação de investimento.</footer>
+</main>
+<div id="fundo" class="fundo"></div>
+<aside id="gaveta" class="gaveta" role="dialog" aria-labelledby="gTitulo" hidden>
+<div class="gav-topo"><div id="gCab" style="flex:1;min-width:0"></div><button id="gFechar" class="icone" aria-label="Fechar a ficha">✕</button></div>
+<div id="gCorpo" class="gav-corpo"></div>
+</aside>
+<script>__JS__</script>
+</body>
+</html>
+"""
+
+JS_BANCOS = r"""
+const fmt = (v, c=2) => v==null||isNaN(v) ? '–' : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:c,maximumFractionDigits:c}).replace('-', '−');
+const pct = (v, c=1) => v==null||isNaN(v) ? '–' : fmt(100*v, c)+'%';
+const esc = t => String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+const semA = t => String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const COR_ALERTA = {'Crítico':'var(--pos-2)','Alto Risco':'var(--pos-1)','Atenção':'var(--aviso)','Normal':'var(--neu)'};
+const ORDEM_ALERTA = {'Crítico':3,'Alto Risco':2,'Atenção':1,'Normal':0};
+const SINAIS = ['ipr','ico','iap','icc','vrn','ica','bas'];
+const NOMES = {ipr:'Provisão', ico:'Cobertura', iap:'Ativos problemáticos', icc:'Crescimento da carteira', vrn:'Resultado não recorrente', ica:'Capital', bas:'Basileia abaixo do mínimo'};
+const SINAL = {ipr:'provisão caiu sem queda do risco', ico:'cobertura dos problemáticos caiu', iap:'ativos problemáticos subiram', icc:'carteira cresceu rápido', vrn:'lucro mais dependente de resultado não recorrente', ica:'capital caindo perto do mínimo', bas:'Basileia abaixo de 10,5%'};
+const GLOSS = {
+  alerta:{t:'Nível de alerta', d:'Contagem dos sete sinais acesos.', l:'Nenhum: Normal. Um: Atenção. Dois: Alto Risco. Três ou mais: Crítico. É triagem: aponta onde olhar, não conclui.'},
+  segmento:{t:'Segmento (Resolução 4.553)', d:'Classificação prudencial do Banco Central pelo porte e pela atividade internacional.', l:'S1: bancos com ativo acima de 10% do PIB ou atividade internacional relevante. S2 a S4: porte decrescente. S5: instituições pequenas com regulação simplificada (muitas cooperativas).'},
+  basileia:{t:'Índice de Basileia', d:'Patrimônio de referência dividido pelos ativos ponderados pelo risco (RWA).', fx:'Basileia = PR / RWA', l:'O mínimo regulatório é 8%, mais 2,5% de adicional de conservação: abaixo de 10,5% a instituição tem restrições. Quanto maior, mais colchão para absorver perdas.'},
+  problematicos:{t:'Ativos problemáticos', d:'Operações em atraso relevante ou com indício de que não serão pagas (estágio 3 da Resolução 4.966), sobre a carteira de crédito.', l:'Mede a qualidade da carteira. Sobe primeiro no ciclo de crédito, antes da inadimplência formal.'},
+  cobertura:{t:'Cobertura', d:'Estoque de perda esperada (a provisão acumulada no balanço) dividido pelos ativos problemáticos.', fx:'Cobertura = estoque de perda esperada / ativos problemáticos', l:'Acima de 1, a provisão acumulada cobre os problemáticos. Cobertura caindo com problemáticos subindo é o sinal clássico de provisão insuficiente.'},
+  roe:{t:'ROE anualizado', d:'Lucro líquido do período, anualizado, sobre o patrimônio líquido.', l:'Rentabilidade alta não é sinal de problema por si; a pergunta da triagem é se ela vem de provisão menor ou de resultado não recorrente.'},
+  custo:{t:'Custo do risco', d:'Despesa de perda esperada de crédito do período, anualizada, sobre a carteira.', l:'Quanto do crédito a instituição espera perder por ano. Varia muito com o tipo de carteira: cartão e crédito pessoal têm custo bem maior que crédito imobiliário.'},
+  ipr:{t:'IPR: índice de provisão', d:'Taxa de provisão (despesa de perda esperada sobre a carteira) do ano anterior dividida pela deste ano.', fx:'IPR = (Prov/Carteira)_{t−1} ÷ (Prov/Carteira)_t', l:'Acima de 1,25 com ativos problemáticos sem melhora acende o sinal: a provisão caiu sem que o risco caísse, e o lucro ficou maior por causa da estimativa. Reversão de provisão nessas condições também acende. É o análogo bancário do accrual.'},
+  ico:{t:'ICO: índice de cobertura', d:'Cobertura do ano anterior dividida pela deste ano.', fx:'ICO = Cobertura_{t−1} ÷ Cobertura_t', l:'Acima de 1,25 acende: o estoque de provisão passou a cobrir bem menos os ativos problemáticos.'},
+  iap:{t:'IAP: índice de ativos problemáticos', d:'Peso dos ativos problemáticos na carteira neste ano contra o anterior.', fx:'IAP = (Probl/Carteira)_t ÷ (Probl/Carteira)_{t−1}', l:'Acima de 1,30, com problemáticos de pelo menos 3% da carteira, acende. A régua é alta porque o sistema todo piorou no período (mediana de 1,17).'},
+  icc:{t:'ICC: índice de crescimento da carteira', d:'Carteira de crédito deste ano dividida pela do ano anterior.', fx:'ICC = Carteira_t ÷ Carteira_{t−1}', l:'Acima de 1,30 acende. Crescimento não é problema, mas carteira nova ainda não atrasou: dilui os problemáticos e antecipa receita de juros antes das perdas. É o análogo do SGI de Beneish.'},
+  vrn:{t:'VRN: variação do resultado não recorrente', d:'Diferença entre o peso do resultado não recorrente na receita deste ano e o do ano anterior. Não recorrente: câmbio, valor justo e outros resultados de títulos, derivativos, participações e outras receitas e despesas.', fx:'VRN = (NR/Receita)_t − (NR/Receita)_{t−1}', l:'Acima de 0,15 acende: o lucro passou a depender mais de itens voláteis. Em bancos com hedge de investimento no exterior, parte desse resultado é compensada no imposto; leia a demonstração antes de concluir.'},
+  ica:{t:'ICA: índice de capital', d:'Basileia do ano anterior dividida pela deste ano.', fx:'ICA = Basileia_{t−1} ÷ Basileia_t', l:'Acima de 1,15, com Basileia abaixo de 15%, acende: capital caindo perto do mínimo aumenta a pressão para mostrar resultado. É o análogo do LVGI.'},
+  bas:{t:'BAS: Basileia abaixo de 10,5%', d:'Índice de Basileia abaixo do mínimo de 8% mais o adicional de conservação de 2,5%.', l:'Sinal de nível, não de variação: a instituição está abaixo do que a regulação exige sem restrições.'},
+};
+const infoBtn = k => '<button type="button" class="info" data-info="'+k+'" aria-label="O que é: '+GLOSS[k].t+'">i</button>';
+const corpoG = g => '<p>'+g.d+'</p>'+(g.fx?'<span class="formula">'+esc(g.fx)+'</span>':'')+(g.l?'<p><span class="fraco">Como ler:</span> '+g.l+'</p>':'');
+document.getElementById('glossario').innerHTML = Object.values(GLOSS).map(g => '<div><dt>'+g.t+'</dt><dd>'+g.d+(g.fx?'<span class="formula">'+esc(g.fx)+'</span>':'')+(g.l?'<span class="fraco">Como ler: '+g.l+'</span>':'')+'</dd></div>').join('');
+(function(){
+  const pop = document.createElement('div'); pop.className = 'info-pop'; pop.setAttribute('role','tooltip'); document.body.appendChild(pop);
+  let fixo = null;
+  function abrir(b){ const g = GLOSS[b.dataset.info]; if (!g) return; pop.innerHTML = '<b>'+g.t+'</b>'+corpoG(g);
+    pop.style.display = 'block'; const r = b.getBoundingClientRect(), w = Math.min(360, innerWidth-16); pop.style.width = w+'px';
+    pop.style.left = Math.max(8, Math.min(r.left + r.width/2 - w/2, innerWidth - w - 8))+'px';
+    const h = pop.offsetHeight; pop.style.top = (r.bottom+8+h <= innerHeight-8 ? r.bottom+8 : Math.max(8, r.top-8-h))+'px'; }
+  const fechar = () => { pop.style.display = 'none'; fixo = null; };
+  document.addEventListener('mouseover', e => { const b = e.target.closest('.info'); if (b && !fixo) abrir(b); });
+  document.addEventListener('mouseout', e => { const b = e.target.closest('.info'); if (b && !fixo && !b.contains(e.relatedTarget)) fechar(); });
+  document.addEventListener('click', e => { const b = e.target.closest('.info'); if (b) { e.preventDefault(); e.stopPropagation(); if (fixo===b) fechar(); else { abrir(b); fixo = b; } return; } if (fixo && !e.target.closest('.info-pop')) fechar(); }, true);
+  document.addEventListener('keydown', e => { if (e.key==='Escape' && pop.style.display==='block') { fechar(); e.stopPropagation(); } }, true);
+})();
+document.getElementById('tema').onclick = () => { const r = document.documentElement, escuro = r.dataset.theme ? r.dataset.theme==='dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  r.dataset.theme = escuro ? 'light' : 'dark'; try { localStorage.setItem('tema', r.dataset.theme); } catch(e) {} };
+
+fetch('/bancos.json', {cache:'no-cache'}).then(r => r.json()).then(iniciar).catch(() => { document.getElementById('topoData').textContent = 'falha ao carregar os dados; recarregue a página'; });
+
+function iniciar(D){
+  const MES = ['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const db = x => MES[x % 100]+'/'+Math.floor(x/100), per = D.meses===6 ? '1º semestre' : 'trimestre';
+  const T = db(D.data_base), T1 = db(D.anterior);
+  const I = D.instituicoes, ok = I.filter(x => x.avaliavel);
+  I.forEach(x => { const i = x.ind || {}; x.nsin = (x.sinais||[]).length; x.basileia = i.basileia; x.problematicos = i.problematicos; x.cobertura = i.cobertura; x.roe = i.roe; });
+  document.getElementById('topoData').textContent = 'bancos · '+T+' contra '+T1+' · atualizado '+D.gerado_em;
+  document.getElementById('dekAnos').textContent = 'Data-base de '+T+' contra '+T1+'.';
+  document.getElementById('rodape').textContent = 'Data-base de '+T+' contra '+T1+'. Dados gerados em '+D.gerado_em+' (horário de Brasília).';
+  const conta = a => ok.filter(x => x.alerta===a).length;
+  document.getElementById('tiles').innerHTML = [
+    ['Instituições avaliadas', ok.length, 'de '+I.length+' no IF.data'],
+    ['Alerta crítico', conta('Crítico'), 'três ou mais sinais'],
+    ['Alto risco', conta('Alto Risco'), 'dois sinais'],
+    ['Sinal mais comum', (() => { const c = {}; ok.forEach(x => x.sinais.forEach(s => c[s] = (c[s]||0)+1)); const k = Object.keys(c).sort((a,b) => c[b]-c[a])[0]; return k ? k.toUpperCase() : '–'; })(), 'entre as avaliadas'],
+    ['Basileia mediana', pct(d3m(ok.map(x => x.basileia))), 'mínimo regulatório: 10,5%'],
+  ].map(x => '<div class="tile"><span>'+x[0]+'</span><b>'+x[1]+'</b><small>'+x[2]+'</small></div>').join('');
+  document.getElementById('semDados').textContent = (I.length-ok.length)+' instituições sem avaliação: sem carteira de crédito nos dois períodos, sem dado na data-base anterior ou com patrimônio líquido não positivo.';
+  [...new Set(I.map(x => x.tipo))].sort().forEach(s => { const o = document.createElement('option'); o.value = o.textContent = s; document.getElementById('fTipo').appendChild(o); });
+
+  const corpo = document.querySelector('#tab tbody');
+  let ordem = {k:'ativo', asc:false};
+  function linhas(){
+    const q = semA(document.getElementById('fBusca').value).trim(), tp = document.getElementById('fTipo').value, sg = document.getElementById('fSeg').value, al = document.getElementById('fAlerta').value, av = document.getElementById('fAval').checked;
+    let r = I.filter(x => (!q || semA(x.nome).includes(q)) && (!tp || x.tipo===tp) && (!sg || x.segmento===sg) && (!al || x.alerta===al) && (!av || x.avaliavel));
+    const v = x => ordem.k==='alerta' ? (x.avaliavel ? ORDEM_ALERTA[x.alerta] : null) : x[ordem.k];
+    r.sort((a,b) => { const x = v(a), y = v(b); return (x==null) - (y==null) || (x>y?1:x<y?-1:0)*(ordem.asc?1:-1); });
+    document.getElementById('fLimpar').hidden = !(q || tp || sg || al || !av);
+    document.getElementById('fInfo').textContent = r.length+' instituições';
+    document.getElementById('vazio').hidden = r.length > 0;
+    return r;
+  }
+  function filtrar(){
+    corpo.innerHTML = linhas().slice(0, 600).map(x => '<tr data-cod="'+x.codigo+'" tabindex="0"><td class="t"><span class="nome" title="'+esc(x.nome)+'">'+esc(x.nome)+'</span></td><td class="t">'+esc(x.segmento)+'</td><td>'+fmt((x.ativo||0)/1e9, 1)+'</td>'
+      +'<td class="t">'+(x.avaliavel ? '<span class="badge"><i style="background:'+COR_ALERTA[x.alerta]+'"></i>'+x.alerta+'</span>' : '<span class="fraco">sem avaliação</span>')+'</td>'
+      +'<td class="t" style="text-align:right" title="'+esc((x.sinais||[]).map(s => NOMES[s]).join(', '))+'">'+(x.avaliavel ? (x.nsin ? x.sinais.map(s => s.toUpperCase()).join(' · ') : '<span class="fraco">nenhum</span>') : '–')+'</td>'
+      +'<td>'+pct(x.basileia)+'</td><td>'+pct(x.problematicos)+'</td><td>'+fmt(x.cobertura, 2)+'</td><td>'+pct(x.roe)+'</td></tr>').join('');
+  }
+  ['fBusca','fTipo','fSeg','fAlerta','fAval'].forEach(id => document.getElementById(id).addEventListener(id==='fBusca'?'input':'change', filtrar));
+  document.getElementById('fLimpar').onclick = () => { ['fBusca','fTipo','fSeg','fAlerta'].forEach(id => document.getElementById(id).value=''); document.getElementById('fAval').checked = true; filtrar(); };
+  document.querySelectorAll('#tab th[data-k]').forEach(th => th.addEventListener('click', e => { if (e.target.closest('.info')) return; ordem = {k:th.dataset.k, asc: ordem.k===th.dataset.k ? !ordem.asc : th.classList.contains('t')}; filtrar(); }));
+  corpo.addEventListener('click', e => { const tr = e.target.closest('tr[data-cod]'); if (tr) abrirFicha(tr.dataset.cod); });
+  corpo.addEventListener('keydown', e => { const tr = e.target.closest('tr[data-cod]'); if (tr && e.key==='Enter') abrirFicha(tr.dataset.cod); });
+  filtrar();
+
+  const gav = document.getElementById('gaveta'), porCod = new Map(I.map(x => [x.codigo, x]));
+  const tabela = (cab, corpoHtml) => '<div class="tabela" style="max-height:none;border:1px solid var(--line);border-radius:8px"><table><thead><tr>'+cab.map((c, i) => '<th'+(i?'':' class="t"')+'>'+c+'</th>').join('')+'</tr></thead><tbody>'+corpoHtml+'</tbody></table></div>';
+  let empilhou = false;
+  function abrirFicha(cod, daUrl){
+    const x = porCod.get(cod); if (!x) return;
+    const u = new URL(location.href); u.searchParams.set('inst', cod);
+    if (daUrl || document.body.classList.contains('aberta')) history.replaceState(history.state, '', u); else { history.pushState({ficha:1}, '', u); empilhou = true; }
+    document.getElementById('gCab').innerHTML = '<div class="kicker">'+esc(x.tipo)+' · '+esc(x.segmento)+' · '+esc(x.consolidacao)+'</div><h2 id="gTitulo">'+esc(x.nome)+'</h2><span class="fraco pequeno">'+esc(x.controle)+(x.uf?' · '+esc(x.uf):'')+' · '+T+' contra '+T1+' ('+per+')</span>';
+    const i = x.ind || {}, i1 = x.ind_t1 || {}, ix = x.indices || {}, R = D.reguas;
+    let h = '';
+    if (x.avaliavel) {
+      h += '<div class="grade"><div><small>Nível de alerta '+infoBtn('alerta')+'</small><b><span class="badge" style="font-size:1rem"><i style="background:'+COR_ALERTA[x.alerta]+';width:11px;height:11px"></i>'+x.alerta+'</span></b><em>'+x.nsin+' de 7 sinais</em></div>'
+        + '<div><small>Basileia '+infoBtn('basileia')+'</small><b>'+pct(i.basileia)+'</b><em>'+T1+': '+pct(i1.basileia)+'</em></div>'
+        + '<div><small>Ativos problemáticos '+infoBtn('problematicos')+'</small><b>'+pct(i.problematicos)+'</b><em>'+T1+': '+pct(i1.problematicos)+'</em></div>'
+        + '<div><small>ROE anualizado '+infoBtn('roe')+'</small><b>'+pct(i.roe)+'</b><em>'+T1+': '+pct(i1.roe)+'</em></div></div>';
+      h += x.nsin ? '<h3>Sinais acesos</h3><ul class="pequeno" style="padding-left:1.1rem;margin:.2rem 0">'+x.sinais.map(s => '<li><b>'+s.toUpperCase()+'</b>'+(ix[s]!=null?' em '+fmt(ix[s], 2):'')+': '+SINAL[s]+'</li>').join('')+'</ul>' : '<p class="pequeno muted">Nenhum sinal aceso.</p>';
+      const regua = s => s==='bas' ? '< 10,5%' : s==='vrn' ? '> '+fmt(R[s],2) : '> '+fmt(R[s],2)+(s==='ipr'?' sem melhora do IAP':s==='iap'?' e ≥ 3%':s==='ica'?' e Basileia < 15%':'');
+      h += '<h3>Os sete sinais</h3>'+tabela(['Índice','Valor','Régua','Aceso'], SINAIS.map(s => '<tr><td class="t"><b>'+s.toUpperCase()+'</b> '+infoBtn(s)+'<br><span class="fraco">'+NOMES[s]+'</span></td><td>'+(s==='bas' ? pct(i.basileia) : fmt(ix[s], 2))+'</td><td>'+regua(s)+'</td><td>'+((x.sinais||[]).includes(s) ? '<span class="av">▲ sim</span>' : '<span class="fraco">não</span>')+'</td></tr>').join(''));
+    } else {
+      h += '<div class="avisos"><b>Sem avaliação.</b> '+esc(x.motivo||'')+'.</div>';
+    }
+    if (x.ind) {
+      const L = [['Basileia','basileia',pct,'basileia'],['Capital principal','capital_principal',pct],['Razão de alavancagem','alavancagem',pct],['Ativos problemáticos','problematicos',pct,'problematicos'],['Inadimplência','inadimplencia',pct],['Cobertura','cobertura',v => fmt(v,2),'cobertura'],['Custo do risco (anual)','custo_risco',pct,'custo'],['ROE (anual)','roe',pct,'roe'],['ROA (anual)','roa',v => pct(v,2)],['Crédito / depósitos','credito_depositos',v => fmt(v,2)],['Liquidez (caixa, aplicações e títulos / ativo)','liquidez',pct],['Não recorrente / receita','nao_recorrente',pct,'vrn']];
+      h += '<h3>Retrato nos dois períodos</h3>'+tabela(['Indicador', T, T1], L.map(([n, k, f, g]) => '<tr><td class="t">'+n+(g?' '+infoBtn(g):'')+'</td><td>'+f(i[k])+'</td><td>'+f(i1[k])+'</td></tr>').join(''));
+    }
+    if (x.fin) {
+      const C = [['ativo_total','Ativo total'],['patrimonio_liquido','Patrimônio líquido'],['depositos','Depósitos'],['credito_bruto','Operações de crédito (bruto)'],['pagamentos_pos_bruto','Cartão pós-pago (bruto)'],['carteira_total','Carteira de crédito ativa'],['ativos_problematicos','Ativos problemáticos'],['inadimplencia','Inadimplência'],['perda_esperada_credito','Despesa de perda esperada de crédito'],['resultado_intermediacao','Resultado de intermediação financeira'],['resultado_antes_ir','Resultado antes de impostos'],['lucro_liquido','Lucro líquido']];
+      h += '<h3>Números de base</h3><p class="pequeno fraco" style="margin-top:0">R$ milhões. Resultado acumulado no '+per+'.</p>'
+        + tabela(['Conta', T, T1, 'Variação'], C.map(([k, n]) => { const a = x.fin.t[k], b = x.fin.t1[k], vr = b ? (a/b-1)*100 : null; return '<tr><td class="t">'+n+'</td><td>'+fmt(a==null?null:a/1e6,0)+'</td><td>'+fmt(b==null?null:b/1e6,0)+'</td><td>'+(vr==null||!isFinite(vr)||Math.sign(a)!==Math.sign(b)?'–':(vr>0?'+':'')+fmt(vr,1)+'%')+'</td></tr>'; }).join(''));
+    }
+    document.getElementById('gCorpo').innerHTML = h;
+    gav.hidden = false; requestAnimationFrame(() => document.body.classList.add('aberta')); document.getElementById('gFechar').focus({preventScroll:true});
+  }
+  function fecharFicha(viaHistorico){
+    if (!document.body.classList.contains('aberta')) return;
+    if (!viaHistorico && empilhou && history.state && history.state.ficha) { empilhou = false; history.back(); return; }
+    document.body.classList.remove('aberta'); setTimeout(() => { if (!document.body.classList.contains('aberta')) gav.hidden = true; }, 280);
+    const u = new URL(location.href); if (u.searchParams.has('inst')) { u.searchParams.delete('inst'); history.replaceState(null, '', u); }
+  }
+  document.getElementById('gFechar').onclick = () => fecharFicha(); document.getElementById('fundo').onclick = () => fecharFicha();
+  document.addEventListener('keydown', ev => { if (ev.key==='Escape') fecharFicha(); });
+  addEventListener('popstate', () => { const c = new URLSearchParams(location.search).get('inst'); c ? abrirFicha(c, true) : fecharFicha(true); });
+  const inicial = new URLSearchParams(location.search).get('inst'); if (inicial) abrirFicha(inicial, true);
+}
+function d3m(v){ const s = v.filter(x => x!=null).sort((a,b) => a-b); return s.length ? (s.length%2 ? s[(s.length-1)/2] : (s[s.length/2-1]+s[s.length/2])/2) : null; }
+"""
+
+
 def main() -> None:
     PUBLICO.mkdir(parents=True, exist_ok=True)
     (PUBLICO / "index.html").write_text(HTML.replace("__CSS__", CSS).replace("__JS__", JS), encoding="utf-8")
+    (PUBLICO / "bancos").mkdir(exist_ok=True)
+    (PUBLICO / "bancos" / "index.html").write_text(HTML_BANCOS.replace("__CSS__", CSS).replace("__JS__", JS_BANCOS), encoding="utf-8")
     cabecalhos = [{"key": "Content-Security-Policy", "value": CSP},
                   {"key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains"},
                   {"key": "X-Content-Type-Options", "value": "nosniff"}, {"key": "X-Frame-Options", "value": "DENY"},
