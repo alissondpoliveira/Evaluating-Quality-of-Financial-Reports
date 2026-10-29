@@ -29,20 +29,27 @@ como os do M-Score (índice > 1 aponta na direção do sinal):
     ICA  Índice de capital         Basileia_t-1 ÷ Basileia_t
                                     > 1,15 com Basileia abaixo de 15%: capital caindo e já perto
                                     do mínimo, mais pressão sobre o resultado
-    BAS  Basileia abaixo de 10,5%  mínimo regulatório de 8% mais o adicional de conservação
+    BPM  Basileia perto do mínimo  entre 10,5% e 13%: na validação histórica, o previsor mais forte
+                                    de estresse em 24 meses (12% a 15% de taxa, contra 0,8% acima de 15%)
+    BAS  Capital abaixo do mínimo  Basileia abaixo de 10,5% (mínimo de 8% mais o adicional de
+                                    conservação) ou patrimônio líquido não positivo
 
 Os sinais formam dois eixos, como o M-Score e o accrual ratio no site das empresas:
     lucro    IPR, ICO, VRN, ICC   o lucro pode estar maior do que deveria
-    solidez  IAP, ICA, BAS        piora transparente do risco de crédito ou do capital
+    solidez  IAP, ICA, BPM, BAS   piora transparente do risco de crédito ou do capital
 ICO aceso junto com IAP conta como o mesmo evento de solidez: com os problemáticos subindo,
 a cobertura cai quase por construção.
 
 Nível de alerta:
-    Crítico     sinal nos dois eixos (lucro possivelmente inflado enquanto o risco sobe)
-                ou Basileia abaixo do mínimo
-    Alto Risco  dois ou mais sinais de lucro
-    Atenção     um ou mais sinais num eixo só
-    Normal      nenhum sinal
+    Crítico           sinal nos dois eixos (lucro possivelmente inflado enquanto o risco sobe)
+                      ou capital abaixo do mínimo
+    Lucro a conferir  dois ou mais sinais de lucro: na validação, antecipam queda do lucro, não
+                      estresse de capital
+    Atenção           um ou mais sinais num eixo só
+    Normal            nenhum sinal
+
+Validação histórica (validacao_bancos.py): sinais de 2015 a 2024 contra estresse (capital abaixo do
+mínimo ou patrimônio negativo) nos 24 meses seguintes e contra a variação do lucro.
 
 Não há coeficientes estimados (Beneish estimou os dele com uma amostra de manipuladoras; não
 há amostra equivalente de bancos brasileiros), e as réguas são escolhas do projeto, não valores
@@ -52,16 +59,16 @@ demais nos índices.
 
 from __future__ import annotations
 
-REGUAS = {"ipr": 1.25, "ico": 1.25, "iap": 1.30, "icc": 1.30, "vrn": 0.15, "ica": 1.15, "bas": 0.105}
+REGUAS = {"ipr": 1.25, "ico": 1.25, "iap": 1.30, "icc": 1.30, "vrn": 0.15, "ica": 1.15, "bpm": 0.13, "bas": 0.105}
 _IAP_MINIMO = 0.03
 _ICA_BASILEIA = 0.15
 # VRN só acende se ao menos metade da virada do não recorrente chegou ao resultado antes do IR;
 # abaixo disso ela foi compensada em outra linha (hedge de moeda, captação), não inflou o lucro
 _VRN_REPASSE = 0.5
 _CARTEIRA_MINIMA = 10e6
-ALERTAS = ["Normal", "Atenção", "Alto Risco", "Crítico"]
+ALERTAS = ["Normal", "Atenção", "Lucro a conferir", "Crítico"]
 EIXO_LUCRO = ("ipr", "ico", "vrn", "icc")
-EIXO_SOLIDEZ = ("iap", "ica", "bas")
+EIXO_SOLIDEZ = ("iap", "ica", "bpm", "bas")
 
 
 def eixos(sinais: list[str]) -> dict[str, list[str]]:
@@ -75,7 +82,7 @@ def nivel(sinais: list[str]) -> str:
     if "bas" in sinais or (e["lucro"] and e["solidez"]):
         return "Crítico"
     if len(e["lucro"]) >= 2:
-        return "Alto Risco"
+        return "Lucro a conferir"
     return "Atenção" if sinais else "Normal"
 
 
@@ -153,9 +160,6 @@ def avaliar(t: dict, t1: dict, meses: int) -> dict:
     if g < _CARTEIRA_MINIMA:
         saida["motivo"] = "carteira de crédito abaixo de R$ 10 milhões (índices instáveis demais)"
         return saida
-    if not (t.get("patrimonio_liquido") or 0) > 0:
-        saida["motivo"] = "patrimônio líquido não positivo"
-        return saida
     saida["avaliavel"] = True
     ix = saida["indices"]
     taxa, taxa1 = _div(provisao(t), g), _div(provisao(t1), g1)
@@ -187,8 +191,10 @@ def avaliar(t: dict, t1: dict, meses: int) -> dict:
     zerou = bas is not None and bas <= 0 < (bas1 or 0)
     if ((ix["ica"] is not None and ix["ica"] > REGUAS["ica"]) or zerou) and (bas if bas is not None else 1) < _ICA_BASILEIA:
         saida["sinais"].append("ica")
-    if bas is not None and bas < REGUAS["bas"]:
+    if (bas is not None and bas < REGUAS["bas"]) or not (t.get("patrimonio_liquido") or 0) > 0:
         saida["sinais"].append("bas")
+    elif bas is not None and bas < REGUAS["bpm"]:
+        saida["sinais"].append("bpm")
     saida["eixos"] = eixos(saida["sinais"])
     saida["alerta"] = nivel(saida["sinais"])
     return saida

@@ -1,0 +1,271 @@
+{
+ "gerado_em": "29/10/2026",
+ "periodo": [
+  201506,
+  202406
+ ],
+ "observacoes": 15769,
+ "instituicoes": 1058,
+ "taxa_base": 0.01483924154987634,
+ "eventos": 234,
+ "niveis": {
+  "Normal": {
+   "n": 6333,
+   "eventos": 54,
+   "taxa": 0.008526764566556135,
+   "lift": 0.5746091899573662,
+   "droa_mediano": -0.000729919841230945,
+   "vira_prejuizo": 0.05682985279014036
+  },
+  "Atenção": {
+   "n": 7432,
+   "eventos": 114,
+   "taxa": 0.015339074273412271,
+   "lift": 1.0336831718693935,
+   "droa_mediano": -9.510398484755618e-05,
+   "vira_prejuizo": 0.06479481641468683
+  },
+  "Lucro a conferir": {
+   "n": 600,
+   "eventos": 5,
+   "taxa": 0.008333333333333333,
+   "lift": 0.561574074074074,
+   "droa_mediano": -0.0010771509123685304,
+   "vira_prejuizo": 0.06934306569343066
+  },
+  "Crítico": {
+   "n": 1404,
+   "eventos": 61,
+   "taxa": 0.04344729344729345,
+   "lift": 2.9278648306426085,
+   "droa_mediano": -3.2580492604090266e-05,
+   "vira_prejuizo": 0.12773403324584426
+  }
+ },
+ "sinais": {
+  "ipr": {
+   "n": 1365,
+   "eventos": 19,
+   "taxa": 0.01391941391941392,
+   "lift": 0.9380138380138381,
+   "droa_mediano": -0.0016523240773282481,
+   "vira_prejuizo": 0.07623682076236821
+  },
+  "ico": {
+   "n": 2419,
+   "eventos": 41,
+   "taxa": 0.01694915254237288,
+   "lift": 1.1421845574387948,
+   "droa_mediano": -1.3810869971642853e-05,
+   "vira_prejuizo": 0.07859209257473482
+  },
+  "vrn": {
+   "n": 178,
+   "eventos": 9,
+   "taxa": 0.05056179775280899,
+   "lift": 3.407303370786517,
+   "droa_mediano": -0.0025064212878777407,
+   "vira_prejuizo": 0.1118421052631579
+  },
+  "icc": {
+   "n": 4717,
+   "eventos": 82,
+   "taxa": 0.017383930464278143,
+   "lift": 1.1714837585094104,
+   "droa_mediano": -0.0004818590646972229,
+   "vira_prejuizo": 0.07181539910525077
+  },
+  "iap": {
+   "n": 3731,
+   "eventos": 67,
+   "taxa": 0.017957652103993568,
+   "lift": 1.2101462223413444,
+   "droa_mediano": 0.001158457451210812,
+   "vira_prejuizo": 0.0906028965981812
+  },
+  "ica": {
+   "n": 477,
+   "eventos": 52,
+   "taxa": 0.1090146750524109,
+   "lift": 7.346377824365246,
+   "droa_mediano": 0.0009971664184020793,
+   "vira_prejuizo": 0.16352201257861634
+  },
+  "bpm": {
+   "n": 495,
+   "eventos": 66,
+   "taxa": 0.13333333333333333,
+   "lift": 8.985185185185184,
+   "droa_mediano": 0.0006035125849160865,
+   "vira_prejuizo": 0.15454545454545454
+  }
+ },
+ "sem_sinal": {
+  "n": 6333,
+  "eventos": 54,
+  "taxa": 0.008526764566556135,
+  "lift": 0.5746091899573662,
+  "droa_mediano": -0.000729919841230945,
+  "vira_prejuizo": 0.05682985279014036
+ },
+ "basileia": [
+  {
+   "faixa": "10,5% a 13%",
+   "n": 495,
+   "eventos": 66,
+   "taxa": 0.13333333333333333,
+   "lift": 8.985185185185184,
+   "droa_mediano": 0.0006035125849160865,
+   "vira_prejuizo": 0.15454545454545454
+  },
+  {
+   "faixa": "13% a 15%",
+   "n": 1198,
+   "eventos": 54,
+   "taxa": 0.045075125208681135,
+   "lift": 3.0375626043405677,
+   "droa_mediano": 0.0002281371377080881,
+   "vira_prejuizo": 0.10372608257804633
+  },
+  {
+   "faixa": "15% ou mais",
+   "n": 14006,
+   "eventos": 110,
+   "taxa": 0.007853776952734542,
+   "lift": 0.5292573024259444,
+   "droa_mediano": -0.0005225018266628266,
+   "vira_prejuizo": 0.06133755441234666
+  }
+ ],
+ "regimes": [
+  {
+   "nome": "BANCO MASTER - PRUDENCIAL",
+   "inicio": "18/11/2025",
+   "tipo": "Liquidação Extrajudicial",
+   "202406": {
+    "alerta": "Crítico",
+    "sinais": [
+     "ico",
+     "iap",
+     "icc",
+     "bpm"
+    ],
+    "motivo": null
+   },
+   "202412": {
+    "alerta": "Crítico",
+    "sinais": [
+     "icc",
+     "bpm"
+    ],
+    "motivo": null
+   }
+  },
+  {
+   "nome": "REAG DTVM - PRUDENCIAL",
+   "inicio": "15/01/2026",
+   "tipo": "Liquidação Extrajudicial",
+   "202406": {
+    "alerta": null,
+    "sinais": [],
+    "motivo": "sem carteira de crédito nos dois períodos"
+   },
+   "202412": {
+    "alerta": null,
+    "sinais": [],
+    "motivo": "sem carteira de crédito nos dois períodos"
+   }
+  },
+  {
+   "nome": "ACQIO ADQUIRENCIA IP - PRUDENCIAL",
+   "inicio": "27/03/2026",
+   "tipo": "Liquidação Extrajudicial",
+   "202406": {
+    "alerta": null,
+    "sinais": [],
+    "motivo": "sem carteira de crédito nos dois períodos"
+   },
+   "202412": {
+    "alerta": null,
+    "sinais": [],
+    "motivo": "sem carteira de crédito nos dois períodos"
+   }
+  },
+  {
+   "nome": "COOPERATIVA DE CRÉDITO, POUPANÇA E SERVIÇOS FINANCEIROS",
+   "inicio": "16/04/2026",
+   "tipo": "Liquidação Extrajudicial",
+   "202406": {
+    "alerta": null,
+    "sinais": [],
+    "motivo": "carteira de crédito abaixo de R$ 10 milhões (índices instáveis demais)"
+   },
+   "202412": {
+    "alerta": "Crítico",
+    "sinais": [
+     "ipr",
+     "iap",
+     "icc"
+    ],
+    "motivo": null
+   }
+  },
+  {
+   "nome": "SIMPALA CFI - PRUDENCIAL",
+   "inicio": "14/08/2026",
+   "tipo": "Liquidação Extrajudicial",
+   "202406": {
+    "alerta": "Crítico",
+    "sinais": [
+     "ica",
+     "bas"
+    ],
+    "motivo": null
+   },
+   "202412": {
+    "alerta": "Crítico",
+    "sinais": [
+     "ica",
+     "bas"
+    ],
+    "motivo": null
+   }
+  },
+  {
+   "nome": "TRUSTEE/BANVOX - PRUDENCIAL",
+   "inicio": "03/09/2026",
+   "tipo": "Liquidação Extrajudicial",
+   "202406": {
+    "alerta": null,
+    "sinais": [],
+    "motivo": "sem carteira de crédito nos dois períodos"
+   },
+   "202412": {
+    "alerta": null,
+    "sinais": [],
+    "motivo": "sem carteira de crédito nos dois períodos"
+   }
+  },
+  {
+   "nome": "COOPERATIVA DE CRÉDITO MÚTUO DOS EMPREGADOS DO CENTRO UNIVERSITÁRIO NEWTON PAIVA LTDA. - CREDIPAIVA",
+   "inicio": "16/10/2026",
+   "tipo": "Liquidação Extrajudicial",
+   "202406": {
+    "alerta": null,
+    "sinais": [],
+    "motivo": "carteira de crédito abaixo de R$ 10 milhões (índices instáveis demais)"
+   },
+   "202412": {
+    "alerta": null,
+    "sinais": [],
+    "motivo": "carteira de crédito abaixo de R$ 10 milhões (índices instáveis demais)"
+   }
+  }
+ ],
+ "captura": {
+  "Normal": 0.23076923076923078,
+  "Atenção": 0.48717948717948717,
+  "Lucro a conferir": 0.021367521367521368,
+  "Crítico": 0.2606837606837607
+ }
+}

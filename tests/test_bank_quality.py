@@ -88,6 +88,14 @@ class TestAvaliar:
         r = avaliar(_periodo(basileia=-0.05), _periodo(basileia=0.18), meses=6)
         assert {"ica", "bas"} <= set(r["sinais"])
 
+    def test_basileia_perto_do_minimo(self):
+        r = avaliar(_periodo(basileia=0.12), _periodo(basileia=0.12), meses=6)
+        assert "bpm" in r["sinais"] and "bas" not in r["sinais"] and r["alerta"] == "Atenção"
+
+    def test_patrimonio_negativo_e_capital_abaixo_do_minimo(self):
+        r = avaliar(_periodo(patrimonio_liquido=-5.0, basileia=0.14), _periodo(), meses=6)
+        assert r["avaliavel"] and "bas" in r["sinais"] and r["alerta"] == "Crítico"
+
     def test_basileia_abaixo_do_minimo(self):
         assert "bas" in avaliar(_periodo(basileia=0.10), _periodo(basileia=0.10), meses=6)["sinais"]
 
@@ -117,7 +125,7 @@ class TestNivel:
         assert nivel(["iap", "ica"]) == "Atenção" and nivel(["vrn"]) == "Atenção"
 
     def test_dois_sinais_de_lucro_e_alto_risco(self):
-        assert nivel(["ipr", "vrn"]) == "Alto Risco"
+        assert nivel(["ipr", "vrn"]) == "Lucro a conferir"
 
     def test_lucro_e_solidez_e_critico(self):
         assert nivel(["ipr", "iap"]) == "Crítico"
@@ -128,4 +136,4 @@ class TestNivel:
     def test_cobertura_com_problematicos_e_um_evento_de_solidez(self):
         assert eixos(["ico", "iap"]) == {"lucro": [], "solidez": ["ico", "iap"]}
         assert nivel(["ico", "iap"]) == "Atenção"
-        assert nivel(["ico"]) == "Atenção" and nivel(["ico", "ipr"]) == "Alto Risco"
+        assert nivel(["ico"]) == "Atenção" and nivel(["ico", "ipr"]) == "Lucro a conferir"

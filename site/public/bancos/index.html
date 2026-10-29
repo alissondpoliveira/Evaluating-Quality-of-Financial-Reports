@@ -97,20 +97,20 @@ body.aberta .fundo{opacity:1;pointer-events:auto}
 <nav class="abas" aria-label="Universo"><a href="/">Empresas · M-Score</a><a href="/bancos/" aria-current="page">Bancos · CAMELS</a></nav>
 <div class="kicker">Qualidade dos lucros · instituições financeiras</div>
 <h1>Bancos e instituições financeiras: sinais CAMELS</h1>
-<p class="dek">O M-Score de Beneish não serve para bancos: não há estoque nem margem bruta, e o lançamento que mais mexe no lucro de um banco é a provisão para perdas de crédito. Esta aba faz a triagem equivalente para todas as instituições do IF.data do Banco Central, com sete sinais que comparam o período com o mesmo período do ano anterior. <span id="dekAnos"></span></p>
+<p class="dek">O M-Score de Beneish não serve para bancos: não há estoque nem margem bruta, e o lançamento que mais mexe no lucro de um banco é a provisão para perdas de crédito. Esta aba faz a triagem equivalente para todas as instituições do IF.data do Banco Central, com oito sinais que comparam o período com o mesmo período do ano anterior. <span id="dekAnos"></span></p>
 <div class="educ" role="note"><span aria-hidden="true">⚠</span><span>Projeto educacional e pessoal, sem fim comercial. É uma triagem: um sinal aceso aponta onde olhar, não indica fraude nem risco de quebra. Os dados são os que as instituições informam ao Banco Central e podem conter erros. Nada aqui é recomendação de investimento.</span></div>
 
 <div class="tiles" id="tiles"></div>
 
 <section id="instituicoes">
 <h2>Instituições</h2>
-<p class="muted pequeno">Clique numa linha para ver os sete índices, o retrato de capital, crédito e rentabilidade nos dois períodos e os números de base. Conglomerados aparecem pelo consolidado prudencial; as demais, individualmente. Por padrão a tabela mostra só as instituições com carteira de crédito nos dois períodos (as avaliadas).</p>
+<p class="muted pequeno">Clique numa linha para ver os oito índices, o retrato de capital, crédito e rentabilidade nos dois períodos e os números de base. Conglomerados aparecem pelo consolidado prudencial; as demais, individualmente. Por padrão a tabela mostra só as instituições com carteira de crédito nos dois períodos (as avaliadas).</p>
 <div class="painel">
 <div class="filtros">
 <input id="fBusca" type="search" placeholder="Buscar instituição" aria-label="Buscar instituição">
 <select id="fTipo" aria-label="Tipo de instituição"><option value="">Todos os tipos</option></select>
 <select id="fSeg" aria-label="Segmento"><option value="">Todos os segmentos</option><option>S1</option><option>S2</option><option>S3</option><option>S4</option><option>S5</option></select>
-<select id="fAlerta" aria-label="Nível de alerta"><option value="">Todos os alertas</option><option>Crítico</option><option>Alto Risco</option><option>Atenção</option><option>Normal</option></select>
+<select id="fAlerta" aria-label="Nível de alerta"><option value="">Todos os alertas</option><option>Crítico</option><option>Lucro a conferir</option><option>Atenção</option><option>Normal</option></select>
 <label class="chk"><input type="checkbox" id="fAval" checked> só avaliadas</label>
 <span class="espaco"></span><span id="fInfo" class="pequeno fraco" aria-live="polite"></span><button id="fLimpar" hidden>Limpar filtros</button>
 </div>
@@ -131,13 +131,15 @@ body.aberta .fundo{opacity:1;pointer-events:auto}
 <ul class="metodo pequeno">
 <li><b>Dados.</b> IF.data do Banco Central: balanço, demonstração de resultado, carteira de crédito e capital dos Conglomerados Prudenciais e Instituições Independentes, na última data-base publicada e na mesma data-base do ano anterior. Desde janeiro de 2025 as instituições seguem a Resolução CMN 4.966 (perda esperada, no lugar da antiga provisão por nível de risco), então a comparação usa só datas-base sob a regra nova. Em junho e dezembro a demonstração de resultado acumula o semestre; em março e setembro, o trimestre. Taxas de fluxo (ROE, custo do risco) aparecem anualizadas.</li>
 <li><b>Por que não o M-Score.</b> Os oito índices de Beneish usam receita de vendas, margem bruta, recebíveis, imobilizado e depreciação, que não descrevem um banco. O próprio M-Score foi estimado sem instituições financeiras.</li>
-<li><b>De onde vêm os sinais.</b> A leitura de instituições financeiras do currículo do CFA (Level II, análise de demonstrações financeiras) organiza a análise pelo CAMELS (capital, qualidade dos ativos, gestão, resultados, liquidez e sensibilidade a mercado) e aponta como riscos à qualidade dos lucros de um banco a estimativa de perda de crédito, os ganhos de valor justo e outros resultados não recorrentes e o crescimento acelerado da carteira. Os sete sinais traduzem isso em índices de um período contra o anterior, no formato dos índices de Beneish.</li>
-<li><b>Dois eixos.</b> Os sinais medem coisas diferentes e não são somados. <b>Lucro</b> (IPR, ICO, VRN, ICC): o resultado pode estar maior do que deveria. <b>Solidez</b> (IAP, ICA, BAS): piora transparente do crédito ou do capital, que não infla o lucro. Cobertura caindo junto com ativos problemáticos subindo conta como um evento só, de solidez, porque uma puxa a outra quase por construção. É a mesma lógica do site das empresas, que combina o M-Score com a qualidade dos lucros.</li>
-<li><b>Nível de alerta.</b> Crítico: sinal nos dois eixos, o lucro possivelmente inflado enquanto o risco sobe, ou Basileia abaixo do mínimo regulatório. Alto Risco: dois ou mais sinais de lucro. Atenção: sinais num eixo só. Normal: nenhum. Não há coeficientes: Beneish estimou os dele com uma amostra de empresas que manipularam resultados, e não existe amostra equivalente de bancos brasileiros. As réguas de cada sinal são escolhas do projeto, não valores da literatura, e ainda não foram testadas contra instituições que depois sofreram intervenção do Banco Central.</li>
+<li><b>De onde vêm os sinais.</b> A leitura de instituições financeiras do currículo do CFA (Level II, análise de demonstrações financeiras) organiza a análise pelo CAMELS (capital, qualidade dos ativos, gestão, resultados, liquidez e sensibilidade a mercado) e aponta como riscos à qualidade dos lucros de um banco a estimativa de perda de crédito, os ganhos de valor justo e outros resultados não recorrentes e o crescimento acelerado da carteira. Os sinais traduzem isso em índices de um período contra o anterior, no formato dos índices de Beneish.</li>
+<li><b>Dois eixos.</b> Os sinais medem coisas diferentes e não são somados. <b>Lucro</b> (IPR, ICO, VRN, ICC): o resultado pode estar maior do que deveria. <b>Solidez</b> (IAP, ICA, BPM, BAS): piora transparente do crédito ou do capital, que não infla o lucro. Cobertura caindo junto com ativos problemáticos subindo conta como um evento só, de solidez, porque uma puxa a outra quase por construção. É a mesma lógica do site das empresas, que combina o M-Score com a qualidade dos lucros.</li>
+<li><b>Nível de alerta.</b> Crítico: sinal nos dois eixos, o lucro possivelmente inflado enquanto o risco sobe, ou capital abaixo do mínimo (Basileia abaixo de 10,5% ou patrimônio negativo). Lucro a conferir: dois ou mais sinais de lucro; na validação histórica eles antecipam queda do lucro, não estresse de capital, por isso o nome. Atenção: sinais num eixo só. Normal: nenhum. Não há coeficientes: Beneish estimou os dele com uma amostra de empresas que manipularam resultados, e não existe amostra equivalente de bancos brasileiros. As réguas de cada sinal são escolhas do projeto, não valores da literatura.</li>
 <li><b>Pares e porte.</b> A ficha mostra, ao lado de cada índice, a mediana das instituições avaliadas do mesmo tipo: um índice alto num ano em que o tipo todo piorou pesa menos. Carteira de crédito abaixo de R$ 10 milhões fica sem avaliação, porque poucos contratos mexem demais nos índices.</li>
 <li><b>O que a triagem não mede.</b> Mudança de estratégia, aquisições, venda de carteira, operações estruturadas, cooperativas que repassam recursos à central e o contexto de cada instituição. Instituições sem carteira de crédito (corretoras, distribuidoras, muitas instituições de pagamento) aparecem com o retrato, sem avaliação.</li>
 <li><b>Referências.</b> CFA Institute, Level II, Financial Statement Analysis: Analysis of Financial Institutions. Beaver e Engel (1996) e Ahmed, Takeda e Thomas (1999) sobre provisão para perdas de crédito como instrumento de gerenciamento de resultados.</li>
 </ul>
+<h3>Validação histórica</h3>
+<div id="validacao" class="pequeno muted"><p>Carregando…</p></div>
 <h3>Glossário</h3>
 <dl id="glossario" class="glossario"></dl>
 </section>
@@ -154,14 +156,14 @@ const fmt = (v, c=2) => v==null||isNaN(v) ? '–' : Number(v).toLocaleString('pt
 const pct = (v, c=1) => v==null||isNaN(v) ? '–' : fmt(100*v, c)+'%';
 const esc = t => String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 const semA = t => String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
-const COR_ALERTA = {'Crítico':'var(--pos-2)','Alto Risco':'var(--pos-1)','Atenção':'var(--aviso)','Normal':'var(--neu)'};
-const ORDEM_ALERTA = {'Crítico':3,'Alto Risco':2,'Atenção':1,'Normal':0};
-const SINAIS = ['ipr','ico','vrn','icc','iap','ica','bas'];
-const EIXO = {ipr:'lucro', ico:'lucro', vrn:'lucro', icc:'lucro', iap:'solidez', ica:'solidez', bas:'solidez'};
-const NOMES = {ipr:'Provisão', ico:'Cobertura', iap:'Ativos problemáticos', icc:'Crescimento da carteira', vrn:'Resultado não recorrente', ica:'Capital', bas:'Basileia abaixo do mínimo'};
-const SINAL = {ipr:'provisão caiu sem queda do risco', ico:'cobertura dos problemáticos caiu', iap:'ativos problemáticos subiram', icc:'carteira cresceu rápido', vrn:'lucro mais dependente de resultado não recorrente', ica:'capital caindo perto do mínimo', bas:'Basileia abaixo de 10,5%'};
+const COR_ALERTA = {'Crítico':'var(--pos-2)','Lucro a conferir':'var(--pos-1)','Atenção':'var(--aviso)','Normal':'var(--neu)'};
+const ORDEM_ALERTA = {'Crítico':3,'Lucro a conferir':2,'Atenção':1,'Normal':0};
+const SINAIS = ['ipr','ico','vrn','icc','iap','ica','bpm','bas'];
+const EIXO = {ipr:'lucro', ico:'lucro', vrn:'lucro', icc:'lucro', iap:'solidez', ica:'solidez', bpm:'solidez', bas:'solidez'};
+const NOMES = {ipr:'Provisão', ico:'Cobertura', iap:'Ativos problemáticos', icc:'Crescimento da carteira', vrn:'Resultado não recorrente', ica:'Capital', bpm:'Basileia perto do mínimo', bas:'Capital abaixo do mínimo'};
+const SINAL = {ipr:'provisão caiu sem queda do risco', ico:'cobertura dos problemáticos caiu', iap:'ativos problemáticos subiram', icc:'carteira cresceu rápido', vrn:'lucro mais dependente de resultado não recorrente', ica:'capital caindo perto do mínimo', bpm:'Basileia entre 10,5% e 13%', bas:'Basileia abaixo de 10,5% ou patrimônio negativo'};
 const GLOSS = {
-  alerta:{t:'Nível de alerta', d:'Combina os dois eixos de sinais. Lucro: IPR, ICO, VRN e ICC (o resultado pode estar maior do que deveria). Solidez: IAP, ICA e BAS (piora do crédito ou do capital).', l:'Crítico: sinal nos dois eixos, ou Basileia abaixo de 10,5%. Alto Risco: dois ou mais sinais de lucro. Atenção: sinais num eixo só. Normal: nenhum. ICO aceso junto com IAP conta como solidez. É triagem: aponta onde olhar, não conclui.'},
+  alerta:{t:'Nível de alerta', d:'Combina os dois eixos de sinais. Lucro: IPR, ICO, VRN e ICC (o resultado pode estar maior do que deveria). Solidez: IAP, ICA, BPM e BAS (piora do crédito ou do capital).', l:'Crítico: sinal nos dois eixos, ou capital abaixo do mínimo. Lucro a conferir: dois ou mais sinais de lucro. Atenção: sinais num eixo só. Normal: nenhum. ICO aceso junto com IAP conta como solidez. É triagem: aponta onde olhar, não conclui.'},
   pares:{t:'Mediana dos pares', d:'Mediana do índice entre as instituições avaliadas do mesmo tipo (bancos múltiplos, cooperativas, financeiras etc.) na mesma data-base.', l:'Se o índice da instituição está perto da mediana, a mudança veio do ciclo do setor, não dela. A régua do sinal não muda com os pares; a coluna serve para ler o contexto.'},
   segmento:{t:'Segmento (Resolução 4.553)', d:'Classificação prudencial do Banco Central pelo porte e pela atividade internacional.', l:'S1: bancos com ativo acima de 10% do PIB ou atividade internacional relevante. S2 a S4: porte decrescente. S5: instituições pequenas com regulação simplificada (muitas cooperativas).'},
   basileia:{t:'Índice de Basileia', d:'Patrimônio de referência dividido pelos ativos ponderados pelo risco (RWA).', fx:'Basileia = PR / RWA', l:'O mínimo regulatório é 8%, mais 2,5% de adicional de conservação: abaixo de 10,5% a instituição tem restrições. Quanto maior, mais colchão para absorver perdas.'},
@@ -175,7 +177,8 @@ const GLOSS = {
   icc:{t:'ICC: índice de crescimento da carteira', d:'Carteira de crédito deste ano dividida pela do ano anterior.', fx:'ICC = Carteira_t ÷ Carteira_{t−1}', l:'Acima de 1,30 acende. Crescimento não é problema, mas carteira nova ainda não atrasou: dilui os problemáticos e antecipa receita de juros antes das perdas. É o análogo do SGI de Beneish.'},
   vrn:{t:'VRN: variação do resultado não recorrente', d:'Diferença entre o peso do resultado não recorrente na receita deste ano e o do ano anterior. Não recorrente: câmbio, valor justo e outros resultados de títulos, derivativos, participações e outras receitas e despesas.', fx:'VRN = (NR/Receita)_t − (NR/Receita)_{t−1}', l:'Acende acima de 0,15 se ao menos metade da virada do não recorrente chegou ao resultado antes do IR (repasse ≥ 50%). Se o resultado antes do IR andou bem menos que o não recorrente, a virada foi compensada em outra linha, como hedge de moeda ou captação em moeda estrangeira, e não inflou o lucro.'},
   ica:{t:'ICA: índice de capital', d:'Basileia do ano anterior dividida pela deste ano.', fx:'ICA = Basileia_{t−1} ÷ Basileia_t', l:'Acima de 1,15, com Basileia abaixo de 15%, acende: capital caindo perto do mínimo aumenta a pressão para mostrar resultado. É o análogo do LVGI.'},
-  bas:{t:'BAS: Basileia abaixo de 10,5%', d:'Índice de Basileia abaixo do mínimo de 8% mais o adicional de conservação de 2,5%.', l:'Sinal de nível, não de variação: a instituição está abaixo do que a regulação exige sem restrições.'},
+  bpm:{t:'BPM: Basileia perto do mínimo', d:'Índice de Basileia entre 10,5% e 13%.', l:'Sinal de nível. Na validação histórica (2015 a 2024), foi o previsor mais forte: 13% dessas instituições ficaram abaixo do mínimo ou com patrimônio negativo em até 24 meses, contra menos de 1% das que tinham Basileia de 15% ou mais.'},
+  bas:{t:'BAS: capital abaixo do mínimo', d:'Índice de Basileia abaixo do mínimo de 8% mais o adicional de conservação de 2,5%, ou patrimônio líquido não positivo.', l:'Sinal de nível, não de variação: a instituição está abaixo do que a regulação exige sem restrições. Sozinho já leva a Crítico.'},
 };
 const infoBtn = k => '<button type="button" class="info" data-info="'+k+'" aria-label="O que é: '+GLOSS[k].t+'">i</button>';
 const corpoG = g => '<p>'+g.d+'</p>'+(g.fx?'<span class="formula">'+esc(g.fx)+'</span>':'')+(g.l?'<p><span class="fraco">Como ler:</span> '+g.l+'</p>':'');
@@ -210,12 +213,12 @@ function iniciar(D){
   const conta = a => ok.filter(x => x.alerta===a).length;
   document.getElementById('tiles').innerHTML = [
     ['Instituições avaliadas', ok.length, 'de '+I.length+' no IF.data'],
-    ['Alerta crítico', conta('Crítico'), 'lucro e solidez, ou Basileia < 10,5%'],
-    ['Alto risco', conta('Alto Risco'), 'dois ou mais sinais de lucro'],
+    ['Alerta crítico', conta('Crítico'), 'lucro e solidez, ou capital abaixo do mínimo'],
+    ['Lucro a conferir', conta('Lucro a conferir'), 'dois ou mais sinais de lucro'],
     ['Sinal mais comum', (() => { const c = {}; ok.forEach(x => x.sinais.forEach(s => c[s] = (c[s]||0)+1)); const k = Object.keys(c).sort((a,b) => c[b]-c[a])[0]; return k ? k.toUpperCase() : '–'; })(), 'entre as avaliadas'],
     ['Basileia mediana', pct(d3m(ok.map(x => x.basileia))), 'mínimo regulatório: 10,5%'],
   ].map(x => '<div class="tile"><span>'+x[0]+'</span><b>'+x[1]+'</b><small>'+x[2]+'</small></div>').join('');
-  document.getElementById('semDados').textContent = (I.length-ok.length)+' instituições sem avaliação: sem carteira de crédito nos dois períodos, carteira abaixo de R$ 10 milhões, sem dado na data-base anterior ou com patrimônio líquido não positivo.';
+  document.getElementById('semDados').textContent = (I.length-ok.length)+' instituições sem avaliação: sem carteira de crédito nos dois períodos, carteira abaixo de R$ 10 milhões ou sem dado na data-base anterior.';
   [...new Set(I.map(x => x.tipo))].sort().forEach(s => { const o = document.createElement('option'); o.value = o.textContent = s; document.getElementById('fTipo').appendChild(o); });
 
   const corpo = document.querySelector('#tab tbody');
@@ -259,8 +262,8 @@ function iniciar(D){
         + '<div><small>Ativos problemáticos '+infoBtn('problematicos')+'</small><b>'+pct(i.problematicos)+'</b><em>'+T1+': '+pct(i1.problematicos)+'</em></div>'
         + '<div><small>ROE anualizado '+infoBtn('roe')+'</small><b>'+pct(i.roe)+'</b><em>'+T1+': '+pct(i1.roe)+'</em></div></div>';
       h += x.nsin ? '<h3>Sinais acesos</h3><ul class="pequeno" style="padding-left:1.1rem;margin:.2rem 0">'+x.sinais.map(s => '<li><b>'+s.toUpperCase()+'</b>'+(ix[s]!=null?' em '+fmt(ix[s], 2):'')+': '+SINAL[s]+' <span class="fraco">('+(x.eixos.lucro.includes(s)?'lucro':'solidez')+')</span></li>').join('')+'</ul>' : '<p class="pequeno muted">Nenhum sinal aceso.</p>';
-      const regua = s => s==='bas' ? '< 10,5%' : s==='vrn' ? '> '+fmt(R[s],2)+' e repasse ≥ 50%' : '> '+fmt(R[s],2)+(s==='ipr'?' sem melhora do IAP':s==='iap'?' e ≥ 3%':s==='ica'?' e Basileia < 15%':'');
-      h += '<h3>Os sete sinais</h3>'+tabela(['Índice','Valor','Pares '+infoBtn('pares'),'Régua','Aceso'], SINAIS.map(s => '<tr><td class="t"><b>'+s.toUpperCase()+'</b> '+infoBtn(s)+'<br><span class="fraco">'+NOMES[s]+' · '+(x.eixos.solidez.includes(s) ? 'solidez' : EIXO[s])+'</span></td><td>'+(s==='bas' ? pct(i.basileia) : fmt(ix[s], 2)+(s==='vrn' && ix.rep!=null ? '<br><span class="fraco">repasse '+pct(ix.rep)+'</span>' : ''))+'</td><td class="fraco">'+(s==='bas' ? pct(P.basileia) : fmt(P[s], 2))+'</td><td>'+regua(s)+'</td><td>'+((x.sinais||[]).includes(s) ? '<span class="av">▲ sim</span>' : '<span class="fraco">não</span>')+'</td></tr>').join(''));
+      const regua = s => s==='bas' ? '< 10,5% ou PL ≤ 0' : s==='bpm' ? '10,5% a 13%' : s==='vrn' ? '> '+fmt(R[s],2)+' e repasse ≥ 50%' : '> '+fmt(R[s],2)+(s==='ipr'?' sem melhora do IAP':s==='iap'?' e ≥ 3%':s==='ica'?' e Basileia < 15%':'');
+      h += '<h3>Os oito sinais</h3>'+tabela(['Índice','Valor','Pares '+infoBtn('pares'),'Régua','Aceso'], SINAIS.map(s => '<tr><td class="t"><b>'+s.toUpperCase()+'</b> '+infoBtn(s)+'<br><span class="fraco">'+NOMES[s]+' · '+(x.eixos.solidez.includes(s) ? 'solidez' : EIXO[s])+'</span></td><td>'+(s==='bas' || s==='bpm' ? pct(i.basileia) : fmt(ix[s], 2)+(s==='vrn' && ix.rep!=null ? '<br><span class="fraco">repasse '+pct(ix.rep)+'</span>' : ''))+'</td><td class="fraco">'+(s==='bas' || s==='bpm' ? pct(P.basileia) : fmt(P[s], 2))+'</td><td>'+regua(s)+'</td><td>'+((x.sinais||[]).includes(s) ? '<span class="av">▲ sim</span>' : '<span class="fraco">não</span>')+'</td></tr>').join(''));
     } else {
       h += '<div class="avisos"><b>Sem avaliação.</b> '+esc(x.motivo||'')+'.</div>';
     }
@@ -287,6 +290,22 @@ function iniciar(D){
   addEventListener('popstate', () => { const c = new URLSearchParams(location.search).get('inst'); c ? abrirFicha(c, true) : fecharFicha(true); });
   const inicial = new URLSearchParams(location.search).get('inst'); if (inicial) abrirFicha(inicial, true);
 }
+fetch('/bancos_validacao.json', {cache:'no-cache'}).then(r => r.json()).then(V => {
+  const MES = ['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'], db = x => MES[x % 100]+'/'+Math.floor(x/100);
+  const vezes = v => v==null ? '–' : fmt(v, 1)+'×';
+  const tab = (cab, linhas) => '<div class="tabela" style="max-height:none;border:1px solid var(--line);border-radius:8px;margin:.5rem 0 1rem"><table><thead><tr>'+cab.map((c, i) => '<th'+(i?'':' class="t"')+'>'+c+'</th>').join('')+'</tr></thead><tbody>'+linhas.join('')+'</tbody></table></div>';
+  const lin = (rot, g) => '<tr><td class="t">'+rot+'</td><td>'+g.n.toLocaleString('pt-BR')+'</td><td>'+pct(g.taxa)+'</td><td>'+vezes(g.lift)+'</td><td>'+(g.droa_mediano==null ? '–' : fmt(100*g.droa_mediano, 2)+' p.p.')+'</td><td>'+pct(g.vira_prejuizo)+'</td></tr>';
+  const cab = ['', 'Observações', 'Estresse em 24 meses', 'Contra a média', 'ROA 1 ano depois', 'Lucro vira prejuízo'];
+  const caso = c => { const f = d => d.alerta || ('sem avaliação: '+(d.motivo||'')); return '<li><b>'+esc(c.nome)+'</b> ('+esc(c.tipo.toLowerCase())+' em '+c.inicio+'): jun/2024 '+esc(f(c['202406']))+'; dez/2024 '+esc(f(c['202412']))+'.</li>'; };
+  document.getElementById('validacao').innerHTML =
+    '<p>As regras atuais rodaram sobre '+V.observacoes.toLocaleString('pt-BR')+' observações de '+V.instituicoes.toLocaleString('pt-BR')+' instituições, de '+db(V.periodo[0])+' a '+db(V.periodo[1])+', no plano contábil antigo do IF.data. O desfecho é estresse: Basileia abaixo de 10,5% ou patrimônio negativo nos 24 meses seguintes, o que aconteceu com '+pct(V.taxa_base)+' das observações. O Banco Central não publica a lista histórica de intervenções e liquidações, então estresse de capital é o desfecho disponível; ele não é o mesmo que manipulação de resultado.</p>'
+    + '<p><b>Por nível de alerta.</b></p>' + tab(cab, Object.entries(V.niveis).map(([k, g]) => lin(k, g)))
+    + '<p><b>Por sinal aceso.</b> No plano antigo, ativos problemáticos foram aproximados pela carteira nos níveis E a H, e o resultado de títulos não separa juros de valor justo. BAS fica de fora: quem já está abaixo do mínimo sai da amostra.</p>'
+    + tab(cab, Object.entries(V.sinais).map(([k, g]) => lin(k.toUpperCase()+' <span class="fraco">'+NOMES[k]+'</span>', g)).concat([lin('nenhum sinal', V.sem_sinal)]))
+    + '<p>ROA 1 ano depois: variação mediana do ROA do semestre um ano depois, em pontos percentuais. Leitura: o nível Crítico e os sinais de capital (ICA, BPM) separam bem o estresse. A provisão (IPR) não antecipa estresse, mas antecipa queda do lucro, que é o que ela mede; o não recorrente (VRN) antecipa as duas coisas, com poucos casos. Por isso dois ou mais sinais de lucro viram "Lucro a conferir", e não um nível de risco. Cobertura, crescimento e ativos problemáticos quase não separam. A régua do BPM (13%) foi escolhida com estes mesmos dados, então o número dele é otimista. '+pct(V.captura.Normal, 0)+' dos casos de estresse estavam em Normal: a triagem deixa passar muita coisa.</p>'
+    + (V.regimes.length ? '<p><b>Liquidações em andamento</b>, com os sinais calculados nos dados de 2024:</p><ul>'+V.regimes.map(caso).join('')+'</ul>' : '')
+    + '<p class="fraco">Código em validacao_bancos.py; resultado gerado em '+V.gerado_em+'.</p>';
+}).catch(() => { document.getElementById('validacao').innerHTML = '<p>Validação indisponível.</p>'; });
 function d3m(v){ const s = v.filter(x => x!=null).sort((a,b) => a-b); return s.length ? (s.length%2 ? s[(s.length-1)/2] : (s[s.length/2-1]+s[s.length/2])/2) : null; }
 </script>
 </body>
