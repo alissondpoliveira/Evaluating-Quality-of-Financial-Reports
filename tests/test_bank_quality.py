@@ -80,10 +80,16 @@ class TestAvaliar:
     def test_basileia_abaixo_do_minimo(self):
         assert "bas" in avaliar(_periodo(basileia=0.10), _periodo(basileia=0.10), meses=6)["sinais"]
 
-    def test_nao_recorrente_sobe(self):
-        # receita 90 nos dois; outras receitas 0 → 18: VRN = 0,2
-        r = avaliar(_periodo(outras_receitas=18.0), _periodo(), meses=6)
-        assert r["indices"]["vrn"] == pytest.approx(0.2) and "vrn" in r["sinais"]
+    def test_nao_recorrente_sobe_e_chega_ao_lucro(self):
+        # receita 90 nos dois; outras receitas 0 → 18: VRN = 0,2; resultado antes do IR +12 (repasse 2/3)
+        r = avaliar(_periodo(outras_receitas=18.0, resultado_antes_ir=32.0), _periodo(resultado_antes_ir=20.0), meses=6)
+        assert r["indices"]["vrn"] == pytest.approx(0.2) and r["indices"]["rep"] == pytest.approx(12 / 18)
+        assert "vrn" in r["sinais"]
+
+    def test_nao_recorrente_compensado_nao_e_sinal(self):
+        # mesma virada, mas o resultado antes do IR só sobe 2 (hedge compensando): repasse 11%
+        r = avaliar(_periodo(outras_receitas=18.0, resultado_antes_ir=22.0), _periodo(resultado_antes_ir=20.0), meses=6)
+        assert r["indices"]["vrn"] == pytest.approx(0.2) and "vrn" not in r["sinais"]
 
     def test_sem_carteira_nao_avaliavel(self):
         r = avaliar(_periodo(credito_bruto=0.0, carteira_total=0.0), _periodo(), meses=6)

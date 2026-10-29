@@ -42,6 +42,9 @@ from __future__ import annotations
 REGUAS = {"ipr": 1.25, "ico": 1.25, "iap": 1.30, "icc": 1.30, "vrn": 0.15, "ica": 1.15, "bas": 0.105}
 _IAP_MINIMO = 0.03
 _ICA_BASILEIA = 0.15
+# VRN só acende se ao menos metade da virada do não recorrente chegou ao resultado antes do IR;
+# abaixo disso ela foi compensada em outra linha (hedge de moeda, captação), não inflou o lucro
+_VRN_REPASSE = 0.5
 ALERTAS = ["Normal", "Atenção", "Alto Risco", "Crítico"]
 
 
@@ -129,6 +132,8 @@ def avaliar(t: dict, t1: dict, meses: int) -> dict:
     ix["icc"] = g / g1
     nr, nr1 = saida["ind"]["nao_recorrente"], saida["ind_t1"]["nao_recorrente"]
     ix["vrn"] = None if nr is None or nr1 is None else nr - nr1
+    dnr = nao_recorrente(t) - nao_recorrente(t1)
+    ix["rep"] = _div((t.get("resultado_antes_ir") or 0.0) - (t1.get("resultado_antes_ir") or 0.0), dnr) if dnr > 0 else None
     ix["ica"] = _div(t1.get("basileia"), t.get("basileia"))
 
     sem_melhora = iap is None or iap >= 1
@@ -141,7 +146,7 @@ def avaliar(t: dict, t1: dict, meses: int) -> dict:
         saida["sinais"].append("iap")
     if ix["icc"] > REGUAS["icc"]:
         saida["sinais"].append("icc")
-    if ix["vrn"] is not None and ix["vrn"] > REGUAS["vrn"]:
+    if ix["vrn"] is not None and ix["vrn"] > REGUAS["vrn"] and ix["rep"] is not None and ix["rep"] >= _VRN_REPASSE:
         saida["sinais"].append("vrn")
     if ix["ica"] is not None and ix["ica"] > REGUAS["ica"] and (t.get("basileia") or 1) < _ICA_BASILEIA:
         saida["sinais"].append("ica")
