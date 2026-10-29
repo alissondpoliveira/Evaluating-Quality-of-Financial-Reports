@@ -42,6 +42,11 @@ def _arred(d: dict, casas=4) -> dict:
     return {k: _r(v, casas) for k, v in d.items()}
 
 
+def _mediana(vs):
+    vs = sorted(v for v in vs if v is not None)
+    return None if not vs else (vs[len(vs) // 2] if len(vs) % 2 else (vs[len(vs) // 2 - 1] + vs[len(vs) // 2]) / 2)
+
+
 # contas que a ficha mostra nos dois períodos
 _BASE = ["ativo_total", "patrimonio_liquido", "depositos", "credito_bruto", "pagamentos_pos_bruto", "carteira_total",
          "ativos_problematicos", "inadimplencia", "perda_esperada_credito", "resultado_intermediacao",
@@ -65,7 +70,7 @@ def build(data_base: int) -> Path:
         r = avaliar(d, d1, meses)
         base.update(avaliavel=r["avaliavel"], ind=_arred(r["ind"]), ind_t1=_arred(r["ind_t1"]))
         if r["avaliavel"]:
-            base.update(indices=_arred(r["indices"]), sinais=r["sinais"], alerta=r["alerta"])
+            base.update(indices=_arred(r["indices"]), sinais=r["sinais"], eixos=r["eixos"], alerta=r["alerta"])
         else:
             base["motivo"] = r["motivo"]
         base["fin"] = {"t": {k: _r(d.get(k), 4 if k == "basileia" else 0) for k in _BASE},
@@ -73,9 +78,17 @@ def build(data_base: int) -> Path:
         linhas.append(base)
     linhas.sort(key=lambda x: -(x.get("ativo") or 0))
 
+    # mediana de cada índice entre as avaliadas do mesmo tipo, para a ficha comparar com os pares
+    pares: dict[str, dict] = {}
+    for tipo in {x["tipo"] for x in linhas if x.get("avaliavel")}:
+        grupo = [x for x in linhas if x.get("avaliavel") and x["tipo"] == tipo]
+        med = {k: _mediana([x["indices"].get(k) for x in grupo]) for k in ("ipr", "ico", "iap", "icc", "vrn", "ica")}
+        med["basileia"] = _mediana([x["ind"].get("basileia") for x in grupo])
+        pares[tipo] = {"n": len(grupo), **_arred(med)}
+
     agora = datetime.now(timezone(timedelta(hours=-3)))
     saida = {"data_base": data_base, "anterior": anterior, "meses": meses,
-             "gerado_em": agora.strftime("%d/%m/%Y %H:%M"), "reguas": REGUAS, "instituicoes": linhas}
+             "gerado_em": agora.strftime("%d/%m/%Y %H:%M"), "reguas": REGUAS, "pares": pares, "instituicoes": linhas}
     _SAIDA.parent.mkdir(parents=True, exist_ok=True)
     tmp = _SAIDA.with_suffix(".tmp")
     tmp.write_text(json.dumps(saida, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")

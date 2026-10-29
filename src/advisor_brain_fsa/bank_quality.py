@@ -31,10 +31,23 @@ como os do M-Score (índice > 1 aponta na direção do sinal):
                                     do mínimo, mais pressão sobre o resultado
     BAS  Basileia abaixo de 10,5%  mínimo regulatório de 8% mais o adicional de conservação
 
+Os sinais formam dois eixos, como o M-Score e o accrual ratio no site das empresas:
+    lucro    IPR, ICO, VRN, ICC   o lucro pode estar maior do que deveria
+    solidez  IAP, ICA, BAS        piora transparente do risco de crédito ou do capital
+ICO aceso junto com IAP conta como o mesmo evento de solidez: com os problemáticos subindo,
+a cobertura cai quase por construção.
+
+Nível de alerta:
+    Crítico     sinal nos dois eixos (lucro possivelmente inflado enquanto o risco sobe)
+                ou Basileia abaixo do mínimo
+    Alto Risco  dois ou mais sinais de lucro
+    Atenção     um ou mais sinais num eixo só
+    Normal      nenhum sinal
+
 Não há coeficientes estimados (Beneish estimou os dele com uma amostra de manipuladoras; não
-há amostra equivalente de bancos brasileiros). A pontuação é a contagem de sinais acesos e o
-nível de alerta segue a contagem: 0 Normal, 1 Atenção, 2 Alto Risco, 3 ou mais Crítico.
-As réguas são escolhas do projeto, não valores da literatura.
+há amostra equivalente de bancos brasileiros), e as réguas são escolhas do projeto, não valores
+da literatura. Carteira abaixo de R$ 10 milhões fica sem avaliação: poucos contratos mexem
+demais nos índices.
 """
 
 from __future__ import annotations
@@ -45,7 +58,25 @@ _ICA_BASILEIA = 0.15
 # VRN só acende se ao menos metade da virada do não recorrente chegou ao resultado antes do IR;
 # abaixo disso ela foi compensada em outra linha (hedge de moeda, captação), não inflou o lucro
 _VRN_REPASSE = 0.5
+_CARTEIRA_MINIMA = 10e6
 ALERTAS = ["Normal", "Atenção", "Alto Risco", "Crítico"]
+EIXO_LUCRO = ("ipr", "ico", "vrn", "icc")
+EIXO_SOLIDEZ = ("iap", "ica", "bas")
+
+
+def eixos(sinais: list[str]) -> dict[str, list[str]]:
+    """Sinais de cada eixo; ICO com IAP aceso vai para solidez (mesmo evento)."""
+    lucro = [s for s in sinais if s in EIXO_LUCRO and not (s == "ico" and "iap" in sinais)]
+    return {"lucro": lucro, "solidez": [s for s in sinais if s not in lucro]}
+
+
+def nivel(sinais: list[str]) -> str:
+    e = eixos(sinais)
+    if "bas" in sinais or (e["lucro"] and e["solidez"]):
+        return "Crítico"
+    if len(e["lucro"]) >= 2:
+        return "Alto Risco"
+    return "Atenção" if sinais else "Normal"
 
 
 def _div(a, b):
@@ -119,6 +150,9 @@ def avaliar(t: dict, t1: dict, meses: int) -> dict:
     if g <= 0 or g1 <= 0 or not t.get("carteira_total") or not t1.get("carteira_total"):
         saida["motivo"] = "sem carteira de crédito nos dois períodos"
         return saida
+    if g < _CARTEIRA_MINIMA:
+        saida["motivo"] = "carteira de crédito abaixo de R$ 10 milhões (índices instáveis demais)"
+        return saida
     if not (t.get("patrimonio_liquido") or 0) > 0:
         saida["motivo"] = "patrimônio líquido não positivo"
         return saida
@@ -155,5 +189,6 @@ def avaliar(t: dict, t1: dict, meses: int) -> dict:
         saida["sinais"].append("ica")
     if bas is not None and bas < REGUAS["bas"]:
         saida["sinais"].append("bas")
-    saida["alerta"] = ALERTAS[min(len(saida["sinais"]), 3)]
+    saida["eixos"] = eixos(saida["sinais"])
+    saida["alerta"] = nivel(saida["sinais"])
     return saida

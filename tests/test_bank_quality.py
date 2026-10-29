@@ -13,7 +13,14 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from advisor_brain_fsa.bank_quality import ALERTAS, avaliar, carteira, cobertura, indicadores, provisao
+from advisor_brain_fsa import bank_quality
+from advisor_brain_fsa.bank_quality import avaliar, carteira, cobertura, eixos, indicadores, nivel, provisao
+
+
+@pytest.fixture(autouse=True)
+def _sem_piso(monkeypatch):
+    # os períodos de teste usam valores pequenos; o piso de carteira tem teste próprio
+    monkeypatch.setattr(bank_quality, "_CARTEIRA_MINIMA", 0)
 
 
 def _periodo(**k):
@@ -99,5 +106,26 @@ class TestAvaliar:
         r = avaliar(_periodo(credito_bruto=0.0, carteira_total=0.0), _periodo(), meses=6)
         assert not r["avaliavel"] and "alerta" not in r
 
-    def test_alerta_satura_em_critico(self):
-        assert ALERTAS[3] == "Crítico"
+    def test_carteira_abaixo_do_piso_nao_avaliavel(self, monkeypatch):
+        monkeypatch.setattr(bank_quality, "_CARTEIRA_MINIMA", 10e6)
+        r = avaliar(_periodo(), _periodo(), meses=6)
+        assert not r["avaliavel"] and "10 milhões" in r["motivo"]
+
+
+class TestNivel:
+    def test_um_eixo_so_e_atencao(self):
+        assert nivel(["iap", "ica"]) == "Atenção" and nivel(["vrn"]) == "Atenção"
+
+    def test_dois_sinais_de_lucro_e_alto_risco(self):
+        assert nivel(["ipr", "vrn"]) == "Alto Risco"
+
+    def test_lucro_e_solidez_e_critico(self):
+        assert nivel(["ipr", "iap"]) == "Crítico"
+
+    def test_basileia_abaixo_do_minimo_e_critico(self):
+        assert nivel(["bas"]) == "Crítico"
+
+    def test_cobertura_com_problematicos_e_um_evento_de_solidez(self):
+        assert eixos(["ico", "iap"]) == {"lucro": [], "solidez": ["ico", "iap"]}
+        assert nivel(["ico", "iap"]) == "Atenção"
+        assert nivel(["ico"]) == "Atenção" and nivel(["ico", "ipr"]) == "Alto Risco"

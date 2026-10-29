@@ -465,7 +465,9 @@ HTML_BANCOS = """<!doctype html>
 <li><b>Dados.</b> IF.data do Banco Central: balanço, demonstração de resultado, carteira de crédito e capital dos Conglomerados Prudenciais e Instituições Independentes, na última data-base publicada e na mesma data-base do ano anterior. Desde janeiro de 2025 as instituições seguem a Resolução CMN 4.966 (perda esperada, no lugar da antiga provisão por nível de risco), então a comparação usa só datas-base sob a regra nova. Em junho e dezembro a demonstração de resultado acumula o semestre; em março e setembro, o trimestre. Taxas de fluxo (ROE, custo do risco) aparecem anualizadas.</li>
 <li><b>Por que não o M-Score.</b> Os oito índices de Beneish usam receita de vendas, margem bruta, recebíveis, imobilizado e depreciação, que não descrevem um banco. O próprio M-Score foi estimado sem instituições financeiras.</li>
 <li><b>De onde vêm os sinais.</b> A leitura de instituições financeiras do currículo do CFA (Level II, análise de demonstrações financeiras) organiza a análise pelo CAMELS (capital, qualidade dos ativos, gestão, resultados, liquidez e sensibilidade a mercado) e aponta como riscos à qualidade dos lucros de um banco a estimativa de perda de crédito, os ganhos de valor justo e outros resultados não recorrentes e o crescimento acelerado da carteira. Os sete sinais traduzem isso em índices de um período contra o anterior, no formato dos índices de Beneish.</li>
-<li><b>Pontuação.</b> Não há coeficientes: Beneish estimou os dele com uma amostra de empresas que manipularam resultados, e não existe amostra equivalente de bancos brasileiros. O nível de alerta é a contagem de sinais acesos: nenhum, Normal; um, Atenção; dois, Alto Risco; três ou mais, Crítico. As réguas de cada sinal são escolhas do projeto, calibradas para não acender em metade do sistema; não são valores da literatura.</li>
+<li><b>Dois eixos.</b> Os sinais medem coisas diferentes e não são somados. <b>Lucro</b> (IPR, ICO, VRN, ICC): o resultado pode estar maior do que deveria. <b>Solidez</b> (IAP, ICA, BAS): piora transparente do crédito ou do capital, que não infla o lucro. Cobertura caindo junto com ativos problemáticos subindo conta como um evento só, de solidez, porque uma puxa a outra quase por construção. É a mesma lógica do site das empresas, que combina o M-Score com a qualidade dos lucros.</li>
+<li><b>Nível de alerta.</b> Crítico: sinal nos dois eixos, o lucro possivelmente inflado enquanto o risco sobe, ou Basileia abaixo do mínimo regulatório. Alto Risco: dois ou mais sinais de lucro. Atenção: sinais num eixo só. Normal: nenhum. Não há coeficientes: Beneish estimou os dele com uma amostra de empresas que manipularam resultados, e não existe amostra equivalente de bancos brasileiros. As réguas de cada sinal são escolhas do projeto, não valores da literatura, e ainda não foram testadas contra instituições que depois sofreram intervenção do Banco Central.</li>
+<li><b>Pares e porte.</b> A ficha mostra, ao lado de cada índice, a mediana das instituições avaliadas do mesmo tipo: um índice alto num ano em que o tipo todo piorou pesa menos. Carteira de crédito abaixo de R$ 10 milhões fica sem avaliação, porque poucos contratos mexem demais nos índices.</li>
 <li><b>O que a triagem não mede.</b> Mudança de estratégia, aquisições, venda de carteira, operações estruturadas, cooperativas que repassam recursos à central e o contexto de cada instituição. Instituições sem carteira de crédito (corretoras, distribuidoras, muitas instituições de pagamento) aparecem com o retrato, sem avaliação.</li>
 <li><b>Referências.</b> CFA Institute, Level II, Financial Statement Analysis: Analysis of Financial Institutions. Beaver e Engel (1996) e Ahmed, Takeda e Thomas (1999) sobre provisão para perdas de crédito como instrumento de gerenciamento de resultados.</li>
 </ul>
@@ -492,11 +494,13 @@ const esc = t => String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 const semA = t => String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const COR_ALERTA = {'Crítico':'var(--pos-2)','Alto Risco':'var(--pos-1)','Atenção':'var(--aviso)','Normal':'var(--neu)'};
 const ORDEM_ALERTA = {'Crítico':3,'Alto Risco':2,'Atenção':1,'Normal':0};
-const SINAIS = ['ipr','ico','iap','icc','vrn','ica','bas'];
+const SINAIS = ['ipr','ico','vrn','icc','iap','ica','bas'];
+const EIXO = {ipr:'lucro', ico:'lucro', vrn:'lucro', icc:'lucro', iap:'solidez', ica:'solidez', bas:'solidez'};
 const NOMES = {ipr:'Provisão', ico:'Cobertura', iap:'Ativos problemáticos', icc:'Crescimento da carteira', vrn:'Resultado não recorrente', ica:'Capital', bas:'Basileia abaixo do mínimo'};
 const SINAL = {ipr:'provisão caiu sem queda do risco', ico:'cobertura dos problemáticos caiu', iap:'ativos problemáticos subiram', icc:'carteira cresceu rápido', vrn:'lucro mais dependente de resultado não recorrente', ica:'capital caindo perto do mínimo', bas:'Basileia abaixo de 10,5%'};
 const GLOSS = {
-  alerta:{t:'Nível de alerta', d:'Contagem dos sete sinais acesos.', l:'Nenhum: Normal. Um: Atenção. Dois: Alto Risco. Três ou mais: Crítico. É triagem: aponta onde olhar, não conclui.'},
+  alerta:{t:'Nível de alerta', d:'Combina os dois eixos de sinais. Lucro: IPR, ICO, VRN e ICC (o resultado pode estar maior do que deveria). Solidez: IAP, ICA e BAS (piora do crédito ou do capital).', l:'Crítico: sinal nos dois eixos, ou Basileia abaixo de 10,5%. Alto Risco: dois ou mais sinais de lucro. Atenção: sinais num eixo só. Normal: nenhum. ICO aceso junto com IAP conta como solidez. É triagem: aponta onde olhar, não conclui.'},
+  pares:{t:'Mediana dos pares', d:'Mediana do índice entre as instituições avaliadas do mesmo tipo (bancos múltiplos, cooperativas, financeiras etc.) na mesma data-base.', l:'Se o índice da instituição está perto da mediana, a mudança veio do ciclo do setor, não dela. A régua do sinal não muda com os pares; a coluna serve para ler o contexto.'},
   segmento:{t:'Segmento (Resolução 4.553)', d:'Classificação prudencial do Banco Central pelo porte e pela atividade internacional.', l:'S1: bancos com ativo acima de 10% do PIB ou atividade internacional relevante. S2 a S4: porte decrescente. S5: instituições pequenas com regulação simplificada (muitas cooperativas).'},
   basileia:{t:'Índice de Basileia', d:'Patrimônio de referência dividido pelos ativos ponderados pelo risco (RWA).', fx:'Basileia = PR / RWA', l:'O mínimo regulatório é 8%, mais 2,5% de adicional de conservação: abaixo de 10,5% a instituição tem restrições. Quanto maior, mais colchão para absorver perdas.'},
   problematicos:{t:'Ativos problemáticos', d:'Operações em atraso relevante ou com indício de que não serão pagas (estágio 3 da Resolução 4.966), sobre a carteira de crédito.', l:'Mede a qualidade da carteira. Sobe primeiro no ciclo de crédito, antes da inadimplência formal.'},
@@ -544,12 +548,12 @@ function iniciar(D){
   const conta = a => ok.filter(x => x.alerta===a).length;
   document.getElementById('tiles').innerHTML = [
     ['Instituições avaliadas', ok.length, 'de '+I.length+' no IF.data'],
-    ['Alerta crítico', conta('Crítico'), 'três ou mais sinais'],
-    ['Alto risco', conta('Alto Risco'), 'dois sinais'],
+    ['Alerta crítico', conta('Crítico'), 'lucro e solidez, ou Basileia < 10,5%'],
+    ['Alto risco', conta('Alto Risco'), 'dois ou mais sinais de lucro'],
     ['Sinal mais comum', (() => { const c = {}; ok.forEach(x => x.sinais.forEach(s => c[s] = (c[s]||0)+1)); const k = Object.keys(c).sort((a,b) => c[b]-c[a])[0]; return k ? k.toUpperCase() : '–'; })(), 'entre as avaliadas'],
     ['Basileia mediana', pct(d3m(ok.map(x => x.basileia))), 'mínimo regulatório: 10,5%'],
   ].map(x => '<div class="tile"><span>'+x[0]+'</span><b>'+x[1]+'</b><small>'+x[2]+'</small></div>').join('');
-  document.getElementById('semDados').textContent = (I.length-ok.length)+' instituições sem avaliação: sem carteira de crédito nos dois períodos, sem dado na data-base anterior ou com patrimônio líquido não positivo.';
+  document.getElementById('semDados').textContent = (I.length-ok.length)+' instituições sem avaliação: sem carteira de crédito nos dois períodos, carteira abaixo de R$ 10 milhões, sem dado na data-base anterior ou com patrimônio líquido não positivo.';
   [...new Set(I.map(x => x.tipo))].sort().forEach(s => { const o = document.createElement('option'); o.value = o.textContent = s; document.getElementById('fTipo').appendChild(o); });
 
   const corpo = document.querySelector('#tab tbody');
@@ -585,16 +589,16 @@ function iniciar(D){
     const u = new URL(location.href); u.searchParams.set('inst', cod);
     if (daUrl || document.body.classList.contains('aberta')) history.replaceState(history.state, '', u); else { history.pushState({ficha:1}, '', u); empilhou = true; }
     document.getElementById('gCab').innerHTML = '<div class="kicker">'+esc(x.tipo)+' · '+esc(x.segmento)+' · '+esc(x.consolidacao)+'</div><h2 id="gTitulo">'+esc(x.nome)+'</h2><span class="fraco pequeno">'+esc(x.controle)+(x.uf?' · '+esc(x.uf):'')+' · '+T+' contra '+T1+' ('+per+')</span>';
-    const i = x.ind || {}, i1 = x.ind_t1 || {}, ix = x.indices || {}, R = D.reguas;
+    const i = x.ind || {}, i1 = x.ind_t1 || {}, ix = x.indices || {}, R = D.reguas, P = (D.pares||{})[x.tipo] || {};
     let h = '';
     if (x.avaliavel) {
-      h += '<div class="grade"><div><small>Nível de alerta '+infoBtn('alerta')+'</small><b><span class="badge" style="font-size:1rem"><i style="background:'+COR_ALERTA[x.alerta]+';width:11px;height:11px"></i>'+x.alerta+'</span></b><em>'+x.nsin+' de 7 sinais</em></div>'
+      h += '<div class="grade"><div><small>Nível de alerta '+infoBtn('alerta')+'</small><b><span class="badge" style="font-size:1rem"><i style="background:'+COR_ALERTA[x.alerta]+';width:11px;height:11px"></i>'+x.alerta+'</span></b><em>lucro: '+(x.eixos.lucro.length||'nenhum')+' · solidez: '+(x.eixos.solidez.length||'nenhum')+'</em></div>'
         + '<div><small>Basileia '+infoBtn('basileia')+'</small><b>'+pct(i.basileia)+'</b><em>'+T1+': '+pct(i1.basileia)+'</em></div>'
         + '<div><small>Ativos problemáticos '+infoBtn('problematicos')+'</small><b>'+pct(i.problematicos)+'</b><em>'+T1+': '+pct(i1.problematicos)+'</em></div>'
         + '<div><small>ROE anualizado '+infoBtn('roe')+'</small><b>'+pct(i.roe)+'</b><em>'+T1+': '+pct(i1.roe)+'</em></div></div>';
-      h += x.nsin ? '<h3>Sinais acesos</h3><ul class="pequeno" style="padding-left:1.1rem;margin:.2rem 0">'+x.sinais.map(s => '<li><b>'+s.toUpperCase()+'</b>'+(ix[s]!=null?' em '+fmt(ix[s], 2):'')+': '+SINAL[s]+'</li>').join('')+'</ul>' : '<p class="pequeno muted">Nenhum sinal aceso.</p>';
+      h += x.nsin ? '<h3>Sinais acesos</h3><ul class="pequeno" style="padding-left:1.1rem;margin:.2rem 0">'+x.sinais.map(s => '<li><b>'+s.toUpperCase()+'</b>'+(ix[s]!=null?' em '+fmt(ix[s], 2):'')+': '+SINAL[s]+' <span class="fraco">('+(x.eixos.lucro.includes(s)?'lucro':'solidez')+')</span></li>').join('')+'</ul>' : '<p class="pequeno muted">Nenhum sinal aceso.</p>';
       const regua = s => s==='bas' ? '< 10,5%' : s==='vrn' ? '> '+fmt(R[s],2)+' e repasse ≥ 50%' : '> '+fmt(R[s],2)+(s==='ipr'?' sem melhora do IAP':s==='iap'?' e ≥ 3%':s==='ica'?' e Basileia < 15%':'');
-      h += '<h3>Os sete sinais</h3>'+tabela(['Índice','Valor','Régua','Aceso'], SINAIS.map(s => '<tr><td class="t"><b>'+s.toUpperCase()+'</b> '+infoBtn(s)+'<br><span class="fraco">'+NOMES[s]+'</span></td><td>'+(s==='bas' ? pct(i.basileia) : fmt(ix[s], 2)+(s==='vrn' && ix.rep!=null ? '<br><span class="fraco">repasse '+pct(ix.rep)+'</span>' : ''))+'</td><td>'+regua(s)+'</td><td>'+((x.sinais||[]).includes(s) ? '<span class="av">▲ sim</span>' : '<span class="fraco">não</span>')+'</td></tr>').join(''));
+      h += '<h3>Os sete sinais</h3>'+tabela(['Índice','Valor','Pares '+infoBtn('pares'),'Régua','Aceso'], SINAIS.map(s => '<tr><td class="t"><b>'+s.toUpperCase()+'</b> '+infoBtn(s)+'<br><span class="fraco">'+NOMES[s]+' · '+(x.eixos.solidez.includes(s) ? 'solidez' : EIXO[s])+'</span></td><td>'+(s==='bas' ? pct(i.basileia) : fmt(ix[s], 2)+(s==='vrn' && ix.rep!=null ? '<br><span class="fraco">repasse '+pct(ix.rep)+'</span>' : ''))+'</td><td class="fraco">'+(s==='bas' ? pct(P.basileia) : fmt(P[s], 2))+'</td><td>'+regua(s)+'</td><td>'+((x.sinais||[]).includes(s) ? '<span class="av">▲ sim</span>' : '<span class="fraco">não</span>')+'</td></tr>').join(''));
     } else {
       h += '<div class="avisos"><b>Sem avaliação.</b> '+esc(x.motivo||'')+'.</div>';
     }
