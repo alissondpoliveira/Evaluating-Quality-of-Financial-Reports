@@ -77,6 +77,10 @@ class TestAvaliar:
         baixo = avaliar(_periodo(basileia=0.12), _periodo(basileia=0.14), meses=6)
         assert "ica" not in alto["sinais"] and "ica" in baixo["sinais"]
 
+    def test_basileia_negativa_acende_capital_e_minimo(self):
+        r = avaliar(_periodo(basileia=-0.05), _periodo(basileia=0.18), meses=6)
+        assert {"ica", "bas"} <= set(r["sinais"])
+
     def test_basileia_abaixo_do_minimo(self):
         assert "bas" in avaliar(_periodo(basileia=0.10), _periodo(basileia=0.10), meses=6)["sinais"]
 

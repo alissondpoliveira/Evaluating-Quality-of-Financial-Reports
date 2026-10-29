@@ -148,9 +148,12 @@ def avaliar(t: dict, t1: dict, meses: int) -> dict:
         saida["sinais"].append("icc")
     if ix["vrn"] is not None and ix["vrn"] > REGUAS["vrn"] and ix["rep"] is not None and ix["rep"] >= _VRN_REPASSE:
         saida["sinais"].append("vrn")
-    if ix["ica"] is not None and ix["ica"] > REGUAS["ica"] and (t.get("basileia") or 1) < _ICA_BASILEIA:
+    # Basileia que fica negativa (capital regulatório negativo) é a queda máxima, embora a razão saia negativa
+    bas, bas1 = t.get("basileia"), t1.get("basileia")
+    zerou = bas is not None and bas <= 0 < (bas1 or 0)
+    if ((ix["ica"] is not None and ix["ica"] > REGUAS["ica"]) or zerou) and (bas if bas is not None else 1) < _ICA_BASILEIA:
         saida["sinais"].append("ica")
-    if t.get("basileia") is not None and 0 < t["basileia"] < REGUAS["bas"]:
+    if bas is not None and bas < REGUAS["bas"]:
         saida["sinais"].append("bas")
     saida["alerta"] = ALERTAS[min(len(saida["sinais"]), 3)]
     return saida
