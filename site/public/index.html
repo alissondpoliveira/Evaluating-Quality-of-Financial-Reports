@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>M-Score de Beneish</title>
+<title>M-Score de Beneish · Qualidade dos Lucros</title>
 <meta name="description" content="Projeto educacional: M-Score de Beneish (1999) calculado com as demonstrações anuais das companhias abertas não financeiras da CVM.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
@@ -79,6 +79,9 @@ body.aberta .fundo{opacity:1;pointer-events:auto}
 .formula{display:block;font-family:ui-monospace,Consolas,monospace;font-size:.75rem;background:var(--surface-2);border-radius:6px;padding:6px 8px;margin:.4rem 0}
 .glossario{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:4px 28px;margin:0}
 .glossario div{padding:.6rem 0;border-bottom:1px solid var(--line)}.glossario dt{font-weight:600;font-size:.875rem}.glossario dd{margin:.15rem 0 0;font-size:.8125rem;color:var(--ink-2)}
+.abas{display:inline-flex;gap:2px;padding:3px;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;margin:0 0 14px;font-size:.875rem}
+.abas a{padding:.3rem .8rem;border-radius:7px;color:var(--ink-2);text-decoration:none}.abas a:hover{color:var(--ink)}
+.abas a[aria-current]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
 @media (max-width:760px){h1{font-size:2rem}.barra-in{flex-wrap:wrap}.nav{margin-left:0;width:100%}.gaveta{width:100vw}.nome{max-width:170px}}
 @media (prefers-reduced-motion:reduce){*{transition:none !important}}
 </style>
@@ -86,12 +89,13 @@ body.aberta .fundo{opacity:1;pointer-events:auto}
 </head>
 <body>
 <header class="barra"><div class="barra-in">
-<a class="marca" href="#"><b>M-Score de Beneish</b><span id="topoData">carregando…</span></a>
+<a class="marca" href="/"><b>Qualidade dos Lucros</b><span id="topoData">carregando…</span></a>
 <nav class="nav" aria-label="Seções"><a href="#empresas">Empresas</a><a href="/bancos/">Bancos</a><a href="#metodo">Método</a><a href="https://www.alissonprata.io/">Alisson Prata</a>
 <button id="tema" class="icone" aria-label="Alternar tema claro ou escuro">◐</button></nav>
 </div></header>
 <main>
-<div class="kicker">Qualidade da informação contábil · companhias abertas não financeiras</div>
+<nav class="abas" aria-label="Universo"><a href="/" aria-current="page">Empresas · M-Score</a><a href="/bancos/">Bancos · CAMELS</a></nav>
+<div class="kicker">Qualidade dos lucros · companhias abertas não financeiras</div>
 <h1>M-Score de Beneish</h1>
 <p class="dek">Modelo de Beneish (1999) que estima a probabilidade de manipulação de resultados a partir de oito índices contábeis, calculado com as demonstrações financeiras padronizadas (DFP) que as companhias entregam à CVM. <span id="dekAnos"></span></p>
 <div class="educ" role="note"><span aria-hidden="true">⚠</span><span>Projeto educacional e pessoal, sem fim comercial. O modelo é uma triagem estatística, não uma acusação: M-Score acima do limiar não significa fraude, e o cálculo pode conter erros de dado ou de mapeamento de contas. Nada aqui é recomendação de investimento.</span></div>

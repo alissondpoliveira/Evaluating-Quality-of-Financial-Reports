@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Qualidade dos Lucros de Bancos</title>
+<title>Bancos · Qualidade dos Lucros</title>
 <meta name="description" content="Projeto educacional: triagem da qualidade dos lucros das instituições financeiras com os dados do IF.data do Banco Central.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
@@ -79,6 +79,9 @@ body.aberta .fundo{opacity:1;pointer-events:auto}
 .formula{display:block;font-family:ui-monospace,Consolas,monospace;font-size:.75rem;background:var(--surface-2);border-radius:6px;padding:6px 8px;margin:.4rem 0}
 .glossario{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:4px 28px;margin:0}
 .glossario div{padding:.6rem 0;border-bottom:1px solid var(--line)}.glossario dt{font-weight:600;font-size:.875rem}.glossario dd{margin:.15rem 0 0;font-size:.8125rem;color:var(--ink-2)}
+.abas{display:inline-flex;gap:2px;padding:3px;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;margin:0 0 14px;font-size:.875rem}
+.abas a{padding:.3rem .8rem;border-radius:7px;color:var(--ink-2);text-decoration:none}.abas a:hover{color:var(--ink)}
+.abas a[aria-current]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
 @media (max-width:760px){h1{font-size:2rem}.barra-in{flex-wrap:wrap}.nav{margin-left:0;width:100%}.gaveta{width:100vw}.nome{max-width:170px}}
 @media (prefers-reduced-motion:reduce){*{transition:none !important}}
 </style>
@@ -86,13 +89,14 @@ body.aberta .fundo{opacity:1;pointer-events:auto}
 </head>
 <body>
 <header class="barra"><div class="barra-in">
-<a class="marca" href="/"><b>M-Score de Beneish</b><span id="topoData">carregando…</span></a>
+<a class="marca" href="/"><b>Qualidade dos Lucros</b><span id="topoData">carregando…</span></a>
 <nav class="nav" aria-label="Seções"><a href="/#empresas">Empresas</a><a href="#instituicoes" aria-current="page"><b>Bancos</b></a><a href="#metodo">Método</a><a href="https://www.alissonprata.io/">Alisson Prata</a>
 <button id="tema" class="icone" aria-label="Alternar tema claro ou escuro">◐</button></nav>
 </div></header>
 <main>
+<nav class="abas" aria-label="Universo"><a href="/">Empresas · M-Score</a><a href="/bancos/" aria-current="page">Bancos · CAMELS</a></nav>
 <div class="kicker">Qualidade dos lucros · instituições financeiras</div>
-<h1>Bancos e instituições financeiras</h1>
+<h1>Bancos e instituições financeiras: sinais CAMELS</h1>
 <p class="dek">O M-Score de Beneish não serve para bancos: não há estoque nem margem bruta, e o lançamento que mais mexe no lucro de um banco é a provisão para perdas de crédito. Esta aba faz a triagem equivalente para todas as instituições do IF.data do Banco Central, com sete sinais que comparam o período com o mesmo período do ano anterior. <span id="dekAnos"></span></p>
 <div class="educ" role="note"><span aria-hidden="true">⚠</span><span>Projeto educacional e pessoal, sem fim comercial. É uma triagem: um sinal aceso aponta onde olhar, não indica fraude nem risco de quebra. Os dados são os que as instituições informam ao Banco Central e podem conter erros. Nada aqui é recomendação de investimento.</span></div>
 
