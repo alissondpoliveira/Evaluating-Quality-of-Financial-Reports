@@ -25,3 +25,4 @@ site/public/*.tmp
 
 # textos extraídos dos PDFs da CVM para a validação (públicos, mas volumosos)
 validacao/textos/
+site/i18n/pendentes.json

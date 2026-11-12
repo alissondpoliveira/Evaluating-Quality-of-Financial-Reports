@@ -11,6 +11,8 @@ Mesma identidade visual do alissonprata.io (Inter + Newsreader, tokens claro/esc
 from pathlib import Path
 import json
 
+import i18n
+
 PUBLICO = Path(__file__).resolve().parent / "public"
 
 CSP = ("default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; "
@@ -104,6 +106,7 @@ HTML = """<!doctype html>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>M-Score de Beneish · Qualidade dos Lucros</title>
 <meta name="description" content="Projeto educacional: M-Score de Beneish (1999) calculado com as demonstrações anuais das companhias abertas não financeiras da CVM.">
+__ALT__
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
 <style>__CSS__</style>
@@ -112,7 +115,7 @@ HTML = """<!doctype html>
 <body>
 <header class="barra"><div class="barra-in">
 <a class="marca" href="/"><b>Qualidade dos Lucros</b><span id="topoData">carregando…</span></a>
-<nav class="nav" aria-label="Seções"><a href="#empresas">Empresas</a><a href="/bancos/">Bancos</a><a href="#metodo">Método</a><a href="https://www.alissonprata.io/">Alisson Prata</a>
+<nav class="nav" aria-label="Seções"><a href="#empresas">Empresas</a><a href="/bancos/">Bancos</a><a href="#metodo">Método</a><a href="https://www.alissonprata.io/">Alisson Prata</a><!--idioma-->
 <button id="tema" class="icone" aria-label="Alternar tema claro ou escuro">◐</button></nav>
 </div></header>
 <main>
@@ -415,6 +418,7 @@ HTML_BANCOS = """<!doctype html>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bancos · Qualidade dos Lucros</title>
 <meta name="description" content="Projeto educacional: triagem da qualidade dos lucros das instituições financeiras com os dados do IF.data do Banco Central.">
+__ALT__
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
 <style>__CSS__</style>
@@ -423,7 +427,7 @@ HTML_BANCOS = """<!doctype html>
 <body>
 <header class="barra"><div class="barra-in">
 <a class="marca" href="/"><b>Qualidade dos Lucros</b><span id="topoData">carregando…</span></a>
-<nav class="nav" aria-label="Seções"><a href="/#empresas">Empresas</a><a href="#instituicoes" aria-current="page"><b>Bancos</b></a><a href="#metodo">Método</a><a href="https://www.alissonprata.io/">Alisson Prata</a>
+<nav class="nav" aria-label="Seções"><a href="/#empresas">Empresas</a><a href="#instituicoes" aria-current="page"><b>Bancos</b></a><a href="#metodo">Método</a><a href="https://www.alissonprata.io/">Alisson Prata</a><!--idioma-->
 <button id="tema" class="icone" aria-label="Alternar tema claro ou escuro">◐</button></nav>
 </div></header>
 <main>
@@ -498,6 +502,7 @@ const COR_ALERTA = {'Crítico':'var(--pos-2)','Lucro a conferir':'var(--pos-1)',
 const ORDEM_ALERTA = {'Crítico':3,'Lucro a conferir':2,'Atenção':1,'Normal':0};
 const SINAIS = ['ipr','ico','vrn','icc','iap','ica','bpm','bas'];
 const EIXO = {ipr:'lucro', ico:'lucro', vrn:'lucro', icc:'lucro', iap:'solidez', ica:'solidez', bpm:'solidez', bas:'solidez'};
+const EIXO_NOME = {lucro:'Lucro', solidez:'Solidez'};
 const NOMES = {ipr:'Provisão', ico:'Cobertura', iap:'Ativos problemáticos', icc:'Crescimento da carteira', vrn:'Resultado não recorrente', ica:'Capital', bpm:'Basileia perto do mínimo', bas:'Capital abaixo do mínimo'};
 const SINAL = {ipr:'provisão caiu sem queda do risco', ico:'cobertura dos problemáticos caiu', iap:'ativos problemáticos subiram', icc:'carteira cresceu rápido', vrn:'lucro mais dependente de resultado não recorrente', ica:'capital caindo perto do mínimo', bpm:'Basileia entre 10,5% e 13%', bas:'Basileia abaixo de 10,5% ou patrimônio negativo'};
 const GLOSS = {
@@ -537,11 +542,14 @@ document.getElementById('glossario').innerHTML = Object.values(GLOSS).map(g => '
 document.getElementById('tema').onclick = () => { const r = document.documentElement, escuro = r.dataset.theme ? r.dataset.theme==='dark' : matchMedia('(prefers-color-scheme: dark)').matches;
   r.dataset.theme = escuro ? 'light' : 'dark'; try { localStorage.setItem('tema', r.dataset.theme); } catch(e) {} };
 
+// versão em inglês (site/public/en): meses e datas no formato de lá; TD troca valores dos dados (window.TRD, ver i18n.py)
+const EN = document.documentElement.lang === 'en', TD = v => (window.TRD && window.TRD[v]) || v;
+const MESES = EN ? ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] : ['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const dataBR = s => { const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s || ''); return EN && m ? MESES[+m[2]]+' '+(+m[1])+', '+m[3] : s; };
 fetch('/bancos.json', {cache:'no-cache'}).then(r => r.json()).then(iniciar).catch(() => { document.getElementById('topoData').textContent = 'falha ao carregar os dados; recarregue a página'; });
 
 function iniciar(D){
-  const MES = ['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-  const db = x => MES[x % 100]+'/'+Math.floor(x/100), per = D.meses===6 ? '1º semestre' : 'trimestre';
+  const db = x => MESES[x % 100]+'/'+Math.floor(x/100), per = D.meses===6 ? '1º semestre' : 'trimestre';
   const T = db(D.data_base), T1 = db(D.anterior);
   const I = D.instituicoes, ok = I.filter(x => x.avaliavel);
   I.forEach(x => { const i = x.ind || {}; x.nsin = (x.sinais||[]).length; x.basileia = i.basileia; x.problematicos = i.problematicos; x.cobertura = i.cobertura; x.roe = i.roe; });
@@ -601,7 +609,7 @@ function iniciar(D){
         + '<div><small>ROE anualizado '+infoBtn('roe')+'</small><b>'+pct(i.roe)+'</b><em>'+T1+': '+pct(i1.roe)+'</em></div></div>';
       h += x.nsin ? '<h3>Sinais acesos</h3><ul class="pequeno" style="padding-left:1.1rem;margin:.2rem 0">'+x.sinais.map(s => '<li><b>'+s.toUpperCase()+'</b>'+(ix[s]!=null?' em '+fmt(ix[s], 2):'')+': '+SINAL[s]+' <span class="fraco">('+(x.eixos.lucro.includes(s)?'lucro':'solidez')+')</span></li>').join('')+'</ul>' : '<p class="pequeno muted">Nenhum sinal aceso.</p>';
       const regua = s => s==='bas' ? '< 10,5% ou PL ≤ 0' : s==='bpm' ? '10,5% a 13%' : s==='vrn' ? '> '+fmt(R[s],2)+' e repasse ≥ 50%' : '> '+fmt(R[s],2)+(s==='ipr'?' sem melhora do IAP':s==='iap'?' e ≥ 3%':s==='ica'?' e Basileia < 15%':'');
-      h += '<h3>Os oito sinais</h3>'+tabela(['Índice','Valor','Pares '+infoBtn('pares'),'Régua','Aceso'], SINAIS.map(s => '<tr><td class="t"><b>'+s.toUpperCase()+'</b> '+infoBtn(s)+'<br><span class="fraco">'+NOMES[s]+' · '+(x.eixos.solidez.includes(s) ? 'solidez' : EIXO[s])+'</span></td><td>'+(s==='bas' || s==='bpm' ? pct(i.basileia) : fmt(ix[s], 2)+(s==='vrn' && ix.rep!=null ? '<br><span class="fraco">repasse '+pct(ix.rep)+'</span>' : ''))+'</td><td class="fraco">'+(s==='bas' || s==='bpm' ? pct(P.basileia) : fmt(P[s], 2))+'</td><td>'+regua(s)+'</td><td>'+((x.sinais||[]).includes(s) ? '<span class="av">▲ sim</span>' : '<span class="fraco">não</span>')+'</td></tr>').join(''));
+      h += '<h3>Os oito sinais</h3>'+tabela(['Índice','Valor','Pares '+infoBtn('pares'),'Régua','Aceso'], SINAIS.map(s => '<tr><td class="t"><b>'+s.toUpperCase()+'</b> '+infoBtn(s)+'<br><span class="fraco">'+NOMES[s]+' · '+EIXO_NOME[x.eixos.solidez.includes(s) ? 'solidez' : EIXO[s]]+'</span></td><td>'+(s==='bas' || s==='bpm' ? pct(i.basileia) : fmt(ix[s], 2)+(s==='vrn' && ix.rep!=null ? '<br><span class="fraco">repasse '+pct(ix.rep)+'</span>' : ''))+'</td><td class="fraco">'+(s==='bas' || s==='bpm' ? pct(P.basileia) : fmt(P[s], 2))+'</td><td>'+regua(s)+'</td><td>'+((x.sinais||[]).includes(s) ? '<span class="av">▲ sim</span>' : '<span class="fraco">não</span>')+'</td></tr>').join(''));
     } else {
       h += '<div class="avisos"><b>Sem avaliação.</b> '+esc(x.motivo||'')+'.</div>';
     }
@@ -629,14 +637,14 @@ function iniciar(D){
   const inicial = new URLSearchParams(location.search).get('inst'); if (inicial) abrirFicha(inicial, true);
 }
 fetch('/bancos_validacao.json', {cache:'no-cache'}).then(r => r.json()).then(V => {
-  const MES = ['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'], db = x => MES[x % 100]+'/'+Math.floor(x/100);
+  const db = x => MESES[x % 100]+'/'+Math.floor(x/100);
   const vezes = v => v==null ? '–' : fmt(v, 1)+'×';
   const tab = (cab, linhas) => '<div class="tabela" style="max-height:none;border:1px solid var(--line);border-radius:8px;margin:.5rem 0 1rem"><table><thead><tr>'+cab.map((c, i) => '<th'+(i?'':' class="t"')+'>'+c+'</th>').join('')+'</tr></thead><tbody>'+linhas.join('')+'</tbody></table></div>';
   const lin = (rot, g) => '<tr><td class="t">'+rot+'</td><td>'+g.n.toLocaleString('pt-BR')+'</td><td>'+pct(g.taxa)+'</td><td>'+vezes(g.lift)+'</td><td>'+(g.droa_mediano==null ? '–' : fmt(100*g.droa_mediano, 2)+' p.p.')+'</td><td>'+pct(g.vira_prejuizo)+'</td></tr>';
   const cab = ['', 'Observações', 'Estresse em 24 meses', 'Contra a média', 'ROA 1 ano depois', 'Lucro vira prejuízo'];
-  const caso = c => { const f = d => d.alerta || ('sem avaliação: '+(d.motivo||'')); return '<li><b>'+esc(c.nome)+'</b> ('+esc(c.tipo.toLowerCase())+' em '+c.inicio+'): jun/2024 '+esc(f(c['202406']))+'; dez/2024 '+esc(f(c['202412']))+'.</li>'; };
+  const caso = c => { const f = d => TD(d.alerta) || ('sem avaliação: '+TD(d.motivo||'')); return '<li><b>'+esc(c.nome)+'</b> ('+esc(TD(c.tipo).toLowerCase())+' em '+dataBR(c.inicio)+'): '+db(202406)+' '+esc(f(c['202406']))+'; '+db(202412)+' '+esc(f(c['202412']))+'.</li>'; };
   document.getElementById('validacao').innerHTML =
-    '<p>As regras atuais rodaram sobre '+V.observacoes.toLocaleString('pt-BR')+' observações de '+V.instituicoes.toLocaleString('pt-BR')+' instituições, de '+db(V.periodo[0])+' a '+db(V.periodo[1])+', no plano contábil antigo do IF.data. O desfecho é estresse: Basileia abaixo de 10,5% ou patrimônio negativo nos 24 meses seguintes, o que aconteceu com '+pct(V.taxa_base)+' das observações. O Banco Central não publica a lista histórica de intervenções e liquidações, então estresse de capital é o desfecho disponível; ele não é o mesmo que manipulação de resultado.</p>'
+    '<p>As regras atuais rodaram sobre '+V.observacoes.toLocaleString('pt-BR')+' observações de '+V.instituicoes.toLocaleString('pt-BR')+' instituições, de '+db(V.periodo[0])+' até '+db(V.periodo[1])+', no plano contábil antigo do IF.data. O desfecho é estresse: Basileia abaixo de 10,5% ou patrimônio negativo nos 24 meses seguintes, o que aconteceu com '+pct(V.taxa_base)+' das observações. O Banco Central não publica a lista histórica de intervenções e liquidações, então estresse de capital é o desfecho disponível; ele não é o mesmo que manipulação de resultado.</p>'
     + '<p><b>Por nível de alerta.</b></p>' + tab(cab, Object.entries(V.niveis).map(([k, g]) => lin(k, g)))
     + '<p><b>Por sinal aceso.</b> No plano antigo, ativos problemáticos foram aproximados pela carteira nos níveis E a H, e o resultado de títulos não separa juros de valor justo. BAS fica de fora: quem já está abaixo do mínimo sai da amostra.</p>'
     + tab(cab, Object.entries(V.sinais).map(([k, g]) => lin(k.toUpperCase()+' <span class="fraco">'+NOMES[k]+'</span>', g)).concat([lin('nenhum sinal', V.sem_sinal)]))
@@ -648,23 +656,59 @@ function d3m(v){ const s = v.filter(x => x!=null).sort((a,b) => a-b); return s.l
 """
 
 
+SITE = "https://beneish.alissonprata.io"
+_link_en = i18n.link_en_para(SITE, "https://www.alissonprata.io")
+
+
+def _pagina(modelo: str, js: str, caminho: str) -> str:
+    alt = (f'<link rel="alternate" hreflang="pt-BR" href="{SITE}{caminho}"><link rel="alternate" hreflang="en" href="{SITE}/en{caminho}">'
+           f'<link rel="alternate" hreflang="x-default" href="{SITE}{caminho}"><meta name="caminho" content="{caminho}">')
+    return modelo.replace("__CSS__", CSS + i18n.CSS_IDIOMA).replace("__JS__", js).replace("__ALT__", alt)
+
+
 def main() -> None:
     PUBLICO.mkdir(parents=True, exist_ok=True)
-    (PUBLICO / "index.html").write_text(HTML.replace("__CSS__", CSS).replace("__JS__", JS), encoding="utf-8")
+    empresas, bancos = _pagina(HTML, JS, "/"), _pagina(HTML_BANCOS, JS_BANCOS, "/bancos/")
+    (PUBLICO / "index.html").write_text(i18n.finalizar(empresas, False), encoding="utf-8")
     (PUBLICO / "bancos").mkdir(exist_ok=True)
-    (PUBLICO / "bancos" / "index.html").write_text(HTML_BANCOS.replace("__CSS__", CSS).replace("__JS__", JS_BANCOS), encoding="utf-8")
+    (PUBLICO / "bancos" / "index.html").write_text(i18n.finalizar(bancos, False), encoding="utf-8")
+    _versao_em_ingles(empresas, bancos)
     cabecalhos = [{"key": "Content-Security-Policy", "value": CSP},
                   {"key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains"},
                   {"key": "X-Content-Type-Options", "value": "nosniff"}, {"key": "X-Frame-Options", "value": "DENY"},
                   {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"},
                   {"key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=()"}]
-    (PUBLICO / "vercel.json").write_text(json.dumps({"headers": [{"source": "/(.*)", "headers": cabecalhos}]}, indent=2) + "\n", encoding="utf-8")
+    # página inicial em inglês para quem já escolheu inglês, ou cujo navegador não pede português (robôs sem idioma ficam)
+    redirecionar = [
+        {"source": "/", "has": [{"type": "cookie", "key": "lang", "value": "en"}], "destination": "/en/", "permanent": False},
+        {"source": "/", "missing": [{"type": "cookie", "key": "lang"}, {"type": "header", "key": "accept-language", "value": ".*pt.*"}],
+         "has": [{"type": "header", "key": "accept-language"}], "destination": "/en/", "permanent": False}]
+    (PUBLICO / "vercel.json").write_text(json.dumps({"headers": [{"source": "/(.*)", "headers": cabecalhos}], "redirects": redirecionar}, indent=2) + "\n", encoding="utf-8")
     # vercel.json da raiz do repositório: sem framework e sem build, publica site/public.
     # Sem ele a Vercel detecta o requirements.txt do app Streamlit e tenta montar um projeto Python.
     raiz = {"framework": None, "installCommand": "echo sem dependencias", "buildCommand": "echo pagina estatica",
-            "outputDirectory": "site/public", "headers": [{"source": "/(.*)", "headers": cabecalhos}]}
+            "outputDirectory": "site/public", "headers": [{"source": "/(.*)", "headers": cabecalhos}], "redirects": redirecionar}
     (PUBLICO.parent.parent / "vercel.json").write_text(json.dumps(raiz, indent=2, ensure_ascii=False) + chr(10), encoding="utf-8")
     print("site/public gerado")
+
+
+def _versao_em_ingles(empresas: str, bancos: str) -> None:
+    """Cópia em inglês em site/public/en/, traduzida pela memória em site/i18n/en.json (ver site/i18n.py)."""
+    mem = i18n.Memoria(PUBLICO.parent / "i18n")
+    lidos = {n: json.loads((PUBLICO / n).read_text(encoding="utf-8")) for n in ("dados.json", "bancos.json", "eventos.json", "bancos_validacao.json")
+             if (PUBLICO / n).exists()}
+    d, b = lidos.get("dados.json", {}), lidos.get("bancos.json", {})
+    na_tela = ({e.get(k) for e in d.get("empresas", []) for k in ("setor", "alerta", "qualidade", "classificacao")}
+               | {f for e in d.get("empresas", []) for f in e.get("flags") or []}
+               | {x.get(k) for x in b.get("instituicoes", []) for k in ("tipo", "consolidacao", "controle", "alerta", "motivo")}
+               | {c.get("tipo") for c in lidos.get("bancos_validacao.json", {}).get("regimes", [])})
+    destino = PUBLICO / "en"
+    (destino / "bancos").mkdir(parents=True, exist_ok=True)
+    (destino / "index.html").write_text(i18n.finalizar(empresas, True, mem, _link_en, na_tela), encoding="utf-8")
+    (destino / "bancos" / "index.html").write_text(i18n.finalizar(bancos, True, mem, _link_en, na_tela), encoding="utf-8")
+    falta = mem.salvar_pendentes()
+    if falta:
+        print(f"versão em inglês: {falta} trecho(s) sem tradução em site/i18n/pendentes.json (rode site/traduzir.py)")
 
 
 if __name__ == "__main__":

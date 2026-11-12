@@ -33,5 +33,41 @@
         }
       ]
     }
+  ],
+  "redirects": [
+    {
+      "source": "/",
+      "has": [
+        {
+          "type": "cookie",
+          "key": "lang",
+          "value": "en"
+        }
+      ],
+      "destination": "/en/",
+      "permanent": false
+    },
+    {
+      "source": "/",
+      "missing": [
+        {
+          "type": "cookie",
+          "key": "lang"
+        },
+        {
+          "type": "header",
+          "key": "accept-language",
+          "value": ".*pt.*"
+        }
+      ],
+      "has": [
+        {
+          "type": "header",
+          "key": "accept-language"
+        }
+      ],
+      "destination": "/en/",
+      "permanent": false
+    }
   ]
 }
