@@ -49,7 +49,7 @@ import urllib.request
 import urllib.error
 
 from .beneish_mscore import FinancialData
-from .cvm_accounts import ACCOUNT_SPECS, AccountSpec, SPEC_BY_FIELD
+from .cvm_accounts import ACCOUNT_SPECS, ALTMAN_ACCOUNT_SPECS, AccountSpec, SPEC_BY_FIELD
 from .ticker_map import resolve_company
 
 # Re-export so callers can do: from advisor_brain_fsa.data_fetcher import fetch_cvm_company_registry
@@ -457,7 +457,37 @@ class CVMDataFetcher:
         self, keyword: str, query_type: str, year: int
     ) -> FinancialData:
         """Load all statements and assemble one FinancialData for `year`."""
-        # Cache loaded statement DataFrames for this call
+        stmt_dfs = self._statements(keyword, query_type, year)
+
+        resolved: Dict[str, float] = {}
+        for spec in ACCOUNT_SPECS:
+            df_for_stmt = stmt_dfs.get(spec.statement, pd.DataFrame())
+            resolved[spec.field_name] = self._resolve_account(df_for_stmt, spec)
+
+        # Report any missing fields before raising
+        missing = [k for k, v in resolved.items() if np.isnan(v)]
+        if missing:
+            logger.warning(
+                "Year %d — could not resolve: %s. Will substitute 0.0.", year, missing
+            )
+            for k in missing:
+                resolved[k] = 0.0
+
+        return FinancialData(**resolved)
+
+    def get_altman_data(self, query: str, year: int) -> Dict[str, Optional[float]]:
+        """Contas extras do Altman Z''-Score (ver ALTMAN_ACCOUNT_SPECS) para `year`, das mesmas
+        demonstrações (consolidada ou individual) que get_financial_data usa. Conta ausente → None."""
+        keyword, query_type = resolve_company(query)
+        stmt_dfs = self._statements(keyword, query_type, year)
+        saida: Dict[str, Optional[float]] = {}
+        for spec in ALTMAN_ACCOUNT_SPECS:
+            v = self._resolve_account(stmt_dfs.get(spec.statement, pd.DataFrame()), spec)
+            saida[spec.field_name] = None if np.isnan(v) else v
+        return saida
+
+    def _statements(self, keyword: str, query_type: str, year: int) -> Dict[str, pd.DataFrame]:
+        """Demonstrações da empresa no ano: consolidadas, ou individuais se as consolidadas vierem vazias."""
         def carregar(modality: str) -> Dict[str, pd.DataFrame]:
             return {k: self._filter_company(self._load_statement(year, k, modality), keyword, query_type, year)
                     for k in _STATEMENT_FILE_MAP}
@@ -485,22 +515,7 @@ class CVMDataFetcher:
                 stmt_dfs = ind
             elif stmt_dfs is None:
                 raise erro_con
-
-        resolved: Dict[str, float] = {}
-        for spec in ACCOUNT_SPECS:
-            df_for_stmt = stmt_dfs.get(spec.statement, pd.DataFrame())
-            resolved[spec.field_name] = self._resolve_account(df_for_stmt, spec)
-
-        # Report any missing fields before raising
-        missing = [k for k, v in resolved.items() if np.isnan(v)]
-        if missing:
-            logger.warning(
-                "Year %d — could not resolve: %s. Will substitute 0.0.", year, missing
-            )
-            for k in missing:
-                resolved[k] = 0.0
-
-        return FinancialData(**resolved)
+        return stmt_dfs
 
 
 # ---------------------------------------------------------------------------

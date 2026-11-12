@@ -176,6 +176,36 @@ REQUIRED_FIELDS = frozenset(
 )
 
 # ---------------------------------------------------------------------------
+# Altman Z''-Score (mercados emergentes) — contas extras, fora de REQUIRED_FIELDS
+# ---------------------------------------------------------------------------
+# Lidas na mesma passada das demonstrações, mas não fazem parte do contrato do M-Score:
+# conta ausente fica NaN (sem Z-Score), em vez de virar zero e derrubar a empresa.
+# Passivo total = ativo total − patrimônio líquido.
+
+ALTMAN_ACCOUNT_SPECS: List[AccountSpec] = [
+    AccountSpec(
+        field_name="ebit",
+        statement="DRE",
+        codes=["3.05"],
+        description="Resultado Antes do Resultado Financeiro e dos Tributos (EBIT)",
+    ),
+    AccountSpec(
+        field_name="shareholders_equity",
+        statement="BPP",
+        codes=["2.03"],
+        description="Patrimônio Líquido (consolidado, inclui não controladores)",
+    ),
+    AccountSpec(
+        field_name="retained_earnings",
+        statement="BPP",
+        # Lucros retidos de Altman: reservas de lucros + lucros ou prejuízos acumulados
+        codes=["2.03.04", "2.03.05"],
+        description="Reservas de Lucros (2.03.04) + Lucros/Prejuízos Acumulados (2.03.05)",
+        sum_codes=True,
+    ),
+]
+
+# ---------------------------------------------------------------------------
 # Banking-specific supplementary account specs
 # ---------------------------------------------------------------------------
 # These are used to enrich risk analysis for financial institutions.

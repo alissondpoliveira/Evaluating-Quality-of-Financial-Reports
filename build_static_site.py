@@ -32,6 +32,7 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(_ROOT / "src"))
 
+from advisor_brain_fsa import altman_zscore
 from advisor_brain_fsa.beneish_mscore import _COEFFICIENTS, _MANIPULATION_THRESHOLD
 from advisor_brain_fsa.cvm_registry import CVMRegistry
 from advisor_brain_fsa.data_fetcher import CVMDataFetcher
@@ -108,6 +109,15 @@ def _empresa(cnpj, denom, setor, ano, fetcher, scorer) -> dict:
             "fin": {"t": {k: _r(v, 0) for k, v in dataclasses.asdict(fd_t).items()},
                     "t1": {k: _r(v, 0) for k, v in dataclasses.asdict(fd_t1).items()}},
         })
+        # Altman Z''-Score (mercados emergentes), só do exercício atual; conta ausente deixa sem Z
+        extra = fetcher.get_altman_data(cnpj, ano)
+        base["fin"]["t"].update({k: _r(v, 0) for k, v in extra.items()})
+        z = altman_zscore.calcular(fd_t.total_assets, fd_t.current_assets, fd_t.current_liabilities,
+                                   extra["retained_earnings"], extra["ebit"], extra["shareholders_equity"])
+        if z:
+            base["zscore"] = {"em": _r(z.em_score), "z": _r(z.z), "zona": z.zona,
+                              "x": {k: _r(getattr(z, k)) for k in altman_zscore.COEFICIENTES},
+                              "contrib": {k: _r(v) for k, v in z.contribuicoes().items()}}
     except Exception as exc:  # o lote original também registra o erro e segue
         base["erro"] = str(exc)[:200]
     finally:
@@ -115,6 +125,9 @@ def _empresa(cnpj, denom, setor, ano, fetcher, scorer) -> dict:
     if _avisos.individuais.get(cnpj):
         base["individual"] = sorted(set(_avisos.individuais[cnpj]))
     av = dict(_avisos.avisos.get(cnpj) or {})
+    # o Z-Score relê as demonstrações do ano: o mesmo aviso de troca de exercício pode vir duas vezes
+    if av.get("exercicio_substituido"):
+        av["exercicio_substituido"] = sorted(set(av["exercicio_substituido"]))
     # Sinal de exibição, sem efeito no cálculo: índice fora de uma faixa larga costuma ser
     # conta mapeada errado ou ano atípico (ex.: recebíveis quase zerados num dos anos).
     extremos = [k for k, v in (base.get("indices") or {}).items()
@@ -158,6 +171,8 @@ def build(ano: int, workers: int) -> Path:
         "limiar": _MANIPULATION_THRESHOLD,
         "coeficientes": _COEFFICIENTS,
         "referencias_alerta": {s.attr: s.threshold for s in _INDEX_SPECS},
+        "zscore": {"coeficientes": altman_zscore.COEFICIENTES, "constante": altman_zscore.CONSTANTE_EM,
+                   "segura": altman_zscore.LIMIAR_SEGURA, "risco": altman_zscore.LIMIAR_RISCO},
         "empresas": resultados,
     }
     _SAIDA.parent.mkdir(parents=True, exist_ok=True)
