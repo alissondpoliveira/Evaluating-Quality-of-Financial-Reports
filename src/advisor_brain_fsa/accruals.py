@@ -23,8 +23,16 @@ Combined Alert Level (M-Score × Accruals)
   M-Score ≤ -1.78  AND  Accruals > 5%  → "Atenção"   ★
   M-Score ≤ -1.78  AND  Accruals ≤ 5%  → "Normal"    ✓
 
+A régua acima, com sinal, é a do cálculo de uma empresa isolada. Com o mercado inteiro
+(site estático), a qualidade usa o desvio em módulo em relação à mediana do setor:
+ver medianas_por_setor / qualidade_por_desvio.
+
 References
 ----------
+- Dechow, P. M., Sloan, R. G. & Sweeney, A. P. (1995). Detecting earnings management.
+  The Accounting Review, 70(2), 193–225 (Industry Model).
+- Becker, C. L., DeFond, M. L., Jiambalvo, J. & Subramanyam, K. R. (1998). The effect of
+  audit quality on earnings management. Contemporary Accounting Research, 15(1), 1–24.
 - CFA Program Curriculum, Level 2 — Financial Reporting Quality
 - Sloan, R. G. (1996). Do stock prices fully reflect information in accruals
   and cash flows about future earnings? The Accounting Review, 71(3), 289–315.
@@ -118,7 +126,51 @@ def _earnings_quality_label(ratio: float) -> str:
 
 
 def _combine_alert(mscore_result: MScoreResult, earnings_quality: str) -> AlertLevel:
-    is_manipulator = mscore_result.is_manipulator
+    return combinar_alerta(mscore_result.is_manipulator, earnings_quality)
+
+
+# ---------------------------------------------------------------------------
+# Accrual relativo ao setor (modelo de setor: Dechow e Sloan, 1991;
+# Dechow, Sloan e Sweeney, 1995)
+# ---------------------------------------------------------------------------
+# O accrual "normal" de uma empresa não é zero: a depreciação reduz o lucro sem sair do
+# caixa, e o capital de giro de cada setor tem a sua dinâmica. O modelo de setor estima o
+# accrual normal pela mediana dos accruals totais (sobre o ativo) das empresas do mesmo
+# setor no mesmo período; o que sobra é o accrual discricionário. A qualidade se lê pelo
+# módulo dessa sobra (Warfield, Wild e Wild, 1995; Becker et al., 1998): lucro muito acima
+# do caixa (agressivo) e muito abaixo (big bath, constituição de reservas) contam igual.
+
+DESVIO_MODERADO = 0.05   # a partir daqui → "Moderada"
+DESVIO_ALTO     = 0.10   # a partir daqui → "Baixa"
+MIN_SETOR       = 10     # setor menor usa a mediana da amostra toda
+
+
+def medianas_por_setor(pares, minimo: int = MIN_SETOR) -> tuple[dict, float, dict]:
+    """pares: (setor, accrual_ratio) das empresas de referência (dado completo).
+    Devolve ({setor: mediana} só dos setores com pelo menos `minimo` empresas,
+    mediana da amostra toda, {setor: n})."""
+    import statistics
+
+    grupos: dict[str, list[float]] = {}
+    for setor, r in pares:
+        if r is not None:
+            grupos.setdefault(setor, []).append(float(r))
+    todos = [r for v in grupos.values() for r in v]
+    geral = statistics.median(todos) if todos else 0.0
+    return ({s: statistics.median(v) for s, v in grupos.items() if len(v) >= minimo}, geral,
+            {s: len(v) for s, v in grupos.items()})
+
+
+def qualidade_por_desvio(desvio: float) -> str:
+    d = abs(desvio)
+    if d < DESVIO_MODERADO:
+        return "Alta"
+    if d < DESVIO_ALTO:
+        return "Moderada"
+    return "Baixa"
+
+
+def combinar_alerta(is_manipulator: bool, earnings_quality: str) -> AlertLevel:
     low_quality    = earnings_quality == "Baixa"
 
     if is_manipulator and low_quality:

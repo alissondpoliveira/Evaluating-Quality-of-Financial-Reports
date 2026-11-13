@@ -33,7 +33,7 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(_ROOT / "src"))
 
-from advisor_brain_fsa import altman_zscore
+from advisor_brain_fsa import accruals, altman_zscore
 from advisor_brain_fsa.beneish_mscore import _COEFFICIENTS, _MANIPULATION_THRESHOLD
 from advisor_brain_fsa.cvm_registry import CVMRegistry
 from advisor_brain_fsa.data_fetcher import CVMDataFetcher
@@ -161,6 +161,25 @@ def _empresa(cnpj, denom, setor, cadeia, fetcher, ltm, scorer) -> dict:
     return base
 
 
+def _qualidade_setorial(resultados: list[dict]) -> None:
+    """Qualidade dos lucros pelo desvio do accrual ratio até a mediana do setor (modelo de setor,
+    Dechow e Sloan, 1991), em módulo; o nível de alerta é recombinado com o M-Score.
+    A mediana vem só das empresas com dado completo (sem aviso), as mesmas da posição no setor."""
+    calc = [r for r in resultados if not r.get("erro") and r.get("accrual") is not None]
+    medianas, geral, n = accruals.medianas_por_setor((r["setor"], r["accrual"]) for r in calc
+                                                      if r.get("indices") and not r.get("avisos"))
+    total = sum(n.values())
+    for r in calc:
+        no_setor = r["setor"] in medianas
+        med = medianas[r["setor"]] if no_setor else geral
+        desvio = r["accrual"] - med
+        r["accrual_setor"] = {"mediana": _r(med), "desvio": _r(desvio), "grupo": r["setor"] if no_setor else "",
+                              "n": n[r["setor"]] if no_setor else total}
+        r["qualidade"] = accruals.qualidade_por_desvio(desvio)
+        if r.get("mscore") is not None:
+            r["alerta"] = accruals.combinar_alerta(r["mscore"] > _MANIPULATION_THRESHOLD, r["qualidade"]).value
+
+
 def build(ref: date, workers: int) -> Path:
     _CACHE_DIR.mkdir(parents=True, exist_ok=True)
     registry = CVMRegistry.get_instance(cache_dir=str(_CACHE_DIR))
@@ -189,6 +208,7 @@ def build(ref: date, workers: int) -> Path:
     with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
         resultados = [f.result() for f in as_completed([pool.submit(trabalho, x) for x in linhas])]
     resultados.sort(key=lambda r: (r.get("risco") is None, -(r.get("risco") or 0), r["nome"]))
+    _qualidade_setorial(resultados)
 
     agora = datetime.now(timezone(timedelta(hours=-3)))
     saida = {
@@ -198,6 +218,7 @@ def build(ref: date, workers: int) -> Path:
         "limiar": _MANIPULATION_THRESHOLD,
         "coeficientes": _COEFFICIENTS,
         "referencias_alerta": {s.attr: s.threshold for s in _INDEX_SPECS},
+        "accrual_desvio": {"moderado": accruals.DESVIO_MODERADO, "alto": accruals.DESVIO_ALTO, "min_setor": accruals.MIN_SETOR},
         "zscore": {"coeficientes": altman_zscore.COEFICIENTES, "constante": altman_zscore.CONSTANTE_EM,
                    "segura": altman_zscore.LIMIAR_SEGURA, "risco": altman_zscore.LIMIAR_RISCO},
         "empresas": resultados,
@@ -218,6 +239,14 @@ if __name__ == "__main__":
     p.add_argument("--year", type=int, help="exercício anual (DFP) contra o anterior")
     p.add_argument("--ate", help="fim do trimestre dos 12 meses, AAAA-MM-DD")
     p.add_argument("--workers", type=int, default=2)
+    p.add_argument("--so-qualidade", action="store_true",
+                   help="só refaz a qualidade dos lucros e o alerta no dados.json existente, sem baixar nada")
     a = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
+    if a.so_qualidade:
+        d = json.loads(_SAIDA.read_text(encoding="utf-8"))
+        _qualidade_setorial(d["empresas"])
+        d["accrual_desvio"] = {"moderado": accruals.DESVIO_MODERADO, "alto": accruals.DESVIO_ALTO, "min_setor": accruals.MIN_SETOR}
+        _SAIDA.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+        sys.exit(0)
     build(date(a.year, 12, 31) if a.year else (date.fromisoformat(a.ate) if a.ate else None), a.workers)
