@@ -2,8 +2,8 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>M-Score de Beneish · Qualidade dos Lucros</title>
-<meta name="description" content="Projeto educacional: M-Score de Beneish (1999) calculado com os últimos 12 meses de demonstrações das companhias abertas não financeiras da CVM.">
+<title>Qualidade Contábil · M-Score, accrual ratio e Z-Score</title>
+<meta name="description" content="Projeto educacional: M-Score de Beneish (risco de manipulação de resultados), accrual ratio (quanto do lucro virou caixa) e Z-Score de Altman (risco de insolvência) das companhias abertas não financeiras, com os últimos 12 meses de demonstrações entregues à CVM.">
 <link rel="alternate" hreflang="pt-BR" href="https://beneish.alissonprata.io/"><link rel="alternate" hreflang="en" href="https://beneish.alissonprata.io/en/"><link rel="alternate" hreflang="x-default" href="https://beneish.alissonprata.io/"><meta name="caminho" content="/">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
@@ -96,9 +96,9 @@ body.aberta .fundo{opacity:1;pointer-events:auto}
 </div></header>
 <main>
 <nav class="abas" aria-label="Universo"><a href="/" aria-current="page">Empresas · Qualidade Contábil</a><a href="/bancos/">Bancos · CAMELS</a></nav>
-<div class="kicker">Qualidade dos lucros · companhias abertas não financeiras</div>
-<h1>M-Score de Beneish</h1>
-<p class="dek">Modelo de Beneish (1999) que estima a probabilidade de manipulação de resultados a partir de oito índices contábeis, calculado com os últimos 12 meses de demonstrações que as companhias entregam à CVM (ITR trimestral somada à DFP anual). Ao lado, o accrual ratio mede quanto do lucro passou pelo caixa, e o Z-Score de Altman mede o risco de insolvência. <span id="dekAnos"></span></p>
+<div class="kicker">Qualidade contábil · companhias abertas não financeiras</div>
+<h1>M-Score, accrual ratio e Z-Score</h1>
+<p class="dek">Três leituras das mesmas demonstrações financeiras. O <b>M-Score de Beneish</b> (1999) estima a probabilidade de manipulação de resultados a partir de oito índices contábeis. O <b>accrual ratio</b> mede quanto do lucro virou caixa nas operações: quanto mais alto, mais o lucro depende de lançamentos ainda não recebidos, como vendas a prazo e estoques. O <b>Z-Score de Altman</b>, na versão para mercados emergentes, mede o risco de insolvência a partir de capital de giro, lucros retidos, rentabilidade operacional e alavancagem. Tudo com os últimos 12 meses de demonstrações que as companhias entregam à CVM (ITR trimestral somada à DFP anual). <span id="dekAnos"></span></p>
 <div class="educ" role="note"><span aria-hidden="true">⚠</span><span>Projeto educacional e pessoal, sem fim comercial. O modelo é uma triagem estatística, não uma acusação: M-Score acima do limiar não significa fraude, e o cálculo pode conter erros de dado ou de mapeamento de contas. Nada aqui é recomendação de investimento.</span></div>
 
 <div class="tiles" id="tiles"></div>
@@ -111,7 +111,7 @@ body.aberta .fundo{opacity:1;pointer-events:auto}
 
 <section id="empresas">
 <h2>Empresas</h2>
-<p class="muted pequeno">Clique numa linha para ver os oito índices, a formação do M-Score e os números de base. Por padrão a tabela esconde as empresas com dado a conferir; desmarque "só com dado completo" para vê-las. O símbolo ⚠ indica dado a conferir: índice fora da faixa usual, índice neutralizado ou exercício substituído.</p>
+<p class="muted pequeno">Clique numa linha para ver os oito índices e a formação do M-Score, a conta do accrual ratio, os quatro componentes do Z-Score e os números de base. Por padrão a tabela esconde as empresas com dado a conferir; desmarque "só com dado completo" para vê-las. O símbolo ⚠ indica dado a conferir: índice fora da faixa usual, índice neutralizado ou exercício substituído.</p>
 <div class="painel">
 <div class="filtros">
 <input id="fBusca" type="search" placeholder="Buscar empresa, ticker ou CNPJ" aria-label="Buscar empresa">
@@ -265,11 +265,11 @@ function iniciar(D, EV){
   const acima = ok.filter(e => e.mscore > lim);
   document.getElementById('tiles').innerHTML = [
     ['Empresas calculadas', ok.length, 'de '+E.length+' não financeiras ativas'],
-    ['Acima do limiar', acima.length, fmt(100*acima.length/Math.max(ok.length,1),0)+'% das calculadas'],
-    ['Alerta crítico', ok.filter(e => e.alerta==='Crítico').length, 'acima do limiar e lucro pouco sustentado por caixa'],
+    ['M-Score acima do limiar', acima.length, fmt(100*acima.length/Math.max(ok.length,1),0)+'% das calculadas; mediana '+fmt(d3.median(ok, e => e.mscore),2)+' (limiar '+fmt(lim,2)+')'],
+    ['Lucro pouco convertido em caixa', ok.filter(e => e.qualidade==='Baixa').length, 'accrual ratio a partir de 0,05; mediana '+fmt(d3.median(ok, e => e.accrual),3)],
+    ['Z-Score na zona de risco', ok.filter(e => e.zscore && e.zscore.zona==='Risco').length, 'de '+ok.filter(e => e.zscore).length+' com Z-Score (abaixo de 4,35); mediana '+fmt(d3.median(ok.filter(e => e.zscore), e => e.zscore.em),2)],
+    ['Alerta crítico', ok.filter(e => e.alerta==='Crítico').length, 'M-Score acima do limiar e lucro pouco sustentado por caixa'],
     ['Com dado a conferir', ok.filter(e => !completo(e)).length, 'índice extremo, neutralizado ou exercício substituído'],
-    ['Z-Score na zona de risco', ok.filter(e => e.zscore && e.zscore.zona==='Risco').length, 'de '+ok.filter(e => e.zscore).length+' com Z-Score; abaixo de 4,35'],
-    ['M-Score mediano', fmt(d3.median(ok, e => e.mscore),2), 'limiar: '+fmt(lim,2)],
   ].map(x => '<div class="tile"><span>'+x[0]+'</span><b>'+x[1]+'</b><small>'+x[2]+'</small></div>').join('');
   document.getElementById('semDados').textContent = (E.length-ok.length)+' empresas ficaram sem M-Score por falta de demonstração nos dois períodos ou de contas essenciais.';
   [...new Set(ok.map(e => e.setor))].sort().forEach(s => { const o = document.createElement('option'); o.value = o.textContent = s; document.getElementById('fSetor').appendChild(o); });

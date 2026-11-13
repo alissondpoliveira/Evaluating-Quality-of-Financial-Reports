@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Beneish M-Score · Earnings Quality</title>
-<meta name="description" content="Educational project: Beneish M-Score (1999) calculated with the last 12 months of financial statements from non-financial listed companies at CVM.">
+<title>Accounting Quality · M-Score, accrual ratio, and Z-Score</title>
+<meta name="description" content="Educational project: Beneish&#x27;s M-Score (earnings manipulation risk), accrual ratio (how much of earnings became cash), and Altman&#x27;s Z-Score (insolvency risk) for non-financial listed companies, based on the last 12 months of financial statements submitted to CVM.">
 <link rel="alternate" hreflang="pt-BR" href="https://beneish.alissonprata.io/"><link rel="alternate" hreflang="en" href="https://beneish.alissonprata.io/en/"><link rel="alternate" hreflang="x-default" href="https://beneish.alissonprata.io/"><meta name="caminho" content="/">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
@@ -102,9 +102,9 @@ document.addEventListener('DOMContentLoaded',()=>anda(document.body));})();</scr
 </div></header>
 <main>
 <nav class="abas" aria-label="Universe"><a href="/en/" aria-current="page">Companies · Accounting Quality</a><a href="/en/bancos/">Banks · CAMELS</a></nav>
-<div class="kicker">Earnings quality · non-financial listed companies</div>
-<h1>Beneish M-Score</h1>
-<p class="dek">Beneish Model (1999), which estimates the probability of earnings manipulation from eight accounting ratios, calculated with the last 12 months of financial statements that companies file with CVM (quarterly ITR plus annual DFP). Alongside it, the accrual ratio measures how much of earnings went through cash, and the Altman Z-Score measures insolvency risk. <span id="dekAnos"></span></p>
+<div class="kicker">Accounting quality · non-financial listed companies</div>
+<h1>M-Score, accrual ratio, and Z-Score</h1>
+<p class="dek">Three readings of the same financial statements. The <b>Beneish M-Score</b> (1999) estimates the probability of earnings manipulation from eight accounting ratios. The <b>accrual ratio</b> measures how much of earnings became cash from operations: the higher it is, the more earnings depend on entries not yet received, such as credit sales and inventories. The <b>Altman Z-Score</b>, in the emerging markets version, measures insolvency risk from working capital, retained earnings, operating profitability, and leverage. All based on the last 12 months of financial statements that companies submit to CVM (quarterly ITR combined with annual DFP). <span id="dekAnos"></span></p>
 <div class="educ" role="note"><span aria-hidden="true">⚠</span><span>Educational and personal project, non-commercial. The model is a statistical screen, not an accusation: an M-Score above the threshold doesn't mean fraud, and the calculation may contain data or account-mapping errors. Nothing here is investment advice.</span></div>
 
 <div class="tiles" id="tiles"></div>
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded',()=>anda(document.body));})();</scr
 
 <section id="empresas">
 <h2>Companies</h2>
-<p class="muted pequeno">Click a row to see the eight indices, the M-Score breakdown, and the underlying figures. By default the table hides companies with data to check; uncheck "complete data only" to see them. The ⚠ symbol indicates data to check: index outside the usual range, neutralized index, or substituted fiscal year.</p>
+<p class="muted pequeno">Click a row to see the eight ratios and the M-Score composition, the accrual ratio calculation, the four Z-Score components, and the underlying figures. By default the table hides companies with data to double-check; uncheck "only with complete data" to see them. The ⚠ symbol indicates data to double-check: ratio outside the usual range, neutralized ratio, or substituted fiscal year.</p>
 <div class="painel">
 <div class="filtros">
 <input id="fBusca" type="search" placeholder="Search company, ticker, or CNPJ" aria-label="Search company">
@@ -271,11 +271,11 @@ function iniciar(D, EV){
   const acima = ok.filter(e => e.mscore > lim);
   document.getElementById('tiles').innerHTML = [
     ['Companies calculated', ok.length, 'of '+E.length+' active non-financial'],
-    ['Above the threshold', acima.length, fmt(100*acima.length/Math.max(ok.length,1),0)+'% of those calculated'],
-    ['Critical alert', ok.filter(e => e.alerta==='Crítico').length, 'above the threshold and earnings poorly supported by cash'],
+    ['M-Score above the threshold', acima.length, fmt(100*acima.length/Math.max(ok.length,1),0)+'% of those calculated; median '+fmt(d3.median(ok, e => e.mscore),2)+' (threshold '+fmt(lim,2)+')'],
+    ['Earnings weakly converted into cash', ok.filter(e => e.qualidade==='Baixa').length, 'accrual ratio starting at 0.05; median '+fmt(d3.median(ok, e => e.accrual),3)],
+    ['Z-Score in the distress zone', ok.filter(e => e.zscore && e.zscore.zona==='Risco').length, 'of '+ok.filter(e => e.zscore).length+' with Z-Score (below 4.35); median '+fmt(d3.median(ok.filter(e => e.zscore), e => e.zscore.em),2)],
+    ['Critical alert', ok.filter(e => e.alerta==='Crítico').length, 'M-Score above the threshold and earnings weakly sustained by cash'],
     ['With data to check', ok.filter(e => !completo(e)).length, 'extreme index, neutralized, or substituted fiscal year'],
-    ['Z-Score in the distress zone', ok.filter(e => e.zscore && e.zscore.zona==='Risco').length, 'of '+ok.filter(e => e.zscore).length+' with Z-Score; below 4.35'],
-    ['Median M-Score', fmt(d3.median(ok, e => e.mscore),2), 'threshold: '+fmt(lim,2)],
   ].map(x => '<div class="tile"><span>'+x[0]+'</span><b>'+x[1]+'</b><small>'+x[2]+'</small></div>').join('');
   document.getElementById('semDados').textContent = (E.length-ok.length)+' companies were left without an M-Score due to missing financial statements in both periods or missing essential accounts.';
   [...new Set(ok.map(e => e.setor))].sort().forEach(s => { const o = document.createElement('option'); o.value = o.textContent = s; document.getElementById('fSetor').appendChild(o); });
