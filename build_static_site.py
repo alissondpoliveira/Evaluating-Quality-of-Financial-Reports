@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-build_static_site.py — dados da versão estática (beneish.alissonprata.io)
+build_static_site.py — dados da versão estática (beneish.alissonprata.io), últimos 12 meses
 ==========================================================================
 Mesmo lote do build_market_cache.py (cadastro CVM → não financeiras → DFP →
 BeneishSectorScorer), com os mesmos módulos de cálculo e sem alterar nenhuma
@@ -11,8 +11,9 @@ números de base dos dois exercícios.
 Saída: site/public/dados.json (lido por site/gerar.py)
 
 Uso:
-    python build_static_site.py                 # último exercício com DFP entregue (ano passado a partir de maio)
-    python build_static_site.py --year 2025 --workers 2
+    python build_static_site.py                 # 12 meses até o último trimestre entregue pela maioria (ITR + DFP)
+    python build_static_site.py --ate 2026-06-30
+    python build_static_site.py --year 2025 --workers 2   # comparação anual de duas DFPs
 """
 
 from __future__ import annotations
@@ -36,6 +37,7 @@ from advisor_brain_fsa import altman_zscore
 from advisor_brain_fsa.beneish_mscore import _COEFFICIENTS, _MANIPULATION_THRESHOLD
 from advisor_brain_fsa.cvm_registry import CVMRegistry
 from advisor_brain_fsa.data_fetcher import CVMDataFetcher
+from advisor_brain_fsa.ltm import LTMFetcher, cadeia, um_ano_antes
 from advisor_brain_fsa.rank_market import _INDEX_SPECS
 from advisor_brain_fsa.sector_scorer import BeneishSectorScorer
 from build_market_cache import _CACHE_DIR, _RETRY_DELAY, _ticker_for_denom
@@ -84,16 +86,37 @@ def _r(v, casas=4):
     return None if v is None else round(float(v), casas)
 
 
-def _empresa(cnpj, denom, setor, ano, fetcher, scorer) -> dict:
+def _periodo(fim: date, fim_ant: date, ltm: bool) -> dict:
+    return {"fim": fim.isoformat(), "fim_ant": fim_ant.isoformat(), "ltm": ltm}
+
+
+def _dados(cnpj, cadeia, fetcher, ltm):
+    """FinancialData dos dois períodos: 12 meses até o trimestre de referência; sem ITR completa,
+    o trimestre anterior, e assim até o último exercício anual (DFP)."""
+    for q in cadeia:
+        if q.month != 12:
+            try:
+                r = ltm.get(cnpj, q)
+            except LookupError:
+                continue
+            return r.t, r.t1, r.altman_t, _periodo(r.fim, r.fim_ant, True)
+        fd_t, fd_t1 = fetcher.get_financial_data(cnpj, year_t=q.year, year_t1=q.year - 1)
+        # Sem ativo total num dos anos, o coletor devolveu tudo zerado: os índices viram 1 e o
+        # M-Score sai −2,48 com qualidade "Alta", sem significado. Trata como empresa sem dados.
+        if not fd_t.total_assets or not fd_t1.total_assets:
+            raise ValueError(f"Demonstrações sem valores em {q.year if not fd_t.total_assets else q.year - 1} (ativo total zero)")
+        return fd_t, fd_t1, fetcher.get_altman_data(cnpj, q.year), _periodo(q, date(q.year - 1, 12, 31), False)
+    raise ValueError("Sem demonstrações para o período")
+
+
+def _empresa(cnpj, denom, setor, cadeia, fetcher, ltm, scorer) -> dict:
     """Uma empresa: mesmas chamadas de _score_company, com os detalhes da ficha."""
     base = {"ticker": _ticker_for_denom(denom), "nome": denom, "cnpj": cnpj, "setor": setor, "erro": ""}
     _avisos.atual[threading.get_ident()] = cnpj
     try:
-        fd_t, fd_t1 = fetcher.get_financial_data(cnpj, year_t=ano, year_t1=ano - 1)
-        # Sem ativo total num dos anos, o coletor devolveu tudo zerado: os índices viram 1 e o
-        # M-Score sai −2,48 com qualidade "Alta", sem significado. Trata como empresa sem dados.
+        fd_t, fd_t1, extra, base["periodo"] = _dados(cnpj, cadeia, fetcher, ltm)
         if not fd_t.total_assets or not fd_t1.total_assets:
-            raise ValueError(f"Demonstrações sem valores em {ano if not fd_t.total_assets else ano - 1} (ativo total zero)")
+            raise ValueError("Demonstrações sem valores (ativo total zero)")
         sr = scorer.score(fd_t, fd_t1)
         ms, cfq = sr.mscore_result, sr.cfq_result
         base.update({
@@ -109,8 +132,7 @@ def _empresa(cnpj, denom, setor, ano, fetcher, scorer) -> dict:
             "fin": {"t": {k: _r(v, 0) for k, v in dataclasses.asdict(fd_t).items()},
                     "t1": {k: _r(v, 0) for k, v in dataclasses.asdict(fd_t1).items()}},
         })
-        # Altman Z''-Score (mercados emergentes), só do exercício atual; conta ausente deixa sem Z
-        extra = fetcher.get_altman_data(cnpj, ano)
+        # Altman Z''-Score (mercados emergentes), só do período atual; conta ausente deixa sem Z
         base["fin"]["t"].update({k: _r(v, 0) for k, v in extra.items()})
         z = altman_zscore.calcular(fd_t.total_assets, fd_t.current_assets, fd_t.current_liabilities,
                                    extra["retained_earnings"], extra["ebit"], extra["shareholders_equity"])
@@ -139,21 +161,25 @@ def _empresa(cnpj, denom, setor, ano, fetcher, scorer) -> dict:
     return base
 
 
-def build(ano: int, workers: int) -> Path:
+def build(ref: date, workers: int) -> Path:
     _CACHE_DIR.mkdir(parents=True, exist_ok=True)
     registry = CVMRegistry.get_instance(cache_dir=str(_CACHE_DIR))
     nf = registry.get_non_financial_df()
     cnpj_col = next(c for c in ["_CNPJ_DIGITS", "CNPJ_CIA", "CNPJ"] if c in nf.columns)
     fetcher, scorer = CVMDataFetcher(cache_dir=str(_CACHE_DIR)), BeneishSectorScorer()
+    ltm = LTMFetcher(fetcher)
+    if ref is None:
+        ref = ltm.periodo_referencia()
+    seq = cadeia(ref)
     total = len(nf)
-    logger.info("Empresas não financeiras: %d (exercício %d)", total, ano)
+    logger.info("Empresas não financeiras: %d (12 meses até %s; alternativas %s)", total, ref, seq[1:])
 
     def trabalho(item):
         i, row = item
         cnpj = str(row.get(cnpj_col, "")).strip()
         denom = str(row.get("DENOM_SOCIAL", "")).strip()
         setor = str(row.get("_SECTOR_LABEL", "Outros")).strip()
-        r = _empresa(cnpj or denom, denom, setor, ano, fetcher, scorer)
+        r = _empresa(cnpj or denom, denom, setor, seq, fetcher, ltm, scorer)
         if i % 50 == 0:
             logger.info("[%d/%d] %s", i + 1, total, denom[:40])
         time.sleep(_RETRY_DELAY)
@@ -166,7 +192,8 @@ def build(ano: int, workers: int) -> Path:
 
     agora = datetime.now(timezone(timedelta(hours=-3)))
     saida = {
-        "exercicio": ano,
+        "exercicio": ref.year,
+        "periodo": _periodo(ref, (date(ref.year - 1, 12, 31) if ref.month == 12 else um_ano_antes(ref)), ref.month != 12),
         "gerado_em": agora.strftime("%d/%m/%Y %H:%M"),
         "limiar": _MANIPULATION_THRESHOLD,
         "coeficientes": _COEFFICIENTS,
@@ -186,10 +213,11 @@ def build(ano: int, workers: int) -> Path:
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Dados da versão estática do M-Score.")
-    # a DFP do ano X sai até o fim de março de X+1: até abril, o último exercício completo é o retrasado
-    hoje = date.today()
-    p.add_argument("--year", type=int, default=hoje.year - (1 if hoje.month >= 5 else 2))
+    # Sem argumento: últimos 12 meses até o trimestre mais recente que a maioria das companhias já
+    # entregou (ITR + DFP). --year força a comparação anual de duas DFPs; --ate fixa o trimestre.
+    p.add_argument("--year", type=int, help="exercício anual (DFP) contra o anterior")
+    p.add_argument("--ate", help="fim do trimestre dos 12 meses, AAAA-MM-DD")
     p.add_argument("--workers", type=int, default=2)
     a = p.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
-    build(a.year, a.workers)
+    build(date(a.year, 12, 31) if a.year else (date.fromisoformat(a.ate) if a.ate else None), a.workers)

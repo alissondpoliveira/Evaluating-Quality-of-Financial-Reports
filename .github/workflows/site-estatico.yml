@@ -1,7 +1,8 @@
 name: Site estático do M-Score
 
 # Recalcula o M-Score de todas as não financeiras com as DFPs da CVM e regera a página
-# servida pela Vercel em beneish.alissonprata.io. DFP é anual: uma vez por semana basta.
+# servida pela Vercel em beneish.alissonprata.io. Usa os últimos 12 meses (ITR + DFP): a rotina
+# semanal pega o trimestre novo assim que a maioria das companhias entrega.
 on:
   schedule:
     - cron: "0 9 * * 1"   # segunda-feira, 6h em Brasília

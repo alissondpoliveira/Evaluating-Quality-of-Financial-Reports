@@ -95,7 +95,7 @@ body.aberta .fundo{opacity:1;pointer-events:auto}
 <button id="tema" class="icone" aria-label="Alternar tema claro ou escuro">◐</button></nav>
 </div></header>
 <main>
-<nav class="abas" aria-label="Universo"><a href="/">Empresas · M-Score</a><a href="/bancos/" aria-current="page">Bancos · CAMELS</a></nav>
+<nav class="abas" aria-label="Universo"><a href="/">Empresas · Qualidade Contábil</a><a href="/bancos/" aria-current="page">Bancos · CAMELS</a></nav>
 <div class="kicker">Qualidade dos lucros · instituições financeiras</div>
 <h1>Bancos e instituições financeiras: sinais CAMELS</h1>
 <p class="dek">O M-Score de Beneish não serve para bancos: não há estoque nem margem bruta, e o lançamento que mais mexe no lucro de um banco é a provisão para perdas de crédito. Esta aba faz a triagem equivalente para todas as instituições do IF.data do Banco Central, com oito sinais que comparam o período com o mesmo período do ano anterior. <span id="dekAnos"></span></p>
@@ -155,6 +155,12 @@ body.aberta .fundo{opacity:1;pointer-events:auto}
 <script>
 const fmt = (v, c=2) => v==null||isNaN(v) ? '–' : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:c,maximumFractionDigits:c}).replace('-', '−');
 const pct = (v, c=1) => v==null||isNaN(v) ? '–' : fmt(100*v, c)+'%';
+const EN = document.documentElement.lang === 'en';
+const MES = EN ? ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] : ['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const mesAno = s => MES[+s.slice(5,7)]+'/'+s.slice(0,4);
+const perLongo = p => p.ltm ? '12 meses até '+mesAno(p.fim)+' contra 12 meses até '+mesAno(p.fim_ant) : 'exercício '+p.fim.slice(0,4)+' contra '+p.fim_ant.slice(0,4);
+const perCurto = (p, ant) => { const s = ant ? p.fim_ant : p.fim; return p.ltm ? '12m até '+mesAno(s) : s.slice(0,4); };
+const maiusc = t => t.charAt(0).toUpperCase()+t.slice(1);
 const esc = t => String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 const semA = t => String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const COR_ALERTA = {'Crítico':'var(--pos-2)','Lucro a conferir':'var(--pos-1)','Atenção':'var(--aviso)','Normal':'var(--neu)'};

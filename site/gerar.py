@@ -105,7 +105,7 @@ HTML = """<!doctype html>
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>M-Score de Beneish · Qualidade dos Lucros</title>
-<meta name="description" content="Projeto educacional: M-Score de Beneish (1999) calculado com as demonstrações anuais das companhias abertas não financeiras da CVM.">
+<meta name="description" content="Projeto educacional: M-Score de Beneish (1999) calculado com os últimos 12 meses de demonstrações das companhias abertas não financeiras da CVM.">
 __ALT__
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap" rel="stylesheet">
@@ -119,10 +119,10 @@ __ALT__
 <button id="tema" class="icone" aria-label="Alternar tema claro ou escuro">◐</button></nav>
 </div></header>
 <main>
-<nav class="abas" aria-label="Universo"><a href="/" aria-current="page">Empresas · M-Score</a><a href="/bancos/">Bancos · CAMELS</a></nav>
+<nav class="abas" aria-label="Universo"><a href="/" aria-current="page">Empresas · Qualidade Contábil</a><a href="/bancos/">Bancos · CAMELS</a></nav>
 <div class="kicker">Qualidade dos lucros · companhias abertas não financeiras</div>
 <h1>M-Score de Beneish</h1>
-<p class="dek">Modelo de Beneish (1999) que estima a probabilidade de manipulação de resultados a partir de oito índices contábeis, calculado com as demonstrações financeiras padronizadas (DFP) que as companhias entregam à CVM. Ao lado, o accrual ratio mede quanto do lucro passou pelo caixa, e o Z-Score de Altman mede o risco de insolvência. <span id="dekAnos"></span></p>
+<p class="dek">Modelo de Beneish (1999) que estima a probabilidade de manipulação de resultados a partir de oito índices contábeis, calculado com os últimos 12 meses de demonstrações que as companhias entregam à CVM (ITR trimestral somada à DFP anual). Ao lado, o accrual ratio mede quanto do lucro passou pelo caixa, e o Z-Score de Altman mede o risco de insolvência. <span id="dekAnos"></span></p>
 <div class="educ" role="note"><span aria-hidden="true">⚠</span><span>Projeto educacional e pessoal, sem fim comercial. O modelo é uma triagem estatística, não uma acusação: M-Score acima do limiar não significa fraude, e o cálculo pode conter erros de dado ou de mapeamento de contas. Nada aqui é recomendação de investimento.</span></div>
 
 <div class="tiles" id="tiles"></div>
@@ -163,11 +163,11 @@ __ALT__
 <section id="metodo">
 <h2>Método e limites</h2>
 <ul class="metodo pequeno">
-<li><b>Dados.</b> Demonstrações financeiras padronizadas (DFP) anuais e consolidadas do Portal de Dados Abertos da CVM, para as companhias abertas ativas classificadas como não financeiras no cadastro da CVM (bancos, seguradoras e similares ficam de fora, porque o modelo foi estimado para empresas industriais e comerciais).</li>
+<li><b>Dados.</b> Últimos 12 meses (LTM), montados com as demonstrações trimestrais (ITR) e anuais (DFP) consolidadas do Portal de Dados Abertos da CVM: resultado e caixa somam o exercício anual anterior e o acumulado do ano, menos o acumulado do mesmo período do ano anterior; as contas de balanço são as do fim do trimestre. A comparação é com os 12 meses encerrados um ano antes. Assim os índices mantêm a escala anual em que o modelo foi estimado, sem efeito de sazonalidade, e o cálculo avança a cada trimestre. O trimestre de referência é o mais recente que a maioria das companhias já entregou; a ITR é revisada pelo auditor, não auditada como a DFP. Universo: as companhias abertas ativas classificadas como não financeiras no cadastro da CVM (bancos, seguradoras e similares ficam de fora, porque o modelo foi estimado para empresas industriais e comerciais).</li>
 <li><b>Modelo.</b> M-Score de oito variáveis de Beneish (1999), com os coeficientes do artigo original e limiar de −1,78: acima dele, a empresa é classificada como possível manipuladora.</li>
 <li><b>Qualidade dos lucros.</b> Accrual ratio = (lucro líquido − fluxo de caixa operacional) ÷ ativo total médio. O nível de alerta combina essa leitura com o M-Score.</li>
-<li><b>Dado ausente.</b> Quando uma conta não é encontrada, o coletor usa zero; quando um índice não pode ser calculado ou sai negativo, ele vira 1 (neutro). Quando o exercício pedido não existe, o coletor usa o mais próximo. Índices fora de uma faixa larga (acima de 10 ou abaixo de 0,1; TATA além de ±1) também são marcados, porque costumam indicar conta mapeada errado ou ano atípico. As fichas mostram esses casos com ⚠, e o filtro "só com dado completo" os exclui.</li>
-<li><b>Z-Score de Altman.</b> Versão para mercados emergentes (Altman, Hartzell e Peck, 1995; Altman, 2005), que usa só dados contábeis: capital de giro, lucros retidos (reservas de lucros mais lucros ou prejuízos acumulados), EBIT (resultado antes do resultado financeiro e dos tributos) e patrimônio líquido sobre o passivo total, todos do exercício atual. EM score = 6,56·X1 + 3,26·X2 + 6,72·X3 + 1,05·X4 + 3,25. Acima de 5,85, zona segura; de 4,35 a 5,85, cinzenta; abaixo de 4,35, risco. Mede risco de insolvência, não manipulação: complementa o M-Score e não entra no nível de alerta. As réguas vêm de empresas americanas e de títulos de mercados emergentes, não de uma amostra brasileira.</li>
+<li><b>Dado ausente.</b> Quando uma conta não é encontrada, o coletor usa zero; quando um índice não pode ser calculado ou sai negativo, ele vira 1 (neutro). Sem ITR do trimestre de referência, a empresa usa os 12 meses até o trimestre anterior, e assim até o último exercício anual; no caminho anual, quando o exercício pedido não existe, o coletor usa o mais próximo. Índices fora de uma faixa larga (acima de 10 ou abaixo de 0,1; TATA além de ±1) também são marcados, porque costumam indicar conta mapeada errado ou ano atípico. As fichas mostram esses casos com ⚠, e o filtro "só com dado completo" os exclui.</li>
+<li><b>Z-Score de Altman.</b> Versão para mercados emergentes (Altman, Hartzell e Peck, 1995; Altman, 2005), que usa só dados contábeis: capital de giro, lucros retidos (reservas de lucros mais lucros ou prejuízos acumulados), EBIT (resultado antes do resultado financeiro e dos tributos) e patrimônio líquido sobre o passivo total, todos do período atual (EBIT dos últimos 12 meses, balanço do fim do trimestre). EM score = 6,56·X1 + 3,26·X2 + 6,72·X3 + 1,05·X4 + 3,25. Acima de 5,85, zona segura; de 4,35 a 5,85, cinzenta; abaixo de 4,35, risco. Mede risco de insolvência, não manipulação: complementa o M-Score e não entra no nível de alerta. As réguas vêm de empresas americanas e de títulos de mercados emergentes, não de uma amostra brasileira.</li>
 <li><b>O que o modelo não mede.</b> Mudança de norma contábil, reorganização societária, setores com ciclo próprio e o contexto de cada empresa. O modelo foi estimado com empresas americanas dos anos 1980 e 1990; aplicado ao Brasil, é uma triagem, não um diagnóstico.</li>
 <li><b>Eventos nos documentos (JEV).</b> O modelo System One da TypeSafe faz uma triagem pelo título dos fatos relevantes e comunicados ao mercado dos últimos 12 meses e, nos que o título aponta algum evento, lê o texto do documento para indicar se tratam de reapresentação de demonstrações, auditoria, saída de diretor financeiro ou de RI, investigação, reestruturação de dívida ou mudança de política contábil. Só entram classificações com confiança de pelo menos 0,8; títulos genéricos não são enviados. Documento só com imagem, sem texto extraível, fica com a classificação pelo título. É informação complementar: não altera o M-Score nem o nível de alerta.</li>
 <li><b>Referência.</b> Beneish, M. D. (1999). The Detection of Earnings Manipulation. Financial Analysts Journal, 55(5), 24 a 36.</li>
@@ -176,7 +176,7 @@ __ALT__
 <dl id="glossario" class="glossario"></dl>
 </section>
 
-<footer><p id="rodape"></p>Fonte: CVM, Portal de Dados Abertos (cadastro de companhias abertas e DFP). Projeto educacional de <a href="https://www.alissonprata.io/">Alisson Prata</a>; código em <a href="https://github.com/alissondpoliveira/Evaluating-Quality-of-Financial-Reports">GitHub</a>. Não constitui recomendação de investimento.</footer>
+<footer><p id="rodape"></p>Fonte: CVM, Portal de Dados Abertos (cadastro de companhias abertas, ITR e DFP). Projeto educacional de <a href="https://www.alissonprata.io/">Alisson Prata</a>; código em <a href="https://github.com/alissondpoliveira/Evaluating-Quality-of-Financial-Reports">GitHub</a>. Não constitui recomendação de investimento.</footer>
 </main>
 <div id="fundo" class="fundo"></div>
 <aside id="gaveta" class="gaveta" role="dialog" aria-labelledby="gTitulo" hidden>
@@ -192,6 +192,12 @@ __ALT__
 
 JS = r"""
 const fmt = (v, c=2) => v==null||isNaN(v) ? '–' : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:c,maximumFractionDigits:c}).replace('-', '−');
+const EN = document.documentElement.lang === 'en';
+const MES = EN ? ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] : ['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const mesAno = s => MES[+s.slice(5,7)]+'/'+s.slice(0,4);
+const perLongo = p => p.ltm ? '12 meses até '+mesAno(p.fim)+' contra 12 meses até '+mesAno(p.fim_ant) : 'exercício '+p.fim.slice(0,4)+' contra '+p.fim_ant.slice(0,4);
+const perCurto = (p, ant) => { const s = ant ? p.fim_ant : p.fim; return p.ltm ? '12m até '+mesAno(s) : s.slice(0,4); };
+const maiusc = t => t.charAt(0).toUpperCase()+t.slice(1);
 const esc = t => String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 const semA = t => String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const tip = document.getElementById('tip');
@@ -220,8 +226,8 @@ const GLOSS = {
   sgai:{t:'SGAI: índice de despesas de vendas, gerais e administrativas', d:'Peso dessas despesas sobre a receita neste ano contra o anterior.', fx:['SGAI = \\frac{SGA_t / Receita_t}{SGA_{t-1} / Receita_{t-1}}'], l:'No modelo original o coeficiente é negativo; o projeto marca como sinal quando o índice sobe acima da referência.'},
   lvgi:{t:'LVGI: índice de alavancagem', d:'Dívida total (passivo circulante mais dívida de longo prazo) sobre o ativo, neste ano contra o anterior.', fx:['LVGI = \\frac{(PC_t + DLP_t)/AT_t}{(PC_{t-1} + DLP_{t-1})/AT_{t-1}}'], l:'Alavancagem crescente aproxima a empresa de covenants de dívida. No modelo original o coeficiente é negativo.'},
   tata:{t:'TATA: accruals totais sobre ativos', d:'Parte do lucro que não virou caixa operacional, em relação ao ativo.', fx:['TATA = \\frac{LL_t - FCO_t}{AT_t}'], l:'É o índice de maior peso no modelo: lucro muito acima do caixa é o sinal mais forte de resultado contábil agressivo.'},
-  accrual:{t:'Accrual ratio', d:'Quanto do lucro do ano não passou pelo caixa das operações, medido contra o tamanho da empresa (ativo total médio dos dois anos). A diferença entre lucro e caixa são os accruals: receitas e despesas reconhecidas pelo regime de competência antes de virarem dinheiro, como vendas a prazo, aumento de estoque ou provisões.', fx:['\text{Accruals} = LL_t - FCO_t','\text{Accrual ratio} = \frac{LL_t - FCO_t}{(AT_t + AT_{t-1})/2}'], p:['LL: lucro ou prejuízo consolidado do período na DRE (conta 3.11).','FCO: caixa líquido das atividades operacionais na DFC (conta 6.01).','AT: ativo total no balanço (conta 1), média do exercício e do anterior.'], l:'Negativo: o caixa operacional superou o lucro. Perto de zero: lucro e caixa andam juntos. Positivo e alto: parte relevante do lucro ainda está em contas a receber, estoques ou outros lançamentos. A ficha de cada empresa mostra a conta com os números dela.'},
-  setor:{t:'Posição no setor', d:'Percentil da empresa entre as companhias do mesmo setor com dado completo neste exercício: p50 é a mediana do setor, p90 quer dizer que 90% das empresas do setor têm valor menor. Setor com menos de 10 empresas usa a amostra toda. Só exibição: o sinal, a qualidade dos lucros e o nível de alerta seguem as réguas fixas.', l:'As réguas fixas vêm da amostra de Beneish (empresas americanas, décadas de 1980 e 1990) e valem igual para todos os setores. O percentil mostra se o valor é comum no setor no Brasil: incorporadoras, por exemplo, reconhecem lucro antes de receber, e accrual alto é frequente entre elas.'},
+  accrual:{t:'Accrual ratio', d:'Quanto do lucro dos últimos 12 meses não passou pelo caixa das operações, medido contra o tamanho da empresa (ativo total médio das duas datas). A diferença entre lucro e caixa são os accruals: receitas e despesas reconhecidas pelo regime de competência antes de virarem dinheiro, como vendas a prazo, aumento de estoque ou provisões.', fx:['\text{Accruals} = LL_t - FCO_t','\text{Accrual ratio} = \frac{LL_t - FCO_t}{(AT_t + AT_{t-1})/2}'], p:['LL: lucro ou prejuízo consolidado do período na DRE (conta 3.11).','FCO: caixa líquido das atividades operacionais na DFC (conta 6.01).','AT: ativo total no balanço (conta 1), média do fim do período atual e do anterior.'], l:'Negativo: o caixa operacional superou o lucro. Perto de zero: lucro e caixa andam juntos. Positivo e alto: parte relevante do lucro ainda está em contas a receber, estoques ou outros lançamentos. A ficha de cada empresa mostra a conta com os números dela.'},
+  setor:{t:'Posição no setor', d:'Percentil da empresa entre as companhias do mesmo setor com dado completo neste período: p50 é a mediana do setor, p90 quer dizer que 90% das empresas do setor têm valor menor. Setor com menos de 10 empresas usa a amostra toda. Só exibição: o sinal, a qualidade dos lucros e o nível de alerta seguem as réguas fixas.', l:'As réguas fixas vêm da amostra de Beneish (empresas americanas, décadas de 1980 e 1990) e valem igual para todos os setores. O percentil mostra se o valor é comum no setor no Brasil: incorporadoras, por exemplo, reconhecem lucro antes de receber, e accrual alto é frequente entre elas.'},
   qualidade:{t:'Qualidade dos lucros', d:'Classe atribuída ao accrual ratio. A ideia vem de Sloan (1996): o componente do lucro que não é caixa tende a se reverter nos anos seguintes, então lucro sustentado por caixa costuma persistir mais que lucro sustentado por lançamentos contábeis.', p:['Calcula os accruals: lucro líquido menos caixa das operações.','Divide pelo ativo total médio, para comparar empresas de tamanhos diferentes.','Classifica: abaixo de 0,01 é alta; de 0,01 até 0,05 é moderada; a partir de 0,05 é baixa.','Junta com o M-Score no nível de alerta: qualidade baixa leva a Atenção ou, acima do limiar, a Crítico.'], l:'É uma régua simples e fixa, igual para todos os setores. Empresa crescendo rápido, com mais capital de giro, ou ano com evento não recorrente pode cair em baixa sem nada de errado; a classe indica onde olhar, não conclui.'},
   alerta:{t:'Nível de alerta', d:'Combina o M-Score com a qualidade dos lucros.', l:'Crítico: acima do limiar e com qualidade baixa. Alto risco: acima do limiar. Atenção: abaixo do limiar, mas com qualidade baixa. Normal: nenhum dos dois.'},
   jev:{t:'Eventos nos documentos (JEV)', d:'Fatos relevantes e comunicados ao mercado dos últimos 12 meses que o JEV (modelo System One da TypeSafe) classificou, pelo texto do documento, como um evento que a análise forense costuma cruzar com o M-Score: reapresentação de demonstrações, auditoria, saída de diretor financeiro ou de RI, investigação, reestruturação de dívida ou mudança de política contábil.', l:'Só aparecem classificações com confiança de pelo menos 0,8. Não altera o M-Score. É um apontamento para ler o documento original, não uma conclusão.'},
@@ -281,9 +287,10 @@ function iniciar(D, EV){
     const abaixo = vs.filter(x => x < v).length, iguais = vs.filter(x => x === v).length;
     return {p: Math.round(100 * (abaixo + iguais / 2) / vs.length), med: d3.median(vs), n: vs.length, grupo: g.nome}; }
   const pTxt = q => q ? 'p'+q.p+' <span class="fraco">('+esc(q.grupo)+', '+q.n+')</span>' : '–';
-  document.getElementById('topoData').textContent = 'exercício '+D.exercicio+' contra '+(D.exercicio-1)+' · atualizado '+D.gerado_em;
-  document.getElementById('dekAnos').textContent = 'Exercício '+D.exercicio+' contra '+(D.exercicio-1)+'.';
-  document.getElementById('rodape').textContent = 'Exercício '+D.exercicio+' contra '+(D.exercicio-1)+'. Dados gerados em '+D.gerado_em+' (horário de Brasília).';
+  const PER = D.periodo || {fim: D.exercicio+'-12-31', fim_ant: (D.exercicio-1)+'-12-31', ltm: false}, P = e => e.periodo || PER;
+  document.getElementById('topoData').textContent = perLongo(PER)+' · atualizado '+D.gerado_em;
+  document.getElementById('dekAnos').textContent = maiusc(perLongo(PER))+'.';
+  document.getElementById('rodape').textContent = maiusc(perLongo(PER))+'. Dados gerados em '+D.gerado_em+' (horário de Brasília).';
   const acima = ok.filter(e => e.mscore > lim);
   document.getElementById('tiles').innerHTML = [
     ['Empresas calculadas', ok.length, 'de '+E.length+' não financeiras ativas'],
@@ -293,7 +300,7 @@ function iniciar(D, EV){
     ['Z-Score na zona de risco', ok.filter(e => e.zscore && e.zscore.zona==='Risco').length, 'de '+ok.filter(e => e.zscore).length+' com Z-Score; abaixo de 4,35'],
     ['M-Score mediano', fmt(d3.median(ok, e => e.mscore),2), 'limiar: '+fmt(lim,2)],
   ].map(x => '<div class="tile"><span>'+x[0]+'</span><b>'+x[1]+'</b><small>'+x[2]+'</small></div>').join('');
-  document.getElementById('semDados').textContent = (E.length-ok.length)+' empresas ficaram sem M-Score por falta de demonstração nos dois exercícios ou de contas essenciais.';
+  document.getElementById('semDados').textContent = (E.length-ok.length)+' empresas ficaram sem M-Score por falta de demonstração nos dois períodos ou de contas essenciais.';
   [...new Set(ok.map(e => e.setor))].sort().forEach(s => { const o = document.createElement('option'); o.value = o.textContent = s; document.getElementById('fSetor').appendChild(o); });
 
   // ---------- histograma ----------
@@ -354,7 +361,8 @@ function iniciar(D, EV){
     const u = new URL(location.href); u.searchParams.set('empresa', cnpj);
     if (daUrl || document.body.classList.contains('aberta')) history.replaceState(history.state, '', u); else { history.pushState({ficha:1}, '', u); empilhou = true; }
     const cnpjF = cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/,'$1.$2.$3/$4-$5');
-    document.getElementById('gCab').innerHTML = '<div class="kicker">'+esc(e.setor)+' · CNPJ '+cnpjF+'</div><h2 id="gTitulo">'+esc(e.nome)+'</h2><span class="fraco pequeno">'+(tk(e)?esc(tk(e))+' · ':'')+'exercício '+D.exercicio+' contra '+(D.exercicio-1)+'</span>';
+    document.getElementById('gCab').innerHTML = '<div class="kicker">'+esc(e.setor)+' · CNPJ '+cnpjF+'</div><h2 id="gTitulo">'+esc(e.nome)+'</h2><span class="fraco pequeno">'+(tk(e)?esc(tk(e))+' · ':'')+perLongo(P(e))+'</span>';
+    const pe = P(e), outroPer = pe.fim !== PER.fim ? '<p class="pequeno muted">Sem demonstração completa para os 12 meses até '+mesAno(PER.fim)+': esta empresa usa '+perLongo(pe)+'.</p>' : '';
     const av = e.avisos, alerta = av ? '<div class="avisos"><b>⚠ Dado a conferir.</b> '+[
         av.exercicio_substituido && av.exercicio_substituido.length ? 'O coletor não achou o exercício pedido e usou '+[...new Set(av.exercicio_substituido)].join(' e ')+'.' : '',
         av.contas_ausentes && Object.keys(av.contas_ausentes).length ? 'Contas não encontradas (calculadas como zero): '+Object.entries(av.contas_ausentes).map(([a, cs]) => a+': '+cs.map(c => (CAMPOS.find(x => x[0]===c)||[c,c])[1].toLowerCase()).join(', ')).join('; ')+'.' : '',
@@ -362,7 +370,7 @@ function iniciar(D, EV){
         av.indices_extremos && av.indices_extremos.length ? 'Índice fora da faixa usual ('+av.indices_extremos.map(k => k.toUpperCase()+' = '+fmt(e.indices[k], 2)).join(', ')+'): pode ser conta mapeada errado ou um ano atípico.' : ''
       ].filter(Boolean).join(' ')+' O M-Score desta empresa deve ser lido com cuidado.</div>' : '';
     const ix = Object.keys(NOMES), ref = D.referencias_alerta;
-    document.getElementById('gCorpo').innerHTML = alerta
+    document.getElementById('gCorpo').innerHTML = outroPer + alerta
       + '<div class="grade">'
       + '<div><small>M-Score '+infoBtn('mscore')+'</small><b>'+fmt(e.mscore,2)+'</b><em>'+(e.mscore > lim ? 'acima' : 'abaixo')+' do limiar de −1,78</em></div>'
       + '<div><small>Nível de alerta '+infoBtn('alerta')+'</small><b><span class="badge" style="font-size:1rem"><i style="background:'+COR_ALERTA[e.alerta]+';width:11px;height:11px"></i>'+e.alerta+'</span></b><em>'+(e.classificacao==='Potential Manipulator'?'possível manipuladora':'não manipuladora')+' pelo modelo</em></div>'
@@ -373,8 +381,8 @@ function iniciar(D, EV){
           const acc = t.net_income - t.cash_from_operations, at = (t.total_assets + (t1.total_assets||0))/2, r = acc/at;
           const faixa = r < 0.01 ? 'abaixo de 0,01: qualidade alta' : r < 0.05 ? 'entre 0,01 e 0,05: qualidade moderada' : 'a partir de 0,05: qualidade baixa';
           return '<h3>Como chegamos na qualidade dos lucros '+infoBtn('qualidade')+'</h3><div class="tabela" style="max-height:none;border:1px solid var(--line);border-radius:8px"><table><tbody>'
-            + '<tr><td class="t">Lucro líquido '+D.exercicio+' (DRE 3.11)</td><td>'+fmt(t.net_income,0)+'</td></tr>'
-            + '<tr><td class="t">(−) Caixa das operações '+D.exercicio+' (DFC 6.01)</td><td>'+fmt(t.cash_from_operations,0)+'</td></tr>'
+            + '<tr><td class="t">Lucro líquido, '+perCurto(pe)+' (DRE 3.11)</td><td>'+fmt(t.net_income,0)+'</td></tr>'
+            + '<tr><td class="t">(−) Caixa das operações, '+perCurto(pe)+' (DFC 6.01)</td><td>'+fmt(t.cash_from_operations,0)+'</td></tr>'
             + '<tr><td class="t"><b>(=) Accruals</b>: lucro que não passou pelo caixa</td><td><b>'+fmt(acc,0)+'</b></td></tr>'
             + '<tr><td class="t">(÷) Ativo total médio ('+fmt(t.total_assets,0)+' e '+fmt(t1.total_assets,0)+')</td><td>'+fmt(at,0)+'</td></tr>'
             + '<tr><td class="t"><b>(=) Accrual ratio</b></td><td><b>'+fmt(r,3)+'</b></td></tr></tbody></table></div>'
@@ -386,7 +394,7 @@ function iniciar(D, EV){
       + '</tbody></table></div>'
       + ((e.flags||[]).length ? '<h3>Sinais mais fortes</h3><ul class="pequeno" style="padding-left:1.1rem;margin:.2rem 0">'+ix.filter(k => (e.flags||[]).some(f => f.toLowerCase().startsWith(k))).map(k => '<li><b>'+k.toUpperCase()+'</b> em '+fmt(e.indices[k], k==='tata'?4:2)+': '+SINAL[k]+'</li>').join('')+'</ul>' : '<p class="pequeno muted">Nenhum índice acima da referência de alerta.</p>')
       + (() => { const z = e.zscore, Z = D.zscore;
-          if (!z || !Z) return '<h3>Z-Score de Altman '+infoBtn('zscore')+'</h3><p class="pequeno muted">Sem Z-Score: falta EBIT, patrimônio líquido ou lucros retidos nas demonstrações deste exercício, ou o passivo total não é positivo.</p>';
+          if (!z || !Z) return '<h3>Z-Score de Altman '+infoBtn('zscore')+'</h3><p class="pequeno muted">Sem Z-Score: falta EBIT, patrimônio líquido ou lucros retidos nas demonstrações deste período, ou o passivo total não é positivo.</p>';
           const q = posicao(e, 'zscore');
           return '<h3>Z-Score de Altman '+infoBtn('zscore')+'</h3><div class="tabela" style="max-height:none;border:1px solid var(--line);border-radius:8px"><table><thead><tr><th class="t">Índice</th><th>Valor</th><th>Peso</th><th>No setor '+infoBtn('setor')+'</th><th>Contribuição</th></tr></thead><tbody>'
             + Object.keys(NOMES_Z).map(k => '<tr><td class="t"><b>'+k.toUpperCase()+'</b> '+infoBtn(k)+'<br><span class="fraco">'+NOMES_Z[k]+'</span></td><td>'+fmt(z.x[k],3)+'</td><td>'+fmt(Z.coeficientes[k],2)+'</td><td>'+pTxt(posicao(e, k))+'</td><td>'+(z.contrib[k]>0?'+':'')+fmt(z.contrib[k],3)+'</td></tr>').join('')
@@ -398,8 +406,8 @@ function iniciar(D, EV){
       + (() => { const ev = EVE[e.cnpj] || []; if (!EV || !EV.classificados) return '';
           return '<h3>Eventos nos documentos (JEV) '+infoBtn('jev')+'</h3>' + (ev.length ? '<ul class="pequeno" style="padding-left:1.1rem;margin:.2rem 0">'+ev.map(x => '<li><span class="fraco">'+x.data.split('-').reverse().join('/')+'</span> <b>'+NOME_EV[x.evento]+'</b>: <a href="'+esc(x.url)+'" target="_blank" rel="noopener">'+esc(x.titulo)+'</a> <span class="fraco">('+x.categoria.toLowerCase()+', confiança '+fmt(x.confianca,2)+(x.base==='titulo'?', classificado pelo título':'')+')</span></li>').join('')+'</ul>' : '<p class="pequeno muted">Nenhum evento desse tipo nos fatos relevantes e comunicados dos últimos 12 meses.</p>')
             + '<p class="pequeno fraco">Classificação automática pelo JEV; leia o documento original. Não altera o M-Score.</p>'; })()
-      + '<h3>Números de base</h3><p class="pequeno fraco" style="margin-top:0">'+(e.individual ? 'Demonstrações individuais da DFP'+(e.individual.length===1 ? ' em '+e.individual[0] : '')+': a companhia não publica consolidado com valores (em geral, por não ter controladas). ' : 'Demonstrações consolidadas da DFP. ')+'Escala publicada pela companhia (em geral, R$ mil).</p>'
-      + '<div class="tabela" style="max-height:none;border:1px solid var(--line);border-radius:8px"><table><thead><tr><th class="t">Conta</th><th>'+D.exercicio+'</th><th>'+(D.exercicio-1)+'</th><th>Variação</th></tr></thead><tbody>'
+      + '<h3>Números de base</h3><p class="pequeno fraco" style="margin-top:0">'+(e.individual ? 'Demonstrações individuais'+(pe.ltm ? '' : ' da DFP')+(e.individual.length===1 ? ' em '+e.individual[0] : '')+': a companhia não publica consolidado com valores (em geral, por não ter controladas). ' : pe.ltm ? 'Demonstrações consolidadas. ' : 'Demonstrações consolidadas da DFP. ')+(pe.ltm ? 'Resultado e caixa somam os últimos 12 meses (ITR do trimestre mais DFP do exercício anterior); as contas de balanço são as do fim do trimestre. ' : '')+'Escala publicada pela companhia (em geral, R$ mil).</p>'
+      + '<div class="tabela" style="max-height:none;border:1px solid var(--line);border-radius:8px"><table><thead><tr><th class="t">Conta</th><th>'+perCurto(pe)+'</th><th>'+perCurto(pe, true)+'</th><th>Variação</th></tr></thead><tbody>'
       + CAMPOS.map(([k, n]) => { const a = e.fin.t[k], b = e.fin.t1[k], vr = b ? (a/b-1)*100 : null; return '<tr><td class="t">'+n+'</td><td>'+fmt(a,0)+'</td><td>'+fmt(b,0)+'</td><td>'+(vr==null||!isFinite(vr)?'–':(vr>0?'+':'')+fmt(vr,1)+'%')+'</td></tr>'; }).join('')
       + '</tbody></table></div>';
     desenharContrib(e);
@@ -456,7 +464,7 @@ __ALT__
 <button id="tema" class="icone" aria-label="Alternar tema claro ou escuro">◐</button></nav>
 </div></header>
 <main>
-<nav class="abas" aria-label="Universo"><a href="/">Empresas · M-Score</a><a href="/bancos/" aria-current="page">Bancos · CAMELS</a></nav>
+<nav class="abas" aria-label="Universo"><a href="/">Empresas · Qualidade Contábil</a><a href="/bancos/" aria-current="page">Bancos · CAMELS</a></nav>
 <div class="kicker">Qualidade dos lucros · instituições financeiras</div>
 <h1>Bancos e instituições financeiras: sinais CAMELS</h1>
 <p class="dek">O M-Score de Beneish não serve para bancos: não há estoque nem margem bruta, e o lançamento que mais mexe no lucro de um banco é a provisão para perdas de crédito. Esta aba faz a triagem equivalente para todas as instituições do IF.data do Banco Central, com oito sinais que comparam o período com o mesmo período do ano anterior. <span id="dekAnos"></span></p>
@@ -521,6 +529,12 @@ __ALT__
 JS_BANCOS = r"""
 const fmt = (v, c=2) => v==null||isNaN(v) ? '–' : Number(v).toLocaleString('pt-BR',{minimumFractionDigits:c,maximumFractionDigits:c}).replace('-', '−');
 const pct = (v, c=1) => v==null||isNaN(v) ? '–' : fmt(100*v, c)+'%';
+const EN = document.documentElement.lang === 'en';
+const MES = EN ? ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] : ['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const mesAno = s => MES[+s.slice(5,7)]+'/'+s.slice(0,4);
+const perLongo = p => p.ltm ? '12 meses até '+mesAno(p.fim)+' contra 12 meses até '+mesAno(p.fim_ant) : 'exercício '+p.fim.slice(0,4)+' contra '+p.fim_ant.slice(0,4);
+const perCurto = (p, ant) => { const s = ant ? p.fim_ant : p.fim; return p.ltm ? '12m até '+mesAno(s) : s.slice(0,4); };
+const maiusc = t => t.charAt(0).toUpperCase()+t.slice(1);
 const esc = t => String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 const semA = t => String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const COR_ALERTA = {'Crítico':'var(--pos-2)','Lucro a conferir':'var(--pos-1)','Atenção':'var(--aviso)','Normal':'var(--neu)'};
