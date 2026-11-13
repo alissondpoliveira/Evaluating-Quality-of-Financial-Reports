@@ -11,21 +11,22 @@ The Cash Flow Accruals Ratio isolates the non-cash component of earnings:
 
     Accrual Ratio = (Net Income - Cash From Operations) / Avg Total Assets
 
-Interpretation:
-  ·  < 0.01  → Alta qualidade: lucro é basicamente caixa
-  ·  0.01–0.05 → Moderada: accruals presentes mas aceitáveis
-  ·  > 0.05  → Baixa: componente accrual dominante; risco de reversão
+Interpretation (desvio = accrual ratio − mediana do setor, em módulo):
+  ·  |desvio| < 0.05       → Alta: accrual perto do normal do setor
+  ·  0.05 ≤ |desvio| < 0.10 → Moderada
+  ·  |desvio| ≥ 0.10       → Baixa: lucro muito acima do caixa (agressivo) ou muito
+                              abaixo (big bath, constituição de reservas)
+
+O accrual normal não é zero (a depreciação reduz o lucro sem sair do caixa); a mediana do
+setor vem do último lote do site (site/public/dados.json, "medianas_accrual"). Sem esse
+arquivo, ou sem o setor nele, usa a mediana da amostra toda, e por último MEDIANA_PADRAO.
 
 Combined Alert Level (M-Score × Accruals)
 ------------------------------------------
-  M-Score > -1.78  AND  Accruals > 5%  → "Crítico"   ★★★
-  M-Score > -1.78  AND  Accruals ≤ 5%  → "Alto Risco" ★★
-  M-Score ≤ -1.78  AND  Accruals > 5%  → "Atenção"   ★
-  M-Score ≤ -1.78  AND  Accruals ≤ 5%  → "Normal"    ✓
-
-A régua acima, com sinal, é a do cálculo de uma empresa isolada. Com o mercado inteiro
-(site estático), a qualidade usa o desvio em módulo em relação à mediana do setor:
-ver medianas_por_setor / qualidade_por_desvio.
+  M-Score > -1.78  AND  qualidade Baixa  → "Crítico"   ★★★
+  M-Score > -1.78  AND  outra            → "Alto Risco" ★★
+  M-Score ≤ -1.78  AND  qualidade Baixa  → "Atenção"   ★
+  M-Score ≤ -1.78  AND  outra            → "Normal"    ✓
 
 References
 ----------
@@ -40,8 +41,12 @@ References
 
 from __future__ import annotations
 
+import json
+import os
 from dataclasses import dataclass
 from enum import Enum
+from functools import lru_cache
+from pathlib import Path
 
 from .beneish_mscore import FinancialData, MScoreResult, _safe_div
 
@@ -94,9 +99,20 @@ class CashFlowQualityResult:
     alert_level: AlertLevel
     """Composite alert combining M-Score and accruals."""
 
+    mediana_setor: float = 0.0
+    """Accrual ratio normal (mediana do setor) usado como referência."""
+
+    desvio: float = 0.0
+    """accrual_ratio − mediana_setor; a qualidade se lê pelo módulo."""
+
+    referencia: str = ""
+    """De onde veio a mediana: nome do setor, 'amostra toda' ou 'padrão'."""
+
     def to_dict(self) -> dict:
         return {
             "Accrual Ratio":    round(self.accrual_ratio, 6),
+            "Mediana do Setor": round(self.mediana_setor, 6),
+            "Desvio":           round(self.desvio, 6),
             "Earnings Quality": self.earnings_quality,
             "Alert Level":      self.alert_level.value,
         }
@@ -104,25 +120,11 @@ class CashFlowQualityResult:
     def __str__(self) -> str:
         return (
             f"CashFlowQuality | Accrual Ratio: {self.accrual_ratio:+.4f} "
+            f"| Mediana ({self.referencia or 'setor'}): {self.mediana_setor:+.4f} "
+            f"| Desvio: {self.desvio:+.4f} "
             f"| Qualidade: {self.earnings_quality} "
             f"| Alerta: {self.alert_level.value} {self.alert_level.stars}"
         )
-
-
-# ---------------------------------------------------------------------------
-# Thresholds
-# ---------------------------------------------------------------------------
-
-_ACCRUAL_WARN  = 0.01   # above this → "Moderada"
-_ACCRUAL_HIGH  = 0.05   # above this → "Baixa" (high-accruals zone)
-
-
-def _earnings_quality_label(ratio: float) -> str:
-    if ratio < _ACCRUAL_WARN:
-        return "Alta"
-    if ratio < _ACCRUAL_HIGH:
-        return "Moderada"
-    return "Baixa"
 
 
 def _combine_alert(mscore_result: MScoreResult, earnings_quality: str) -> AlertLevel:
@@ -143,6 +145,47 @@ def _combine_alert(mscore_result: MScoreResult, earnings_quality: str) -> AlertL
 DESVIO_MODERADO = 0.05   # a partir daqui → "Moderada"
 DESVIO_ALTO     = 0.10   # a partir daqui → "Baixa"
 MIN_SETOR       = 10     # setor menor usa a mediana da amostra toda
+MEDIANA_PADRAO  = -0.047 # mediana do mercado (não financeiras, 12 meses até jun/2026): último recurso
+
+# medianas publicadas pelo último lote do site; ACCRUAL_MEDIANAS aponta outro arquivo
+_ARQUIVO_MEDIANAS = Path(os.getenv("ACCRUAL_MEDIANAS") or
+                         Path(__file__).resolve().parents[2] / "site" / "public" / "dados.json")
+
+
+@lru_cache(maxsize=4)
+def _medianas_publicadas(caminho: str) -> tuple[dict, dict]:
+    """(medianas_accrual, {ticker: (mediana, grupo)}) do último lote publicado."""
+    try:
+        d = json.loads(Path(caminho).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}, {}
+    por_ticker = {}
+    for e in d.get("empresas") or []:
+        a = e.get("accrual_setor")
+        if a and e.get("ticker"):
+            por_ticker[str(e["ticker"]).upper()] = (float(a["mediana"]), a.get("grupo") or "amostra toda")
+    return d.get("medianas_accrual") or {}, por_ticker
+
+
+def referencia_accrual(setor: str | None = None, ticker: str | None = None) -> tuple[float, str]:
+    """(accrual ratio normal, origem) para uma empresa isolada, do último lote do mercado:
+    1) a empresa está no lote → a mesma mediana usada no site (setor do cadastro da CVM);
+    2) o setor informado tem mediana publicada → ela; 3) mediana da amostra toda;
+    4) sem arquivo → MEDIANA_PADRAO."""
+    m, por_ticker = _medianas_publicadas(str(_ARQUIVO_MEDIANAS))
+    if ticker:
+        t = ticker.upper().strip()
+        if t in por_ticker:
+            return por_ticker[t]
+        raiz = [v for k, v in por_ticker.items() if k[:4] == t[:4]]
+        if len(t) >= 4 and raiz and len({v for v in raiz}) == 1:
+            return raiz[0]
+    setores = m.get("setores") or {}
+    if setor and setor in setores:
+        return float(setores[setor]), setor
+    if m.get("geral") is not None:
+        return float(m["geral"]), "amostra toda"
+    return MEDIANA_PADRAO, "padrão"
 
 
 def medianas_por_setor(pares, minimo: int = MIN_SETOR) -> tuple[dict, float, dict]:
@@ -197,6 +240,10 @@ class CashFlowQuality:
         Current period (T) accounting data.
     prior : FinancialData
         Prior period (T-1) accounting data.
+    setor, ticker : str, optional
+        Para buscar a mediana publicada (referencia_accrual); o ticker tem precedência.
+    mediana : float, optional
+        Accrual ratio normal explícito; tem precedência sobre o setor.
 
     Example
     -------
@@ -207,9 +254,14 @@ class CashFlowQuality:
     >>> print(cfq)
     """
 
-    def __init__(self, current: FinancialData, prior: FinancialData) -> None:
+    def __init__(self, current: FinancialData, prior: FinancialData,
+                 setor: str | None = None, mediana: float | None = None,
+                 ticker: str | None = None) -> None:
         self._t  = current
         self._t1 = prior
+        self._setor = setor
+        self._mediana = mediana
+        self._ticker = ticker
 
     def calculate(self, mscore_result: MScoreResult) -> CashFlowQualityResult:
         """
@@ -228,11 +280,19 @@ class CashFlowQuality:
         accruals   = self._t.net_income - self._t.cash_from_operations
         ratio      = _safe_div(accruals, avg_assets, fallback=0.0)
 
-        quality = _earnings_quality_label(ratio)
+        if self._mediana is not None:
+            mediana, origem = float(self._mediana), "informada"
+        else:
+            mediana, origem = referencia_accrual(self._setor, self._ticker)
+        desvio  = ratio - mediana
+        quality = qualidade_por_desvio(desvio)
         alert   = _combine_alert(mscore_result, quality)
 
         return CashFlowQualityResult(
             accrual_ratio   = ratio,
             earnings_quality= quality,
             alert_level     = alert,
+            mediana_setor   = mediana,
+            desvio          = desvio,
+            referencia      = origem,
         )

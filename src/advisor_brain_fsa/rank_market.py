@@ -194,7 +194,7 @@ def rank_market(
 
         try:
             fd_t, fd_t1 = fetcher.get_financial_data(ticker, year_t=year_t, year_t1=year_t1)
-            scorer = get_scorer(sector)
+            scorer = get_scorer(sector, ticker)
             sr = scorer.score(fd_t, fd_t1)
             results.append(CompanyResult(ticker=ticker, sector=sector,
                                          year_t=year_t, sector_risk=sr))

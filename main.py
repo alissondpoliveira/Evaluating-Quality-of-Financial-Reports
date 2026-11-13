@@ -114,7 +114,7 @@ def cmd_demo() -> None:
             for f in flags:
                 print(f"    • {f}")
 
-        grade, label = compute_grade(mscore.m_score, cfq.accrual_ratio)
+        grade, label = compute_grade(mscore.m_score, cfq.desvio)
         print(f"\n  Nota Qualitativa: {grade} — {label}")
 
         row = mscore.to_dict()
@@ -164,9 +164,9 @@ def cmd_analyze(
 
     # ── 3. Cash Flow Quality ─────────────────────────────────────────
     print("\n[3/4] Calculando CFA Accruals Quality…")
-    cfq   = CashFlowQuality(current=fd_t, prior=fd_t1).calculate(mscore)
+    cfq   = CashFlowQuality(current=fd_t, prior=fd_t1, setor=sector, ticker=ticker).calculate(mscore)
     flags = detect_red_flags(mscore)
-    grade, grade_label = compute_grade(mscore.m_score, cfq.accrual_ratio)
+    grade, grade_label = compute_grade(mscore.m_score, cfq.desvio)
     print(f"  {cfq}")
     print(f"  Nota Qualitativa: {grade} — {grade_label}")
     if flags:

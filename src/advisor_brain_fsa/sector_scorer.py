@@ -90,8 +90,13 @@ class SectorScorer(ABC):
 class BeneishSectorScorer(SectorScorer):
     """
     Scorer for all non-financial companies.
-    Uses the Beneish M-Score (1999) + CFA Level 2 Accrual Ratio.
+    Uses the Beneish M-Score (1999) + CFA Level 2 Accrual Ratio, whose quality is read
+    by the distance to the sector median (see accruals.referencia_accrual).
     """
+
+    def __init__(self, setor: str | None = None, ticker: str | None = None) -> None:
+        self.setor = setor
+        self.ticker = ticker
 
     @property
     def scorer_type(self) -> str:
@@ -101,7 +106,7 @@ class BeneishSectorScorer(SectorScorer):
         from .rank_market import detect_red_flags  # avoid circular at module load
 
         ms    = BeneishMScore(current=current, prior=prior).calculate()
-        cfq   = CashFlowQuality(current=current, prior=prior).calculate(ms)
+        cfq   = CashFlowQuality(current=current, prior=prior, setor=self.setor, ticker=self.ticker).calculate(ms)
         flags = detect_red_flags(ms)
 
         # Normalise M-Score [-5, +2] → risk_score [0, 10]
@@ -114,6 +119,8 @@ class BeneishSectorScorer(SectorScorer):
             metrics={
                 "m_score":       round(ms.m_score, 4),
                 "accrual_ratio": round(cfq.accrual_ratio, 4),
+                "accrual_mediana_setor": round(cfq.mediana_setor, 4),
+                "accrual_desvio": round(cfq.desvio, 4),
                 "dsri":  round(ms.dsri,  4), "gmi":  round(ms.gmi,  4),
                 "aqi":   round(ms.aqi,   4), "sgi":  round(ms.sgi,  4),
                 "depi":  round(ms.depi,  4), "sgai": round(ms.sgai, 4),
@@ -130,9 +137,9 @@ class BeneishSectorScorer(SectorScorer):
 # Factory — single scorer for all non-financial sectors
 # ---------------------------------------------------------------------------
 
-def get_scorer(sector: str) -> SectorScorer:  # noqa: ARG001
+def get_scorer(sector: str, ticker: str | None = None) -> SectorScorer:
     """
-    Return BeneishSectorScorer for any sector.
+    Return BeneishSectorScorer for any sector (the sector sets the accrual reference).
     Financial companies are excluded upstream at the CVM registry level.
     """
-    return BeneishSectorScorer()
+    return BeneishSectorScorer(setor=sector, ticker=ticker)

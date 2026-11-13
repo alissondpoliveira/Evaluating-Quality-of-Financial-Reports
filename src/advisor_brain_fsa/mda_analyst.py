@@ -69,26 +69,31 @@ DEFAULT_MODEL = "claude-opus-4-6"
 # ---------------------------------------------------------------------------
 
 _GRADE_TABLE = [
-    # (mscore_max, accrual_max, grade, label)   — non-manipulator zone only
-    (-2.50, 0.01, "A", "Qualidade exemplar — sem sinais de manipulação"),
-    (-2.20, 0.03, "B", "Boa qualidade — alertas menores, monitorar"),
-    (-1.78, 0.05, "C", "Qualidade questionável — divergências precisam de explicação"),
+    # (mscore_max, |desvio do accrual|_max, grade, label)   — non-manipulator zone only
+    # desvio = accrual ratio − mediana do setor (accruals.referencia_accrual), lido em módulo
+    (-2.50, 0.025, "A", "Qualidade exemplar — sem sinais de manipulação"),
+    (-2.20, 0.05,  "B", "Boa qualidade — alertas menores, monitorar"),
+    (-1.78, 0.10,  "C", "Qualidade questionável — divergências precisam de explicação"),
 ]
 
 
-def compute_grade(m_score: float, accrual_ratio: float) -> tuple[str, str]:
+def compute_grade(m_score: float, desvio_accrual: float) -> tuple[str, str]:
     """
-    Return (letter_grade, label) based on M-Score and accrual ratio.
+    Return (letter_grade, label) based on M-Score and the accrual deviation.
+
+    desvio_accrual = accrual ratio − mediana do setor (CashFlowQualityResult.desvio),
+    lido em módulo: lucro muito acima ou muito abaixo do caixa normal do setor pesa igual.
 
     Grading logic (deterministic — does not require the AI):
-      A  M-Score ≤ −2.50  AND  Accrual Ratio < 1%
-      B  M-Score ≤ −2.20  AND  Accrual Ratio < 3%
-      C  M-Score ≤ −1.78  AND  Accrual Ratio < 5%
-      D  M-Score > −1.78  (manipulador potencial, accruals aceitáveis)
-      F  M-Score > −1.78  AND  Accrual Ratio > 5%
+      A  M-Score ≤ −2.50  AND  |desvio| < 2,5%
+      B  M-Score ≤ −2.20  AND  |desvio| < 5%
+      C  M-Score ≤ −1.78  AND  |desvio| < 10%
+      D  M-Score > −1.78  (manipulador potencial, accruals dentro do padrão)
+      F  M-Score > −1.78  AND  |desvio| ≥ 10% (qualidade dos lucros baixa)
     """
+    desvio = abs(desvio_accrual)
     is_manipulator = m_score > -1.78
-    high_accruals  = accrual_ratio > 0.05
+    high_accruals  = desvio >= 0.10
 
     # Manipulator zone — evaluated first, independently of the table
     if is_manipulator and high_accruals:
@@ -98,7 +103,7 @@ def compute_grade(m_score: float, accrual_ratio: float) -> tuple[str, str]:
 
     # Non-manipulator zone — walk the grade table
     for mscore_max, accrual_max, grade, label in _GRADE_TABLE:
-        if m_score <= mscore_max and accrual_ratio < accrual_max:
+        if m_score <= mscore_max and desvio < accrual_max:
             return grade, label
 
     # m_score in (−2.20, −1.78] or accruals moderate
@@ -120,7 +125,8 @@ _SYSTEM_PROMPT = textwrap.dedent("""\
     - Beneish M-Score (1999): modelo probit de 8 fatores para detectar gerenciamento de
       resultados. Limiar: M > −1.78 ⟹ "zona de manipulador provável".
     - Accrual Ratio — Sloan (1996): lucros "accrual-driven" revertem; lucros "cash-driven"
-      são persistentes. Accruals elevados sinalizam baixa qualidade de earnings.
+      são persistentes. A referência é a mediana do setor, não zero (depreciação torna o
+      accrual normal negativo); desvio grande para qualquer lado sinaliza baixa qualidade.
     - IFRS 15 / CPC 47 (Receitas): critérios de reconhecimento de receita — performance
       obligations, variable consideration, bill-and-hold, channel stuffing.
     - IAS 36 / CPC 01 (Impairment): teste de recuperabilidade e subjetividade nas premissas.
@@ -223,11 +229,15 @@ class PromptBuilder:
             | Métrica            | Valor     |
             |--------------------|-----------|
             | Accrual Ratio      | {cfq_result.accrual_ratio:+.4f} |
+            | Mediana do setor   | {cfq_result.mediana_setor:+.4f} ({cfq_result.referencia}) |
+            | Desvio da mediana  | {cfq_result.desvio:+.4f} |
             | Earnings Quality   | {cfq_result.earnings_quality} |
             | Nível de Alerta    | {cfq_result.alert_level.value} |
 
-            > Um Accrual Ratio positivo e alto indica que o lucro é predominantemente
-            > "accrual-driven" — menos persistente e com maior risco de reversão futura.
+            > A qualidade se lê pelo desvio em módulo até a mediana do setor (modelo de setor,
+            > Dechow, Sloan e Sweeney, 1995): desvio positivo e alto = lucro "accrual-driven",
+            > menos persistente; desvio negativo e alto = lucro bem abaixo do caixa (baixa
+            > contábil, provisão grande, possível big bath). Faixas: < 0,05 alta; < 0,10 moderada.
             > Fórmula: (Lucro Líquido − CFO) / Ativo Total Médio.
 
             ## Red Flags Detectados (Top-3 por impacto no M-Score)
@@ -329,7 +339,7 @@ class MDAnalyst:
             )
 
         grade, grade_label = compute_grade(
-            mscore_result.m_score, cfq_result.accrual_ratio
+            mscore_result.m_score, cfq_result.desvio
         )
         user_prompt = self._builder.build(
             ticker=ticker, sector=sector, year=year,
@@ -582,7 +592,7 @@ class GeminiAnalyst:
             )
 
         grade, grade_label = compute_grade(
-            mscore_result.m_score, cfq_result.accrual_ratio
+            mscore_result.m_score, cfq_result.desvio
         )
         user_prompt = self._builder.build(
             ticker=ticker, sector=sector, year=year,

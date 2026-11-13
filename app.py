@@ -544,7 +544,7 @@ def _render_result(ticker: str, sector: str, sr, year_t: int,
     alert = sr.alert_level.value
     flags = sr.red_flags or []
 
-    grade, g_label = (compute_grade(ms.m_score, cfq.accrual_ratio)
+    grade, g_label = (compute_grade(ms.m_score, cfq.desvio)
                       if ms and cfq else ("N/D", "Dados insuficientes para análise"))
 
     m_color = _B["red"] if (ms and ms.m_score > -1.78) else _B["green"]
@@ -796,7 +796,7 @@ def _tab_analise(year_t: int) -> None:
             _, _, get_sector = _ticker_map()
             try:
                 sector = get_sector(query)
-                sr     = get_scorer(sector).score(fd_t, fd_t1)
+                sr     = get_scorer(sector, query).score(fd_t, fd_t1)
             except Exception as exc:
                 st.error(f"Erro no cálculo: {exc}")
                 st.code(traceback.format_exc())
@@ -911,7 +911,7 @@ def _run_gemini(cache: dict, key: str) -> None:
     with st.spinner("Gerando narrativa Gemini..."):
         try:
             fd_t, fd_t1 = CVMDataFetcher().get_financial_data(q, year_t=yt, year_t1=yt - 1)
-            sr          = get_scorer(sec).score(fd_t, fd_t1)
+            sr          = get_scorer(sec, q).score(fd_t, fd_t1)
             analyst     = GeminiAnalyst(api_key=key)
             report      = "".join(analyst.analyze_streaming(
                 ticker=q, sector=sec, year=yt,
@@ -969,7 +969,7 @@ def _compute_ranking(tickers: list, year_t: int) -> None:
         sector = get_sector(ticker)
         try:
             fd_t, fd_t1 = fetcher.get_financial_data(ticker, year_t=year_t, year_t1=year_t - 1)
-            sr = get_scorer(sector).score(fd_t, fd_t1)
+            sr = get_scorer(sector, ticker).score(fd_t, fd_t1)
             results.append(CompanyResult(ticker=ticker, sector=sector,
                                          year_t=year_t, sector_risk=sr))
         except Exception as exc:

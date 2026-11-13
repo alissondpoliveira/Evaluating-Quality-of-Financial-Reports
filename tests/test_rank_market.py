@@ -23,7 +23,7 @@ from advisor_brain_fsa.accruals import (
     AlertLevel,
     CashFlowQuality,
     CashFlowQualityResult,
-    _earnings_quality_label,
+    qualidade_por_desvio,
     _combine_alert,
 )
 from advisor_brain_fsa.beneish_mscore import BeneishMScore, FinancialData, MScoreResult
@@ -122,23 +122,25 @@ class TestGetSector:
 # ---------------------------------------------------------------------------
 
 class TestEarningsQualityLabel:
-    def test_below_warn_threshold_is_alta(self):
-        assert _earnings_quality_label(0.005) == "Alta"
+    """Qualidade pelo desvio até a mediana do setor, em módulo."""
+
+    def test_small_deviation_is_alta(self):
+        assert qualidade_por_desvio(0.03) == "Alta"
 
     def test_between_thresholds_is_moderada(self):
-        assert _earnings_quality_label(0.03) == "Moderada"
+        assert qualidade_por_desvio(0.07) == "Moderada"
 
-    def test_above_high_threshold_is_baixa(self):
-        assert _earnings_quality_label(0.06) == "Baixa"
+    def test_large_deviation_is_baixa(self):
+        assert qualidade_por_desvio(0.12) == "Baixa"
 
-    def test_exactly_on_warn_threshold(self):
-        assert _earnings_quality_label(0.01) == "Moderada"
+    def test_exactly_on_moderate_threshold(self):
+        assert qualidade_por_desvio(0.05) == "Moderada"
 
     def test_exactly_on_high_threshold(self):
-        assert _earnings_quality_label(0.05) == "Baixa"
+        assert qualidade_por_desvio(0.10) == "Baixa"
 
-    def test_negative_accruals_is_alta(self):
-        assert _earnings_quality_label(-0.05) == "Alta"
+    def test_negative_deviation_counts_by_magnitude(self):
+        assert qualidade_por_desvio(-0.12) == "Baixa"
 
 
 class TestCombineAlert:
@@ -177,13 +179,20 @@ class TestCashFlowQualityCalculate:
         expected = (fd_t.net_income - fd_t.cash_from_operations) / avg_assets
         assert cfq.accrual_ratio == pytest.approx(expected)
 
-    def test_negative_accruals_quality_is_alta(self):
-        # CFO >> NI → negative accruals → "Alta"
+    def test_negative_accruals_far_from_median_is_baixa(self):
+        # CFO >> NI → accrual de −0,21, longe da mediana do setor (−0,05) → "Baixa" (big bath)
         fd_t_high_cfo = _make_fd(net_income=10_000, cfo=200_000)
         fd_t1_ = _make_fd()
         ms = BeneishMScore(current=fd_t_high_cfo, prior=fd_t1_).calculate()
-        cfq = CashFlowQuality(current=fd_t_high_cfo, prior=fd_t1_).calculate(ms)
-        assert cfq.earnings_quality == "Alta"
+        cfq = CashFlowQuality(current=fd_t_high_cfo, prior=fd_t1_, mediana=-0.05).calculate(ms)
+        assert cfq.earnings_quality == "Baixa"
+        assert cfq.desvio == pytest.approx(cfq.accrual_ratio + 0.05)
+
+    def test_accrual_near_sector_median_is_alta(self):
+        fd = _make_fd(net_income=100_000, cfo=145_000)     # accrual −0,05
+        ms = BeneishMScore(current=fd, prior=_make_fd()).calculate()
+        cfq = CashFlowQuality(current=fd, prior=_make_fd(), mediana=-0.05).calculate(ms)
+        assert cfq.earnings_quality == "Alta" and cfq.referencia == "informada"
 
     def test_high_accruals_manipulator_is_critical(self):
         # NI >> CFO → high accruals; manipulator M-Score

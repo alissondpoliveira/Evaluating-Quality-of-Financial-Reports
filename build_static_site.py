@@ -161,7 +161,7 @@ def _empresa(cnpj, denom, setor, cadeia, fetcher, ltm, scorer) -> dict:
     return base
 
 
-def _qualidade_setorial(resultados: list[dict]) -> None:
+def _qualidade_setorial(resultados: list[dict]) -> dict:
     """Qualidade dos lucros pelo desvio do accrual ratio até a mediana do setor (modelo de setor,
     Dechow e Sloan, 1991), em módulo; o nível de alerta é recombinado com o M-Score.
     A mediana vem só das empresas com dado completo (sem aviso), as mesmas da posição no setor."""
@@ -178,6 +178,9 @@ def _qualidade_setorial(resultados: list[dict]) -> None:
         r["qualidade"] = accruals.qualidade_por_desvio(desvio)
         if r.get("mscore") is not None:
             r["alerta"] = accruals.combinar_alerta(r["mscore"] > _MANIPULATION_THRESHOLD, r["qualidade"]).value
+    # o que os apps (cálculo de uma empresa só) leem em accruals.referencia_accrual
+    return {"setores": {k: _r(v) for k, v in sorted(medianas.items())}, "geral": _r(geral),
+            "faixas": {"moderado": accruals.DESVIO_MODERADO, "alto": accruals.DESVIO_ALTO, "min_setor": accruals.MIN_SETOR}}
 
 
 def build(ref: date, workers: int) -> Path:
@@ -208,7 +211,7 @@ def build(ref: date, workers: int) -> Path:
     with ThreadPoolExecutor(max_workers=max(1, workers)) as pool:
         resultados = [f.result() for f in as_completed([pool.submit(trabalho, x) for x in linhas])]
     resultados.sort(key=lambda r: (r.get("risco") is None, -(r.get("risco") or 0), r["nome"]))
-    _qualidade_setorial(resultados)
+    medianas = _qualidade_setorial(resultados)
 
     agora = datetime.now(timezone(timedelta(hours=-3)))
     saida = {
@@ -218,7 +221,7 @@ def build(ref: date, workers: int) -> Path:
         "limiar": _MANIPULATION_THRESHOLD,
         "coeficientes": _COEFFICIENTS,
         "referencias_alerta": {s.attr: s.threshold for s in _INDEX_SPECS},
-        "accrual_desvio": {"moderado": accruals.DESVIO_MODERADO, "alto": accruals.DESVIO_ALTO, "min_setor": accruals.MIN_SETOR},
+        "medianas_accrual": medianas,
         "zscore": {"coeficientes": altman_zscore.COEFICIENTES, "constante": altman_zscore.CONSTANTE_EM,
                    "segura": altman_zscore.LIMIAR_SEGURA, "risco": altman_zscore.LIMIAR_RISCO},
         "empresas": resultados,
@@ -245,8 +248,8 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s", datefmt="%H:%M:%S")
     if a.so_qualidade:
         d = json.loads(_SAIDA.read_text(encoding="utf-8"))
-        _qualidade_setorial(d["empresas"])
-        d["accrual_desvio"] = {"moderado": accruals.DESVIO_MODERADO, "alto": accruals.DESVIO_ALTO, "min_setor": accruals.MIN_SETOR}
+        d.pop("accrual_desvio", None)
+        d["medianas_accrual"] = _qualidade_setorial(d["empresas"])
         _SAIDA.write_text(json.dumps(d, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
         sys.exit(0)
     build(date(a.year, 12, 31) if a.year else (date.fromisoformat(a.ate) if a.ate else None), a.workers)

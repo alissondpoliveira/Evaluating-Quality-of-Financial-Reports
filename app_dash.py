@@ -708,7 +708,7 @@ def _render_result_layout(ticker, sector, sr: SectorRiskResult, year_t,
 
     # ── Cabeçalho ──────────────────────────────────────────────────────────
     if ms and cfq:
-        grade, g_label = compute_grade(ms.m_score, cfq.accrual_ratio)
+        grade, g_label = compute_grade(ms.m_score, cfq.desvio)
     else:
         grade, g_label = "N/D", "Dados insuficientes para análise"
     header = html.Div([
@@ -806,7 +806,7 @@ def _run_analysis(n, ticker_sel, cnpj, year_t, cache):
                 no_update, no_update, no_update)
     try:
         sector = get_sector(query)
-        sr     = get_scorer(sector).score(fd_t, fd_t1)
+        sr     = get_scorer(sector, query).score(fd_t, fd_t1)
 
         # Persiste no Store para o botão Gemini não perder o estado
         new_cache = {"query": query, "sector": sector, "year_t": year_t,
@@ -933,7 +933,7 @@ def _run_gemini(n, cache, year_t):
     try:
         fetcher = CVMDataFetcher()
         fd_t, fd_t1 = fetcher.get_financial_data(query, year_t=year_t, year_t1=year_t-1)
-        sr = get_scorer(sector).score(fd_t, fd_t1)
+        sr = get_scorer(sector, query).score(fd_t, fd_t1)
     except Exception as exc:
         return html.Div(f"Erro ao recarregar dados: {exc}",
                         style={"color":_B["red"],"fontFamily":_B["mono"]})
@@ -1124,7 +1124,7 @@ def _run_ranking(n, tickers, year_t):
         sector = get_sector(ticker)
         try:
             fd_t, fd_t1 = fetcher.get_financial_data(ticker, year_t=year_t, year_t1=year_t-1)
-            sr = _gs(sector).score(fd_t, fd_t1)
+            sr = _gs(sector, ticker).score(fd_t, fd_t1)
             results.append(CompanyResult(ticker=ticker, sector=sector,
                                          year_t=year_t, sector_risk=sr))
         except Exception as exc:

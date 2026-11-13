@@ -44,3 +44,30 @@ def test_qualidade_setorial_no_lote():
     assert emp[10]["qualidade"] == "Baixa" and emp[10]["alerta"] == "Crítico"
     assert emp[10]["accrual_setor"]["grupo"] == "A" and emp[10]["accrual_setor"]["n"] == 11
     assert emp[11]["accrual_setor"]["grupo"] == "" and emp[11]["qualidade"] == "Moderada"   # 0,02 − (−0,05) = 0,07
+
+
+def test_referencia_pelo_ticker_e_pelo_setor(tmp_path, monkeypatch):
+    import json
+
+    from advisor_brain_fsa import accruals
+
+    arq = tmp_path / "dados.json"
+    arq.write_text(json.dumps({
+        "medianas_accrual": {"setores": {"Transporte": -0.05}, "geral": -0.04},
+        "empresas": [{"ticker": "MOVI3", "accrual_setor": {"mediana": -0.05, "grupo": "Transporte"}}],
+    }), encoding="utf-8")
+    monkeypatch.setattr(accruals, "_ARQUIVO_MEDIANAS", arq)
+    assert accruals.referencia_accrual("Locação", "MOVI3") == (-0.05, "Transporte")   # ticker vence o setor
+    assert accruals.referencia_accrual("Transporte") == (-0.05, "Transporte")
+    assert accruals.referencia_accrual("Locação") == (-0.04, "amostra toda")
+    monkeypatch.setattr(accruals, "_ARQUIVO_MEDIANAS", tmp_path / "nao_existe.json")
+    assert accruals.referencia_accrual("Transporte") == (accruals.MEDIANA_PADRAO, "padrão")
+
+
+def test_nota_pelo_desvio():
+    from advisor_brain_fsa.mda_analyst import compute_grade
+
+    assert compute_grade(-3.0, 0.01)[0] == "A"
+    assert compute_grade(-3.0, -0.04)[0] == "B"
+    assert compute_grade(-2.0, -0.08)[0] == "C"
+    assert compute_grade(-1.0, -0.30)[0] == "F"     # big bath com M-Score acima do limiar
