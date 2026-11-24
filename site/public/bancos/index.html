@@ -208,7 +208,7 @@ document.getElementById('tema').onclick = () => { const r = document.documentEle
   r.dataset.theme = escuro ? 'light' : 'dark'; try { localStorage.setItem('tema', r.dataset.theme); } catch(e) {} };
 
 // versão em inglês (site/public/en): meses e datas no formato de lá; TD troca valores dos dados (window.TRD, ver i18n.py)
-const EN = document.documentElement.lang === 'en', TD = v => (window.TRD && window.TRD[v]) || v;
+const TD = v => (window.TRD && window.TRD[v]) || v;
 const MESES = EN ? ['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'] : ['','jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 const dataBR = s => { const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(s || ''); return EN && m ? MESES[+m[2]]+' '+(+m[1])+', '+m[3] : s; };
 fetch('/bancos.json', {cache:'no-cache'}).then(r => r.json()).then(iniciar).catch(() => { document.getElementById('topoData').textContent = 'falha ao carregar os dados; recarregue a página'; });
