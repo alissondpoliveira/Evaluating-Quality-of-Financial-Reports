@@ -665,7 +665,7 @@ function iniciar(D){
     if (x.fin) {
       const C = [['ativo_total','Ativo total'],['patrimonio_liquido','Patrimônio líquido'],['depositos','Depósitos'],['credito_bruto','Operações de crédito (bruto)'],['pagamentos_pos_bruto','Cartão pós-pago (bruto)'],['carteira_total','Carteira de crédito ativa'],['ativos_problematicos','Ativos problemáticos'],['inadimplencia','Inadimplência'],['perda_esperada_credito','Despesa de perda esperada de crédito'],['resultado_intermediacao','Resultado de intermediação financeira'],['resultado_antes_ir','Resultado antes de impostos'],['lucro_liquido','Lucro líquido']];
       h += '<h3>Números de base</h3><p class="pequeno fraco" style="margin-top:0">R$ milhões. Resultado acumulado no '+per+'.</p>'
-        + tabela(['Conta', T, T1, 'Variação'], C.map(([k, n]) => { const a = x.fin.t[k], b = x.fin.t1[k], vr = b ? (a/b-1)*100 : null; return '<tr><td class="t">'+n+'</td><td>'+fmt(a==null?null:a/1e6,0)+'</td><td>'+fmt(b==null?null:b/1e6,0)+'</td><td>'+(vr==null||!isFinite(vr)||Math.sign(a)!==Math.sign(b)?'–':(vr>0?'+':'')+fmt(vr,1)+'%')+'</td></tr>'; }).join(''));
+        + tabela(['Conta', T, T1, 'Variação'], C.map(([k, n]) => { const a = x.fin.t[k], b = x.fin.t1[k], vr = b ? (a/b-1)*100 : null; return '<tr><td class="t">'+n+'</td><td>'+fmt(a==null?null:a/1e6,2)+'</td><td>'+fmt(b==null?null:b/1e6,2)+'</td><td>'+(vr==null||!isFinite(vr)||Math.sign(a)!==Math.sign(b)?'–':(vr>0?'+':'')+fmt(vr,1)+'%')+'</td></tr>'; }).join(''));
     }
     document.getElementById('gCorpo').innerHTML = h;
     gav.hidden = false; requestAnimationFrame(() => document.body.classList.add('aberta')); document.getElementById('gFechar').focus({preventScroll:true});

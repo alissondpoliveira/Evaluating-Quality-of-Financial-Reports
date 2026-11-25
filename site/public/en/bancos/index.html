@@ -291,7 +291,7 @@ function iniciar(D){
     if (x.fin) {
       const C = [['ativo_total','Total assets'],['patrimonio_liquido','Shareholders\' equity'],['depositos','Deposits'],['credito_bruto','Credit operations (gross)'],['pagamentos_pos_bruto','Postpaid card (gross)'],['carteira_total','Active credit portfolio'],['ativos_problematicos','Problem assets'],['inadimplencia','Delinquency'],['perda_esperada_credito','Expected credit loss expense'],['resultado_intermediacao','Net income from financial intermediation'],['resultado_antes_ir','Income before taxes'],['lucro_liquido','Net income']];
       h += '<h3>Base figures</h3><p class="pequeno fraco" style="margin-top:0">R$ million. Cumulative result for the '+per+'.</p>'
-        + tabela(['Account', T, T1, 'Change'], C.map(([k, n]) => { const a = x.fin.t[k], b = x.fin.t1[k], vr = b ? (a/b-1)*100 : null; return '<tr><td class="t">'+n+'</td><td>'+fmt(a==null?null:a/1e6,0)+'</td><td>'+fmt(b==null?null:b/1e6,0)+'</td><td>'+(vr==null||!isFinite(vr)||Math.sign(a)!==Math.sign(b)?'–':(vr>0?'+':'')+fmt(vr,1)+'%')+'</td></tr>'; }).join(''));
+        + tabela(['Account', T, T1, 'Change'], C.map(([k, n]) => { const a = x.fin.t[k], b = x.fin.t1[k], vr = b ? (a/b-1)*100 : null; return '<tr><td class="t">'+n+'</td><td>'+fmt(a==null?null:a/1e6,2)+'</td><td>'+fmt(b==null?null:b/1e6,2)+'</td><td>'+(vr==null||!isFinite(vr)||Math.sign(a)!==Math.sign(b)?'–':(vr>0?'+':'')+fmt(vr,1)+'%')+'</td></tr>'; }).join(''));
     }
     document.getElementById('gCorpo').innerHTML = h;
     gav.hidden = false; requestAnimationFrame(() => document.body.classList.add('aberta')); document.getElementById('gFechar').focus({preventScroll:true});
