@@ -176,6 +176,7 @@ const perLongo = p => p.ltm ? '12 months through '+mesAno(p.fim)+' against 12 mo
 const perCurto = (p, ant) => { const s = ant ? p.fim_ant : p.fim; return p.ltm ? '12m through '+mesAno(s) : s.slice(0,4); };
 const maiusc = t => t.charAt(0).toUpperCase()+t.slice(1);
 const esc = t => String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+const mi = v => v==null ? null : v/1e3; // contas da CVM em R$ mil → R$ milhões
 const semA = t => String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const tip = document.getElementById('tip');
 const mostrar = (e, h) => { tip.innerHTML = h; tip.style.display = 'block'; mover(e); };
@@ -360,17 +361,17 @@ function iniciar(D, EV){
           const faixa = mdv == null ? '' : mdv < 0.05 ? 'below 0.05: high quality' : mdv < 0.10 ? 'from 0.05 to 0.10: moderate quality' : 'from 0.10 on: low quality';
           const grupoTxt = sa ? (sa.grupo ? esc(sa.grupo) : 'full sample')+', '+sa.n+' companies' : '';
           return '<h3>How we arrived at earnings quality '+infoBtn('qualidade')+'</h3><div class="tabela" style="max-height:none;border:1px solid var(--line);border-radius:8px"><table><tbody>'
-            + '<tr><td class="t">Net income, '+perCurto(pe)+' (DRE 3.11)</td><td>'+fmt(t.net_income,0)+'</td></tr>'
-            + '<tr><td class="t">(−) Operating cash, '+perCurto(pe)+' (DFC 6.01)</td><td>'+fmt(t.cash_from_operations,0)+'</td></tr>'
-            + '<tr><td class="t"><b>(=) Accruals</b>: earnings that didn\'t pass through cash</td><td><b>'+fmt(acc,0)+'</b></td></tr>'
-            + '<tr><td class="t">(÷) Average total assets ('+fmt(t.total_assets,0)+' e '+fmt(t1.total_assets,0)+')</td><td>'+fmt(at,0)+'</td></tr>'
+            + '<tr><td class="t">Net income, '+perCurto(pe)+' (DRE 3.11)</td><td>'+fmt(mi(t.net_income),2)+'</td></tr>'
+            + '<tr><td class="t">(−) Operating cash, '+perCurto(pe)+' (DFC 6.01)</td><td>'+fmt(mi(t.cash_from_operations),2)+'</td></tr>'
+            + '<tr><td class="t"><b>(=) Accruals</b>: earnings that didn\'t pass through cash</td><td><b>'+fmt(mi(acc),2)+'</b></td></tr>'
+            + '<tr><td class="t">(÷) Average total assets ('+fmt(mi(t.total_assets),2)+' e '+fmt(mi(t1.total_assets),2)+')</td><td>'+fmt(mi(at),2)+'</td></tr>'
             + '<tr><td class="t"><b>(=) Accrual ratio</b></td><td><b>'+fmt(r,3)+'</b></td></tr>'
             + (sa ? '<tr><td class="t">(−) Sector median '+infoBtn('setor')+' ('+grupoTxt+')</td><td>'+fmt(sa.mediana,3)+'</td></tr>'
               + '<tr><td class="t"><b>(=) Deviation from the median</b>: quality is read by its absolute value</td><td><b>'+(dv > 0 ? '+' : '')+fmt(dv,3)+'</b></td></tr>' : '')
             + '</tbody></table></div>'
             + '<p class="pequeno fraco">'+(acc < 0 ? 'Operating cash flow exceeded earnings. ' : '')
             + (sa ? 'Absolute deviation '+faixa+'. '+(mdv < 0.05 ? 'The accrual is close to the sector norm. ' : dv > 0 ? 'Earnings were above cash by more than is normal for the sector: part of the result depends on entries that have not yet turned into cash. ' : 'Earnings were below cash by more than is normal for the sector: it can be a write-off, a large provision, or a prepaid expense, which tend to relieve future earnings. ') : '')
-            + 'Values on the scale published by the company (generally, R$ thousand).</p>'; })()
+            + 'R$ million when the company reports in R$ thousand, which is the usual case.</p>'; })()
       + '<h3>Formation of the M-Score '+infoBtn('contrib')+'</h3><svg id="contrib" role="img" aria-label="Contribution of each index to the M-Score"></svg>'
       + '<h3>The eight indices</h3><div class="tabela" style="max-height:none;border:1px solid var(--line);border-radius:8px"><table><thead><tr><th class="t">Index</th><th>Value</th><th>Alert reference</th><th>In the sector '+infoBtn('setor')+'</th><th>Contribution</th></tr></thead><tbody>'
       + ix.map(k => { const v = e.indices[k], sinal = v!=null && v > ref[k]; return '<tr><td class="t"><b>'+k.toUpperCase()+'</b> '+infoBtn(k)+'<br><span class="fraco">'+NOMES[k]+'</span></td><td>'+fmt(v, k==='tata'?4:3)+(sinal?' <span class="av" title="above the reference">▲</span>':'')+'</td><td>'+fmt(ref[k], k==='tata'?3:3)+'</td><td>'+pTxt(posicao(e, k))+'</td><td>'+(e.contrib[k]>0?'+':'')+fmt(e.contrib[k],3)+'</td></tr>'; }).join('')
@@ -389,9 +390,9 @@ function iniciar(D, EV){
       + (() => { const ev = EVE[e.cnpj] || []; if (!EV || !EV.classificados) return '';
           return '<h3>Events in documents (JEV) '+infoBtn('jev')+'</h3>' + (ev.length ? '<ul class="pequeno" style="padding-left:1.1rem;margin:.2rem 0">'+ev.map(x => '<li><span class="fraco">'+x.data.split('-').reverse().join('/')+'</span> <b>'+NOME_EV[x.evento]+'</b>: <a href="'+esc(x.url)+'" target="_blank" rel="noopener">'+esc(x.titulo)+'</a> <span class="fraco">('+x.categoria.toLowerCase()+', confidence '+fmt(x.confianca,2)+(x.base==='titulo'?', sorted by title':'')+')</span></li>').join('')+'</ul>' : '<p class="pequeno muted">No events of this type in the material facts and communications from the last 12 months.</p>')
             + '<p class="pequeno fraco">Automatic classification by JEV; read the original document. Does not change the M-Score.</p>'; })()
-      + '<h3>Base figures</h3><p class="pequeno fraco" style="margin-top:0">'+(e.individual ? 'Individual financial statements'+(pe.ltm ? '' : ' from the DFP')+(e.individual.length===1 ? ' in '+e.individual[0] : '')+': the company does not publish consolidated statements with values (generally because it has no subsidiaries). ' : pe.ltm ? 'Consolidated financial statements. ' : 'Consolidated financial statements from the DFP. ')+(pe.ltm ? 'Earnings and cash add up the last 12 months (quarterly ITR plus prior fiscal year DFP); balance sheet accounts are as of the end of the quarter. ' : '')+'Scale published by the company (generally, R$ thousand).</p>'
+      + '<h3>Base figures</h3><p class="pequeno fraco" style="margin-top:0">'+(e.individual ? 'Individual financial statements'+(pe.ltm ? '' : ' from the DFP')+(e.individual.length===1 ? ' in '+e.individual[0] : '')+': the company does not publish consolidated statements with values (generally because it has no subsidiaries). ' : pe.ltm ? 'Consolidated financial statements. ' : 'Consolidated financial statements from the DFP. ')+(pe.ltm ? 'Earnings and cash add up the last 12 months (quarterly ITR plus prior fiscal year DFP); balance sheet accounts are as of the end of the quarter. ' : '')+'R$ million when the company reports in R$ thousand, which is the usual case.</p>'
       + '<div class="tabela" style="max-height:none;border:1px solid var(--line);border-radius:8px"><table><thead><tr><th class="t">Account</th><th>'+perCurto(pe)+'</th><th>'+perCurto(pe, true)+'</th><th>Change</th></tr></thead><tbody>'
-      + CAMPOS.map(([k, n]) => { const a = e.fin.t[k], b = e.fin.t1[k], vr = b ? (a/b-1)*100 : null; return '<tr><td class="t">'+n+'</td><td>'+fmt(a,0)+'</td><td>'+fmt(b,0)+'</td><td>'+(vr==null||!isFinite(vr)?'–':(vr>0?'+':'')+fmt(vr,1)+'%')+'</td></tr>'; }).join('')
+      + CAMPOS.map(([k, n]) => { const a = e.fin.t[k], b = e.fin.t1[k], vr = b ? (a/b-1)*100 : null; return '<tr><td class="t">'+n+'</td><td>'+fmt(mi(a),2)+'</td><td>'+fmt(mi(b),2)+'</td><td>'+(vr==null||!isFinite(vr)?'–':(vr>0?'+':'')+fmt(vr,1)+'%')+'</td></tr>'; }).join('')
       + '</tbody></table></div>';
     desenharContrib(e);
     gav.hidden = false; requestAnimationFrame(() => document.body.classList.add('aberta')); document.getElementById('gFechar').focus({preventScroll:true});
