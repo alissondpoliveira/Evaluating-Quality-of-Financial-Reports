@@ -199,6 +199,7 @@ const perLongo = p => p.ltm ? '12 meses até '+mesAno(p.fim)+' contra 12 meses a
 const perCurto = (p, ant) => { const s = ant ? p.fim_ant : p.fim; return p.ltm ? '12m até '+mesAno(s) : s.slice(0,4); };
 const maiusc = t => t.charAt(0).toUpperCase()+t.slice(1);
 const esc = t => String(t ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+const mi = v => v==null ? null : v/1e3; // contas da CVM em R$ mil → R$ milhões
 const semA = t => String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const tip = document.getElementById('tip');
 const mostrar = (e, h) => { tip.innerHTML = h; tip.style.display = 'block'; mover(e); };
@@ -383,17 +384,17 @@ function iniciar(D, EV){
           const faixa = mdv == null ? '' : mdv < 0.05 ? 'abaixo de 0,05: qualidade alta' : mdv < 0.10 ? 'de 0,05 até 0,10: qualidade moderada' : 'a partir de 0,10: qualidade baixa';
           const grupoTxt = sa ? (sa.grupo ? esc(sa.grupo) : 'amostra toda')+', '+sa.n+' empresas' : '';
           return '<h3>Como chegamos na qualidade dos lucros '+infoBtn('qualidade')+'</h3><div class="tabela" style="max-height:none;border:1px solid var(--line);border-radius:8px"><table><tbody>'
-            + '<tr><td class="t">Lucro líquido, '+perCurto(pe)+' (DRE 3.11)</td><td>'+fmt(t.net_income,0)+'</td></tr>'
-            + '<tr><td class="t">(−) Caixa das operações, '+perCurto(pe)+' (DFC 6.01)</td><td>'+fmt(t.cash_from_operations,0)+'</td></tr>'
-            + '<tr><td class="t"><b>(=) Accruals</b>: lucro que não passou pelo caixa</td><td><b>'+fmt(acc,0)+'</b></td></tr>'
-            + '<tr><td class="t">(÷) Ativo total médio ('+fmt(t.total_assets,0)+' e '+fmt(t1.total_assets,0)+')</td><td>'+fmt(at,0)+'</td></tr>'
+            + '<tr><td class="t">Lucro líquido, '+perCurto(pe)+' (DRE 3.11)</td><td>'+fmt(mi(t.net_income),2)+'</td></tr>'
+            + '<tr><td class="t">(−) Caixa das operações, '+perCurto(pe)+' (DFC 6.01)</td><td>'+fmt(mi(t.cash_from_operations),2)+'</td></tr>'
+            + '<tr><td class="t"><b>(=) Accruals</b>: lucro que não passou pelo caixa</td><td><b>'+fmt(mi(acc),2)+'</b></td></tr>'
+            + '<tr><td class="t">(÷) Ativo total médio ('+fmt(mi(t.total_assets),2)+' e '+fmt(mi(t1.total_assets),2)+')</td><td>'+fmt(mi(at),2)+'</td></tr>'
             + '<tr><td class="t"><b>(=) Accrual ratio</b></td><td><b>'+fmt(r,3)+'</b></td></tr>'
             + (sa ? '<tr><td class="t">(−) Mediana do setor '+infoBtn('setor')+' ('+grupoTxt+')</td><td>'+fmt(sa.mediana,3)+'</td></tr>'
               + '<tr><td class="t"><b>(=) Desvio da mediana</b>: a qualidade se lê pelo módulo</td><td><b>'+(dv > 0 ? '+' : '')+fmt(dv,3)+'</b></td></tr>' : '')
             + '</tbody></table></div>'
             + '<p class="pequeno fraco">'+(acc < 0 ? 'O caixa das operações superou o lucro. ' : '')
             + (sa ? 'Desvio em módulo '+faixa+'. '+(mdv < 0.05 ? 'O accrual está perto do normal do setor. ' : dv > 0 ? 'O lucro ficou acima do caixa mais do que é normal no setor: parte do resultado depende de lançamentos que ainda não viraram caixa. ' : 'O lucro ficou abaixo do caixa mais do que é normal no setor: pode ser baixa contábil, provisão grande ou despesa antecipada, que tendem a aliviar lucros futuros. ') : '')
-            + 'Valores na escala publicada pela companhia (em geral, R$ mil).</p>'; })()
+            + 'R$ milhões quando a companhia publica em R$ mil, que é o caso geral.</p>'; })()
       + '<h3>Formação do M-Score '+infoBtn('contrib')+'</h3><svg id="contrib" role="img" aria-label="Contribuição de cada índice para o M-Score"></svg>'
       + '<h3>Os oito índices</h3><div class="tabela" style="max-height:none;border:1px solid var(--line);border-radius:8px"><table><thead><tr><th class="t">Índice</th><th>Valor</th><th>Referência de alerta</th><th>No setor '+infoBtn('setor')+'</th><th>Contribuição</th></tr></thead><tbody>'
       + ix.map(k => { const v = e.indices[k], sinal = v!=null && v > ref[k]; return '<tr><td class="t"><b>'+k.toUpperCase()+'</b> '+infoBtn(k)+'<br><span class="fraco">'+NOMES[k]+'</span></td><td>'+fmt(v, k==='tata'?4:3)+(sinal?' <span class="av" title="acima da referência">▲</span>':'')+'</td><td>'+fmt(ref[k], k==='tata'?3:3)+'</td><td>'+pTxt(posicao(e, k))+'</td><td>'+(e.contrib[k]>0?'+':'')+fmt(e.contrib[k],3)+'</td></tr>'; }).join('')
@@ -412,9 +413,9 @@ function iniciar(D, EV){
       + (() => { const ev = EVE[e.cnpj] || []; if (!EV || !EV.classificados) return '';
           return '<h3>Eventos nos documentos (JEV) '+infoBtn('jev')+'</h3>' + (ev.length ? '<ul class="pequeno" style="padding-left:1.1rem;margin:.2rem 0">'+ev.map(x => '<li><span class="fraco">'+x.data.split('-').reverse().join('/')+'</span> <b>'+NOME_EV[x.evento]+'</b>: <a href="'+esc(x.url)+'" target="_blank" rel="noopener">'+esc(x.titulo)+'</a> <span class="fraco">('+x.categoria.toLowerCase()+', confiança '+fmt(x.confianca,2)+(x.base==='titulo'?', classificado pelo título':'')+')</span></li>').join('')+'</ul>' : '<p class="pequeno muted">Nenhum evento desse tipo nos fatos relevantes e comunicados dos últimos 12 meses.</p>')
             + '<p class="pequeno fraco">Classificação automática pelo JEV; leia o documento original. Não altera o M-Score.</p>'; })()
-      + '<h3>Números de base</h3><p class="pequeno fraco" style="margin-top:0">'+(e.individual ? 'Demonstrações individuais'+(pe.ltm ? '' : ' da DFP')+(e.individual.length===1 ? ' em '+e.individual[0] : '')+': a companhia não publica consolidado com valores (em geral, por não ter controladas). ' : pe.ltm ? 'Demonstrações consolidadas. ' : 'Demonstrações consolidadas da DFP. ')+(pe.ltm ? 'Resultado e caixa somam os últimos 12 meses (ITR do trimestre mais DFP do exercício anterior); as contas de balanço são as do fim do trimestre. ' : '')+'Escala publicada pela companhia (em geral, R$ mil).</p>'
+      + '<h3>Números de base</h3><p class="pequeno fraco" style="margin-top:0">'+(e.individual ? 'Demonstrações individuais'+(pe.ltm ? '' : ' da DFP')+(e.individual.length===1 ? ' em '+e.individual[0] : '')+': a companhia não publica consolidado com valores (em geral, por não ter controladas). ' : pe.ltm ? 'Demonstrações consolidadas. ' : 'Demonstrações consolidadas da DFP. ')+(pe.ltm ? 'Resultado e caixa somam os últimos 12 meses (ITR do trimestre mais DFP do exercício anterior); as contas de balanço são as do fim do trimestre. ' : '')+'R$ milhões quando a companhia publica em R$ mil, que é o caso geral.</p>'
       + '<div class="tabela" style="max-height:none;border:1px solid var(--line);border-radius:8px"><table><thead><tr><th class="t">Conta</th><th>'+perCurto(pe)+'</th><th>'+perCurto(pe, true)+'</th><th>Variação</th></tr></thead><tbody>'
-      + CAMPOS.map(([k, n]) => { const a = e.fin.t[k], b = e.fin.t1[k], vr = b ? (a/b-1)*100 : null; return '<tr><td class="t">'+n+'</td><td>'+fmt(a,0)+'</td><td>'+fmt(b,0)+'</td><td>'+(vr==null||!isFinite(vr)?'–':(vr>0?'+':'')+fmt(vr,1)+'%')+'</td></tr>'; }).join('')
+      + CAMPOS.map(([k, n]) => { const a = e.fin.t[k], b = e.fin.t1[k], vr = b ? (a/b-1)*100 : null; return '<tr><td class="t">'+n+'</td><td>'+fmt(mi(a),2)+'</td><td>'+fmt(mi(b),2)+'</td><td>'+(vr==null||!isFinite(vr)?'–':(vr>0?'+':'')+fmt(vr,1)+'%')+'</td></tr>'; }).join('')
       + '</tbody></table></div>';
     desenharContrib(e);
     gav.hidden = false; requestAnimationFrame(() => document.body.classList.add('aberta')); document.getElementById('gFechar').focus({preventScroll:true});
