@@ -428,13 +428,14 @@ class GeminiAnalyst:
     api_key : str | None
         Google API key. Falls back to GOOGLE_API_KEY environment variable.
     model : str
-        Gemini model ID. Defaults to gemini-2.5-flash.
+        Gemini model ID. Defaults to GEMINI_MODEL env var, or gemini-3.8-flash.
     cache_dir : Path | str | None
         Directory for persisted AI report cache.
         Defaults to ``data/ai_reports/`` relative to the project root.
     """
 
-    DEFAULT_MODEL = "gemini-2.5-flash"
+    # 27/11/2026: gemini-2.5-flash/2.0-flash are no longer available to new API keys.
+    DEFAULT_MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
     _DEFAULT_CACHE = Path(__file__).resolve().parent.parent.parent / "data" / "ai_reports"
 
     def __init__(

@@ -1046,7 +1046,7 @@ def _render_company_summary(profile):
     try:
         import google.generativeai as genai  # type: ignore
         genai.configure(api_key=key)
-        model    = genai.GenerativeModel("gemini-2.0-flash")
+        model    = genai.GenerativeModel(os.environ.get("GEMINI_MODEL", "gemini-3.8-flash"))
         response = model.generate_content(prompt)
         desc_text = response.text.strip()
     except Exception as exc:

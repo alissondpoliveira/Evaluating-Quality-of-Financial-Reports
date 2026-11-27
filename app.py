@@ -887,7 +887,7 @@ def _render_company_ai_desc(profile: dict) -> None:
     try:
         import google.generativeai as genai
         genai.configure(api_key=key)
-        resp = genai.GenerativeModel("gemini-2.0-flash").generate_content(prompt)
+        resp = genai.GenerativeModel(os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")).generate_content(prompt)
         desc = resp.text.strip()
         if desc:
             st.markdown(
